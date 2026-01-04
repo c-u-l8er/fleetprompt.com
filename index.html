@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>FleetPrompt - Chat to Deploy AI Agents</title>
+        <meta
+            name="description"
+            content="Chat with FleetPrompt to build and deploy AI agent fleets. Natural language interface to the most powerful agent platform."
+        />
+
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes typing {
+                0%,
+                100% {
+                    opacity: 0.3;
+                }
+                50% {
+                    opacity: 1;
+                }
+            }
+
+            .message-fade-in {
+                animation: fadeIn 0.3s ease-out;
+            }
+
+            .typing-indicator span {
+                animation: typing 1.4s infinite;
+            }
+
+            .typing-indicator span:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+
+            .typing-indicator span:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+
+            .gradient-text {
+                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+
+            .chat-scroll {
+                scrollbar-width: thin;
+                scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+            }
+
+            .chat-scroll::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .chat-scroll::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .chat-scroll::-webkit-scrollbar-thumb {
+                background-color: rgba(99, 102, 241, 0.3);
+                border-radius: 20px;
+            }
+
+            /* Code block styling */
+            .code-block {
+                background: #1e293b;
+                border-radius: 8px;
+                padding: 1rem;
+                margin: 0.5rem 0;
+                overflow-x: auto;
+            }
+
+            .code-block code {
+                color: #e2e8f0;
+                font-family: "Monaco", "Courier New", monospace;
+                font-size: 0.875rem;
+            }
+        </style>
+    </head>
+    <body class="bg-slate-900 text-white h-screen overflow-hidden">
+        <!-- Header -->
+        <header class="bg-slate-800 border-b border-slate-700">
+            <div
+                class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between"
+            >
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">⚡</span>
+                    <span class="text-xl font-bold gradient-text"
+                        >FleetPrompt</span
+                    >
+                </div>
+                <div class="flex items-center gap-4">
+                    <a
+                        href="#docs"
+                        class="text-sm text-slate-400 hover:text-white transition"
+                        >Docs</a
+                    >
+                    <a
+                        href="#pricing"
+                        class="text-sm text-slate-400 hover:text-white transition"
+                        >Pricing</a
+                    >
+                    <button
+                        class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg text-sm font-semibold hover:shadow-lg transition"
+                    >
+                        Sign In
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Chat Interface -->
+        <div class="h-[calc(100vh-61px)] flex">
+            <!-- Sidebar (optional - could hide on mobile) -->
+            <aside
+                class="w-64 bg-slate-800 border-r border-slate-700 hidden md:flex flex-col"
+            >
+                <div class="p-4 border-b border-slate-700">
+                    <h3
+                        class="text-sm font-semibold text-slate-400 uppercase tracking-wide"
+                    >
+                        Quick Actions
+                    </h3>
+                </div>
+                <nav class="flex-1 p-4 space-y-2">
+                    <button
+                        class="w-full text-left px-3 py-2 rounded hover:bg-slate-700 transition text-sm flex items-center gap-2"
+                    >
+                        <span>🚀</span>
+                        <span>Deploy Agent</span>
+                    </button>
+                    <button
+                        class="w-full text-left px-3 py-2 rounded hover:bg-slate-700 transition text-sm flex items-center gap-2"
+                    >
+                        <span>📦</span>
+                        <span>Browse Packages</span>
+                    </button>
+                    <button
+                        class="w-full text-left px-3 py-2 rounded hover:bg-slate-700 transition text-sm flex items-center gap-2"
+                    >
+                        <span>💡</span>
+                        <span>See Examples</span>
+                    </button>
+                    <button
+                        class="w-full text-left px-3 py-2 rounded hover:bg-slate-700 transition text-sm flex items-center gap-2"
+                    >
+                        <span>📊</span>
+                        <span>View Dashboard</span>
+                    </button>
+                </nav>
+                <div class="p-4 border-t border-slate-700">
+                    <div class="text-xs text-slate-500 space-y-1">
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-2 h-2 bg-green-500 rounded-full"
+                            ></div>
+                            <span>All systems operational</span>
+                        </div>
+                        <div>10,247 agents running</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="flex-1 flex flex-col bg-slate-900">
+                <!-- Messages Container -->
+                <div
+                    id="messages"
+                    class="flex-1 overflow-y-auto chat-scroll px-4 py-8"
+                    style="scroll-behavior: smooth"
+                >
+                    <div class="max-w-3xl mx-auto space-y-6">
+                        <!-- Welcome Message -->
+                        <div class="message-fade-in">
+                            <div class="flex gap-3 items-start">
+                                <div
+                                    class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0"
+                                >
+                                    ⚡
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-sm text-slate-400 mb-1">
+                                        FleetPrompt
+                                    </div>
+                                    <div
+                                        class="bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3"
+                                    >
+                                        <p class="leading-relaxed">
+                                            Welcome to
+                                            <span
+                                                class="font-semibold gradient-text"
+                                                >FleetPrompt</span
+                                            >! 👋
+                                        </p>
+                                        <p class="leading-relaxed mt-2">
+                                            I can help you build and deploy AI
+                                            agent fleets in minutes. You can:
+                                        </p>
+                                        <ul
+                                            class="mt-2 space-y-1 text-slate-300"
+                                        >
+                                            <li>
+                                                • Deploy pre-built packages
+                                                (field service, customer
+                                                support, sales)
+                                            </li>
+                                            <li>
+                                                • Create custom agents from
+                                                scratch
+                                            </li>
+                                            <li>
+                                                • Build workflows with multiple
+                                                agents
+                                            </li>
+                                            <li>
+                                                • Browse the agent marketplace
+                                            </li>
+                                        </ul>
+                                        <p class="leading-relaxed mt-3">
+                                            Try asking:
+                                            <span class="italic text-indigo-400"
+                                                >"Show me field service
+                                                packages"</span
+                                            >
+                                            or
+                                            <span class="italic text-indigo-400"
+                                                >"Create a customer support
+                                                agent"</span
+                                            >
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Example: User Message -->
+                        <div class="message-fade-in">
+                            <div class="flex gap-3 items-start justify-end">
+                                <div class="flex-1 flex justify-end">
+                                    <div
+                                        class="bg-indigo-600 rounded-2xl rounded-tr-sm px-4 py-3 max-w-lg"
+                                    >
+                                        <p class="leading-relaxed">
+                                            Show me how to deploy a field
+                                            service agent
+                                        </p>
+                                    </div>
+                                </div>
+                                <div
+                                    class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0"
+                                >
+                                    👤
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Example: Assistant Response with Code -->
+                        <div class="message-fade-in">
+                            <div class="flex gap-3 items-start">
+                                <div
+                                    class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0"
+                                >
+                                    ⚡
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-sm text-slate-400 mb-1">
+                                        FleetPrompt
+                                    </div>
+                                    <div
+                                        class="bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3"
+                                    >
+                                        <p class="leading-relaxed mb-3">
+                                            Great! The
+                                            <span
+                                                class="font-semibold text-indigo-400"
+                                                >Field Service Management</span
+                                            >
+                                            package includes:
+                                        </p>
+
+                                        <div class="space-y-2 mb-3">
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
+                                                <span class="text-green-400"
+                                                    >✓</span
+                                                >
+                                                <span
+                                                    >Dispatcher Agent
+                                                    (intelligent
+                                                    scheduling)</span
+                                                >
+                                            </div>
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
+                                                <span class="text-green-400"
+                                                    >✓</span
+                                                >
+                                                <span
+                                                    >Customer Service Agent
+                                                    (automated
+                                                    communication)</span
+                                                >
+                                            </div>
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
+                                                <span class="text-green-400"
+                                                    >✓</span
+                                                >
+                                                <span
+                                                    >QA Inspector Agent (quality
+                                                    assurance)</span
+                                                >
+                                            </div>
+                                            <div
+                                                class="flex items-center gap-2"
+                                            >
+                                                <span class="text-green-400"
+                                                    >✓</span
+                                                >
+                                                <span
+                                                    >Inventory Manager
+                                                    Agent</span
+                                                >
+                                            </div>
+                                        </div>
+
+                                        <p class="leading-relaxed mb-2">
+                                            Here's how to install it:
+                                        </p>
+
+                                        <div class="code-block">
+                                            <code
+                                                ># Via FleetPrompt CLI $ fleet
+                                                install field-service # Or via
+                                                Elixir
+                                                FleetPrompt.Packages.install("field-service",
+                                                org_id: "your-org-id" )</code
+                                            >
+                                        </div>
+
+                                        <p
+                                            class="leading-relaxed mt-3 text-sm text-slate-400"
+                                        >
+                                            💰 Pricing: $99/mo • ⭐ 4.8/5 (2,547
+                                            installs)
+                                        </p>
+
+                                        <div class="mt-4 flex gap-2">
+                                            <button
+                                                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm font-semibold transition"
+                                            >
+                                                Install Package
+                                            </button>
+                                            <button
+                                                class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition"
+                                            >
+                                                View Details
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Typing Indicator (shown when AI is responding) -->
+                        <div
+                            class="message-fade-in hidden"
+                            id="typing-indicator"
+                        >
+                            <div class="flex gap-3 items-start">
+                                <div
+                                    class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0"
+                                >
+                                    ⚡
+                                </div>
+                                <div class="flex-1">
+                                    <div
+                                        class="bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3 inline-block"
+                                    >
+                                        <div
+                                            class="typing-indicator flex gap-1"
+                                        >
+                                            <span
+                                                class="w-2 h-2 bg-slate-500 rounded-full"
+                                            ></span>
+                                            <span
+                                                class="w-2 h-2 bg-slate-500 rounded-full"
+                                            ></span>
+                                            <span
+                                                class="w-2 h-2 bg-slate-500 rounded-full"
+                                            ></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="border-t border-slate-700 bg-slate-800">
+                    <div class="max-w-3xl mx-auto p-4">
+                        <form id="chat-form" class="relative">
+                            <textarea
+                                id="chat-input"
+                                rows="1"
+                                placeholder="Ask me anything about FleetPrompt... (e.g., 'Create a research agent' or 'Show pricing')"
+                                class="w-full bg-slate-700 text-white rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-500"
+                                style="min-height: 48px; max-height: 200px"
+                            ></textarea>
+                            <button
+                                type="submit"
+                                class="absolute right-2 bottom-2 w-8 h-8 bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <svg
+                                    class="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                                    ></path>
+                                </svg>
+                            </button>
+                        </form>
+                        <div class="mt-2 text-xs text-slate-500 text-center">
+                            Powered by FleetPrompt AI •
+                            <a href="#" class="hover:text-slate-400">Privacy</a>
+                            • <a href="#" class="hover:text-slate-400">Terms</a>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <script>
+            // Auto-resize textarea
+            const textarea = document.getElementById("chat-input");
+            textarea.addEventListener("input", function () {
+                this.style.height = "auto";
+                this.style.height = Math.min(this.scrollHeight, 200) + "px";
+            });
+
+            // Handle form submission
+            const form = document.getElementById("chat-form");
+            const messagesContainer = document.getElementById("messages");
+
+            form.addEventListener("submit", async function (e) {
+                e.preventDefault();
+
+                const message = textarea.value.trim();
+                if (!message) return;
+
+                // Add user message to chat
+                addMessage(message, "user");
+
+                // Clear input
+                textarea.value = "";
+                textarea.style.height = "auto";
+
+                // Show typing indicator
+                showTypingIndicator();
+
+                // Simulate AI response (in real app, this would be a LiveView event)
+                setTimeout(() => {
+                    hideTypingIndicator();
+                    addMessage(getAIResponse(message), "assistant");
+                }, 1500);
+            });
+
+            function addMessage(content, role) {
+                const messageDiv = document.createElement("div");
+                messageDiv.className = "message-fade-in";
+
+                if (role === "user") {
+                    messageDiv.innerHTML = `
+                    <div class="flex gap-3 items-start justify-end">
+                        <div class="flex-1 flex justify-end">
+                            <div class="bg-indigo-600 rounded-2xl rounded-tr-sm px-4 py-3 max-w-lg">
+                                <p class="leading-relaxed">${escapeHtml(content)}</p>
+                            </div>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                            👤
+                        </div>
+                    </div>
+                `;
+                } else {
+                    messageDiv.innerHTML = `
+                    <div class="flex gap-3 items-start">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                            ⚡
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm text-slate-400 mb-1">FleetPrompt</div>
+                            <div class="bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
+                                <p class="leading-relaxed">${content}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                }
+
+                const container = messagesContainer.querySelector(".space-y-6");
+                container.insertBefore(
+                    messageDiv,
+                    document.getElementById("typing-indicator"),
+                );
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            function showTypingIndicator() {
+                document
+                    .getElementById("typing-indicator")
+                    .classList.remove("hidden");
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            function hideTypingIndicator() {
+                document
+                    .getElementById("typing-indicator")
+                    .classList.add("hidden");
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function getAIResponse(message) {
+                // Simple pattern matching for demo
+                const lower = message.toLowerCase();
+
+                if (
+                    lower.includes("pricing") ||
+                    lower.includes("cost") ||
+                    lower.includes("price")
+                ) {
+                    return `FleetPrompt offers flexible pricing tiers:
+
+                • <b>Free</b>: 100K tokens/month, 3 agents, core packages
+                • <b>Pro</b> ($49/mo): 1M tokens/month, unlimited agents, all packages
+                • <b>Enterprise</b>: Custom pricing, dedicated support, SLA
+
+                All tiers include the package marketplace and API access. Want to start a free trial?`;
+                }
+
+                if (lower.includes("example") || lower.includes("demo")) {
+                    return `Here are some popular use cases:
+
+                🔧 <b>Field Service</b>: Automated dispatch, customer communication, QA
+                💬 <b>Customer Support</b>: 24/7 ticket handling, live chat, email
+                💼 <b>Sales Automation</b>: Lead qualification, outreach, scheduling
+                📊 <b>Data Pipeline</b>: ETL, analysis, reporting
+
+                Which one interests you?`;
+                }
+
+                if (lower.includes("create") || lower.includes("build")) {
+                    return `I can help you create a custom agent! To get started, I need to know:
+
+                1. What should the agent do? (e.g., "answer customer questions")
+                2. What skills does it need? (web search, data analysis, etc.)
+                3. What integrations? (Slack, email, CRM, etc.)
+
+                Tell me more about what you want to build!`;
+                }
+
+                return `I'd be happy to help! You can:
+
+            • Browse our <b>package marketplace</b> for pre-built solutions
+            • <b>Create custom agents</b> with our declarative DSL
+            • View <b>documentation</b> and tutorials
+            • Check <b>pricing and plans</b>
+
+            What would you like to do?`;
+            }
+
+            // Scroll to bottom on load
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        </script>
+    </body>
+</html>
