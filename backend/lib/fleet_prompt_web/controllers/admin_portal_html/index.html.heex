@@ -1,4 +1,5 @@
 <div class="space-y-8">
+  <% tenant = assigns[:current_tenant] || assigns[:ash_tenant] || assigns[:tenant_label] %>
   <section class="rounded-2xl border border-border bg-card text-card-foreground p-5 sm:p-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div class="min-w-0">
@@ -10,8 +11,8 @@
 
         <div class="mt-3 text-sm">
           <span class="text-muted-foreground">Current tenant:</span>
-          <%= if @current_tenant do %>
-            <code class="ml-2 rounded bg-muted px-1.5 py-0.5"><%= @current_tenant %></code>
+          <%= if tenant do %>
+            <code class="ml-2 rounded bg-muted px-1.5 py-0.5"><%= tenant %></code>
           <% else %>
             <span class="ml-2 text-muted-foreground">public</span>
           <% end %>
@@ -209,8 +210,8 @@
       <div class="mt-6 rounded-xl border border-border bg-muted/20 p-4">
         <div class="text-sm font-semibold">Tenant status</div>
         <p class="mt-2 text-sm text-muted-foreground">
-          <%= if @current_tenant do %>
-            You’re set to <code class="rounded bg-muted px-1.5 py-0.5"><%= @current_tenant %></code>.
+          <%= if tenant do %>
+            You’re set to <code class="rounded bg-muted px-1.5 py-0.5"><%= tenant %></code>.
           <% else %>
             You’re in <span class="font-medium text-foreground">public</span>. Select a tenant to see tenant-scoped data.
           <% end %>

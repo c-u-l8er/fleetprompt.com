@@ -27,7 +27,7 @@
 
 <div class="fp-admin-shell min-h-screen bg-background text-foreground flex flex-col">
   <header class="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-    <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-7xl px-4 py-4 pt-3 sm:px-6 lg:px-8">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0">
           <div class="flex items-center gap-3">
@@ -38,11 +38,27 @@
               >
                 FP
               </span>
-              <span class="truncate">FleetPrompt</span>
+              <span class="truncate">FleetPrompt (AshAdmin)</span>
             </a>
 
             <span class="hidden sm:inline text-xs text-muted-foreground">
-              AshAdmin (embedded)
+
+                <a
+                    href="/dashboard"
+                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                            border border-border bg-background hover:bg-muted h-9 px-3"
+                    >
+                    Back to app
+                </a>
+
+                <a
+                    href="/admin/ui"
+                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                            bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3"
+                    title="Open AshAdmin directly"
+                    >
+                    Open /admin/ui
+                </a>
             </span>
           </div>
 
@@ -52,57 +68,83 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <a
-            href="/dashboard"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
-                   border border-border bg-background hover:bg-muted h-9 px-3"
-          >
-            Back to app
-          </a>
-
-          <a
-            href="/admin/tenant"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
-                   border border-border bg-background hover:bg-muted h-9 px-3"
-          >
-            Select tenant
-          </a>
-
-          <a
-            href="/admin/ui"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
-                   bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3"
-            title="Open AshAdmin directly"
-          >
-            Open /admin/ui
-          </a>
-        </div>
-      </div>
-
-      <div class="mt-4">
-        <div class="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm">
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <div class="font-medium">
-                Tenant context:
-                <code class="rounded bg-background/70 px-1.5 py-0.5"><%= @tenant_label %></code>
+          <% tenant = assigns[:current_tenant] || assigns[:ash_tenant] || assigns[:tenant_label] %>
+          <%= if @current_user do %>
+            <!-- Organization Selector -->
+            <%= if length(@available_organizations || []) > 1 do %>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground">Org</span>
+                <form action="/org/select" method="post" class="inline">
+                  <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
+                  <input type="hidden" name="redirect_to" value={@conn.request_path}>
+                  <select
+                    name="organization_id"
+                    class="h-9 rounded-md border border-border bg-background px-2.5 text-sm text-foreground
+                           hover:bg-muted/40 transition-colors"
+                    onchange="this.form.submit()"
+                  >
+                    <%= for org <- @available_organizations || [] do %>
+                      <option value={org.id} selected={@current_organization && @current_organization.id == org.id}>
+                        <%= org.name || org.slug || org.id %>
+                      </option>
+                    <% end %>
+                  </select>
+                </form>
               </div>
-              <div class="mt-1 text-xs text-muted-foreground">
-                If you don't see tenant-scoped resources (like Agents), pick a tenant first.
-              </div>
+            <% else %>
+              <%= if @current_organization do %>
+                <span
+                  class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground"
+                  title="Current organization"
+                >
+                  Org: <span class="ml-1 font-medium text-foreground"><%= @current_organization.name || @current_organization.slug || @current_organization.id %></span>
+                </span>
+              <% end %>
+            <% end %>
+
+            <!-- Tenant Badge -->
+            <%= if tenant && tenant != "public" && tenant != "" do %>
+              <a
+                href="/admin/tenant"
+                class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                title="Tenant context (schema-per-tenant)"
+              >
+                Tenant: <span class="ml-1 font-medium text-foreground"><%= tenant %></span>
+              </a>
+            <% end %>
+
+            <!-- User Info -->
+            <div class="hidden sm:flex flex-col items-start leading-tight">
+              <span class="text-sm font-medium">
+                <%= @current_user.name || @current_user.email || "Signed in" %>
+              </span>
+              <%= if @current_user.name && @current_user.email do %>
+                <span class="text-xs text-muted-foreground"><%= @current_user.email %></span>
+              <% end %>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span class="font-medium text-foreground">Quick links:</span>
-              <a class="hover:text-foreground transition-colors" href="/admin">/admin</a>
-              <span aria-hidden="true">•</span>
-              <a class="hover:text-foreground transition-colors" href="/admin/tenant">/admin/tenant</a>
-              <span aria-hidden="true">•</span>
-              <a class="hover:text-foreground transition-colors" href="/dashboard">/dashboard</a>
-              <span aria-hidden="true">•</span>
-              <a class="hover:text-foreground transition-colors" href="/chat">/chat</a>
-            </div>
-          </div>
+            <!-- Sign Out -->
+            <form action="/logout" method="post" class="inline">
+              <input type="hidden" name="_csrf_token" value={get_csrf_token()}>
+              <input type="hidden" name="_method" value="delete">
+              <button
+                type="submit"
+                class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9"
+                title="Sign out"
+              >
+                Sign out
+              </button>
+            </form>
+          <% else %>
+            <a
+              href="/login"
+              class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors
+                     bg-primary text-primary-foreground hover:bg-primary/90 h-9"
+            >
+              Sign in
+            </a>
+          <% end %>
         </div>
       </div>
     </div>

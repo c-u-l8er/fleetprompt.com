@@ -21,6 +21,34 @@
       "none" -> nil
       other -> other
     end
+
+  current_user = Map.get(assigns, :current_user)
+  current_org = Map.get(assigns, :current_organization)
+  available_orgs = Map.get(assigns, :available_organizations) || []
+
+  tenant_label =
+    case tenant do
+      nil -> nil
+      t when is_binary(t) ->
+        if String.starts_with?(t, "org_") do
+          String.replace_prefix(t, "org_", "")
+        else
+          t
+        end
+    end
+
+  org_label =
+    cond do
+      is_nil(current_org) -> "Organization"
+      not is_nil(Map.get(current_org, :name)) and Map.get(current_org, :name) != "" ->
+        Map.get(current_org, :name)
+      not is_nil(Map.get(current_org, :slug)) and Map.get(current_org, :slug) != "" ->
+        Map.get(current_org, :slug)
+      true ->
+        Map.get(current_org, :id)
+    end
+
+  csrf_token = Plug.CSRFProtection.get_csrf_token_for(@conn)
 %>
 
 <div class="min-h-screen bg-background text-foreground">
@@ -67,6 +95,96 @@
           </a>
 
           <Layouts.theme_toggle />
+        </div>
+      </div>
+
+      
+      <!-- Auth Section -->
+      <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center gap-3">
+          <%= if current_user do %>
+            <!-- Organization Selector -->
+            <%= if length(available_orgs) > 1 do %>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground">Org</span>
+                <form action="/org/select" method="post" class="inline">
+                  <input type="hidden" name="_csrf_token" value={csrf_token}>
+                  <input type="hidden" name="redirect_to" value={@conn.request_path}>
+                  <select
+                    name="organization_id"
+                    class="h-9 rounded-md border border-border bg-background px-2.5 text-sm text-foreground
+                           hover:bg-muted/40 transition-colors"
+                    onchange="this.form.submit()"
+                  >
+                    <%= for org <- available_orgs do %>
+                      <option value={Map.get(org, :id)} selected={current_org && Map.get(current_org, :id) == Map.get(org, :id)}>
+                        <%= cond do %>
+                          <% Map.get(org, :name) && Map.get(org, :name) != "" -> %>
+                            <%= Map.get(org, :name) %>
+                          <% Map.get(org, :slug) && Map.get(org, :slug) != "" -> %>
+                            <%= Map.get(org, :slug) %>
+                          <% true -> %>
+                            <%= Map.get(org, :id) %>
+                        <% end %>
+                      </option>
+                    <% end %>
+                  </select>
+                </form>
+              </div>
+            <% else %>
+              <%= if current_org do %>
+                <span
+                  class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground"
+                  title="Current organization"
+                >
+                  Org: <span class="ml-1 font-medium text-foreground"><%= org_label %></span>
+                </span>
+              <% end %>
+            <% end %>
+
+            <!-- Tenant Badge -->
+            <%= if tenant_label do %>
+              <a
+                href="/admin/tenant"
+                class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                title="Tenant context (schema-per-tenant)"
+              >
+                Tenant: <span class="ml-1 font-medium text-foreground"><%= tenant_label %></span>
+              </a>
+            <% end %>
+
+            <!-- User Info -->
+            <div class="hidden sm:flex flex-col items-start leading-tight">
+              <span class="text-sm font-medium">
+                <%= Map.get(current_user, :name) || Map.get(current_user, :email) || "Signed in" %>
+              </span>
+              <%= if Map.get(current_user, :name) && Map.get(current_user, :email) do %>
+                <span class="text-xs text-muted-foreground"><%= Map.get(current_user, :email) %></span>
+              <% end %>
+            </div>
+
+            <!-- Sign Out -->
+            <form action="/logout" method="post" class="inline">
+              <input type="hidden" name="_csrf_token" value={csrf_token}>
+              <input type="hidden" name="_method" value="delete">
+              <button
+                type="submit"
+                class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9"
+                title="Sign out"
+              >
+                Sign out
+              </button>
+            </form>
+          <% else %>
+            <a
+              href="/login"
+              class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors
+                     bg-primary text-primary-foreground hover:bg-primary/90 h-9"
+            >
+              Sign in
+            </a>
+          <% end %>
         </div>
       </div>
 
