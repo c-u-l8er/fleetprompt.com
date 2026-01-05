@@ -4,26 +4,41 @@ Last updated: 2026-01-05
 
 ## Executive summary
 
-You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place:
+You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** an initial end-to-end **session auth + org membership + org/tenant selection** layer:
 
 - **Backend**: Phoenix app under `fleetprompt.com/backend`
 - **Frontend**: Vite + Svelte app under `fleetprompt.com/frontend`
-- **Integration**: Phoenix serves built assets from `backend/priv/static/assets`, and `/` renders an Inertia payload (`<div id="app" data-page="...">`).
+- **Integration**: Phoenix serves built assets from `backend/priv/static/assets`, and routes render Inertia payloads (`<div id="app" data-page="...">`).
 
-**Phase 1 (Core Resources + Multi-tenancy) implementation is now in the codebase:**
-- Ash domains added: `FleetPrompt.Accounts`, `FleetPrompt.Agents`, `FleetPrompt.Skills` (+ placeholders `FleetPrompt.Workflows`, `FleetPrompt.Packages` for later phases).
-- Ash resources added:
-  - `FleetPrompt.Accounts.Organization` (tenant schema management via `manage_tenant`)
+**Core foundation (Ash + multi-tenancy):**
+- Ash domains: `FleetPrompt.Accounts`, `FleetPrompt.Agents`, `FleetPrompt.Skills` (+ placeholders `FleetPrompt.Workflows`, `FleetPrompt.Packages`).
+- Resources:
+  - `FleetPrompt.Accounts.Organization` (schema-per-tenant via `manage_tenant`)
   - `FleetPrompt.Accounts.User`
+  - `FleetPrompt.Accounts.OrganizationMembership` (multi-org membership + per-org roles)
   - `FleetPrompt.Skills.Skill` (global)
-  - `FleetPrompt.Agents.Agent` (multi-tenant via schema-per-tenant using `multitenancy :context`, state machine via `AshStateMachine`)
-- Migrations generated and applied (including required Postgres extensions like `pgcrypto` and Ash SQL helper functions).
-- AshAdmin (LiveView) is wired at `/admin` and is functional (LiveView socket mounted at `/live`).
-- AshAdmin tenant selection UX is available at `/admin/tenant` (persists tenant in cookie + session; supports `demo` → `org_demo`) so you can browse tenant-scoped resources like Agents. The `/admin/tenant` header now matches the homepage header styling; the page uses the minimal controller layout to avoid a double-header with the Admin layout.
-- UI/UX scaffolding (Inertia + Svelte) is in progress:
-  - shared `AppShell` layout component
-  - placeholder pages/routes: `/dashboard`, `/marketplace`, `/chat`
-- Seeds script updated to create a demo org/user/skills and a tenant-scoped agent.
+  - `FleetPrompt.Agents.Agent` (tenant-scoped, `multitenancy :context`, state machine via `AshStateMachine`)
+- Tenant migrations exist for tenant-scoped resources (`org_<slug>` schemas), and the Agents tenant migration has been hardened for UUID default resolution and idempotency.
+
+**Auth + org access control (new):**
+- Session-based auth endpoints:
+  - `GET /login`, `POST /login`, `DELETE /logout`
+  - `GET /register`, `POST /register` (creates org + owner user + membership; logs user in)
+- Membership-gated org selection:
+  - `POST /org/select` switches current org/tenant for the signed-in user.
+- Authorization model:
+  - org membership roles: `:owner | :admin | :member`
+  - admin UI surfaces (`/admin`, `/admin/ui`) restricted to org roles `:owner/:admin`
+  - tenant/org selection constrained to organizations the user is allowed to access
+
+**UI/UX scaffolding (Inertia + Svelte) is in progress:**
+- Shared `AppShell` provides consistent header/nav.
+- Header now supports:
+  - current user display + sign out
+  - organization dropdown (when user belongs to multiple orgs)
+  - tenant badge (derived from selected org)
+- Inertia pages: `Home`, `Dashboard`, `Marketplace`, `Chat`, `Login`, `Register`
+- Seeds updated to ensure demo admin has an owner membership in the demo org.
 
 **Frontend note:** the Inertia client mounting code has been updated to mount using Inertia’s provided element (`setup({ el, ... })`) and to support both constructor-based and `mount(...)` based component styles. You still need to validate DOM rendering in the browser.
 
@@ -33,32 +48,56 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
 - `backend/lib/fleet_prompt/`
   - `application.ex` — OTP app boot (supervision tree)
   - `repo.ex` — `AshPostgres.Repo` and tenant discovery (`all_tenants/0`)
-  - `accounts/` + `accounts.ex` — Accounts domain/resources (e.g. `Organization`, `User`)
+  - `accounts/` + `accounts.ex` — Accounts domain/resources
+    - `accounts/organization.ex` — `Organization` (schema-per-tenant via `manage_tenant`)
+    - `accounts/user.ex` — `User` (public schema)
+    - `accounts/organization_membership.ex` — `OrganizationMembership` (multi-org membership + per-org role/status)
+    - `accounts/auth.ex` — auth helpers (email/password verification against Ash users)
   - `agents/` + `agents.ex` — Agents domain/resources (tenant-scoped `Agent`)
   - `skills/` + `skills.ex` — Skills domain/resources (global `Skill`)
   - `packages/` + `packages.ex` — Package domain placeholder (Phase 2+)
   - `workflows/` + `workflows.ex` — Workflow domain placeholder (Phase 3+)
 - `backend/lib/fleet_prompt_web/`
-  - `router.ex` — route + pipeline definitions (browser/admin; `/admin` + `/admin/tenant`)
+  - `router.ex` — route + pipeline definitions
+    - browser: Inertia routes + auth + org context
+    - protected: requires session auth
+    - admin: authenticated baseline + org context
+    - admin_org_admin: restricts admin UI to org roles `:owner/:admin`
   - `endpoint.ex` — Phoenix endpoint configuration
-  - `controllers/` — controller actions + HEEx templates
-    - `admin_tenant_controller.ex` + `admin_tenant_html/index.html.heex` — tenant selector UI
+  - `inertia_helpers.ex` — shared Inertia props merge (user, org list, current org, tenant context, request path)
+  - `plugs/`
+    - `fetch_current_user.ex` — loads `current_user` (and org load for convenience)
+    - `fetch_org_context.ex` — membership-gated org selection + sets tenant cookie/session + assigns `:ash_tenant`
+    - `require_auth.ex` — protects routes, Inertia-safe redirects
+    - `require_org_admin.ex` — restricts admin UI to membership roles `:owner/:admin`
+    - `admin_tenant.ex` — keeps Ash tenant consistent; ignores unsafe tenant overrides when a user/org context exists
+  - `controllers/`
+    - `auth_controller.ex` — `GET/POST /login`, `DELETE /logout`, `GET/POST /register`
+    - `org_controller.ex` — `POST /org/select` (switch org/tenant; membership-gated)
+    - `admin_tenant_controller.ex` + `admin_tenant_html/index.html.heex` — org/tenant selector UI (restricted to org-admin memberships)
     - `page_controller.ex` — Inertia entry pages (`/`, `/dashboard`)
-    - `marketplace_controller.ex`, `chat_controller.ex` — scaffold routes
+    - `marketplace_controller.ex`, `chat_controller.ex` — scaffold routes (render via shared inertia helper)
   - `components/layouts/`
     - `root.html.heex` — root HTML shell + asset tags + inertia head/title
-    - `admin.html.heex` — AshAdmin chrome (header + tenant context banner)
+    - `admin.html.heex` — AshAdmin chrome (admin header + context banner)
     - `inertia.html.heex` — minimal layout for Inertia pages (no chrome)
+  - `components/core_components.ex`
+    - flash/toast rendering updated to avoid DaisyUI dependency (fixed positioning + dismiss button)
 
 ### Frontend (`frontend/src`)
 - `frontend/src/app.ts` — Inertia + Svelte client bootstrap
 - `frontend/src/app.css` — global styles
-- `frontend/src/lib/components/AppShell.svelte` — shared app chrome (homepage-style header + page header block)
+- `frontend/src/lib/components/AppShell.svelte` — shared app chrome
+  - shows current user + sign out
+  - shows org dropdown when multiple orgs are available
+  - posts `POST /org/select` to switch org/tenant
 - `frontend/src/pages/` — Inertia page components
-  - `Home.svelte` — homepage content (uses `AppShell`)
-  - `Dashboard.svelte` — dashboard scaffold page (uses `AppShell`)
-  - `Marketplace.svelte` — marketplace scaffold page (uses `AppShell`)
-  - `Chat.svelte` — chat scaffold page (uses `AppShell`)
+  - `Home.svelte`
+  - `Dashboard.svelte`
+  - `Marketplace.svelte`
+  - `Chat.svelte`
+  - `Login.svelte` — session sign-in UI
+  - `Register.svelte` — create org + owner user UI
 - `frontend/src/types/` — shared TS types (as needed)
 
 ---

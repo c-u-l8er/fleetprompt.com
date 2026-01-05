@@ -5,7 +5,31 @@
     export let title: string = "Dashboard";
     export let message: string = "Welcome to your FleetPrompt dashboard.";
 
+    // Shared Inertia props (provided globally by the backend)
+    export let user: {
+        id?: string | null;
+        name?: string | null;
+        email?: string | null;
+        role?: string | null;
+    } | null = null;
+
+    // Tenant context (may be a schema like "org_demo" or a slug like "demo", depending on the page props)
     export let tenant: string | null = null;
+    export let tenant_schema: string | null = null;
+
+    // Organization selection (multi-org membership)
+    // Org switching is handled by `AppShell` so the header UX stays consistent.
+    export let organizations: Array<{
+        id: string;
+        name: string;
+        slug: string;
+    }> = [];
+
+    export let current_organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null = null;
 
     export let stats: {
         organizations: number;
@@ -30,6 +54,11 @@
     title={title || "Dashboard"}
     subtitle={message || "Welcome back."}
     showAdminLink={true}
+    {user}
+    {tenant}
+    {tenant_schema}
+    {organizations}
+    {current_organization}
 >
     <svelte:fragment slot="header-actions">
         <a

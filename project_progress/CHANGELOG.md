@@ -43,6 +43,22 @@ This project is early-stage and is being built iteratively from the phase docs i
   - Added shared Svelte layout component `AppShell`.
   - Added placeholder Inertia pages: `Dashboard`, `Marketplace`, `Chat`.
   - Added backend routes and controller actions for `/dashboard`, `/marketplace`, `/chat`.
+- Authentication + org context (multi-org):
+  - Added session-based auth endpoints and Inertia pages:
+    - routes: `GET /login`, `POST /login`, `DELETE /logout`
+    - Inertia pages: `Login.svelte`, `Register.svelte`
+  - Added self-serve registration flow to create an Organization + first owner user:
+    - routes: `GET /register`, `POST /register`
+    - creates org tenant schema (`org_<slug>`) via `manage_tenant`
+  - Added multi-org membership model:
+    - new Ash resource: `FleetPrompt.Accounts.OrganizationMembership` (user_id, organization_id, role, status)
+    - new DB migration to create `organization_memberships` with unique (org_id, user_id)
+  - Added org/tenant switching:
+    - route: `POST /org/select` to switch current org (membership-gated)
+    - header org switcher UI in `AppShell` (dropdown when multiple orgs available)
+  - Added org-scoped admin authorization:
+    - restrict `/admin` shell and `/admin/ui` (AshAdmin LiveView) to membership roles `:owner`/`:admin`
+    - allow `/admin/tenant` for authenticated users, but restrict tenant choices to admin-eligible orgs
 
 ### Changed
 - Backend asset pipeline:
@@ -73,11 +89,22 @@ This project is early-stage and is being built iteratively from the phase docs i
   - fixed repeated `relation "public.oban_jobs" does not exist` by adding and running the Oban migration.
 - Phoenix CodeReloader warning:
   - restored Mix project listener configuration required by code reloader (`listeners: [Phoenix.CodeReloader]`).
+- Auth + Inertia request handling:
+  - fixed `Phoenix.NotAcceptableError` during login by aligning request headers with the browser pipeline (`accepts: ["html"]`).
+- Ash query DSL usage:
+  - fixed compilation/runtime issues by requiring Ash query macros where needed and using `Ash.Expr.expr/1` for filters.
+- Flash notifications:
+  - updated flash rendering to use app-native Tailwind classes (not daisyUI), fixing toasts appearing at the bottom of the page.
+- Tenant migration + registration hardening:
+  - made tenant migration safer by using schema-qualified UUID defaults (`public.gen_random_uuid()`), and making tenant table creation idempotent.
+  - improved registration error logging and responses to surface tenant/migration issues.
+  - added orphaned-tenant-schema cleanup logic during registration to prevent `schema_migrations_pkey` conflicts when `org_<slug>` exists without a matching `organizations` row.
 
 ### Notes / Operational
 - Development environment may warn about missing `inotify-tools` (optional; impacts live reload only).
 - PostgreSQL must be running locally for the backend to boot cleanly (Repo + Oban depend on it).
 - If you browse the Vite dev server (`:5173`) directly, it will not include `data-page` and therefore won’t behave like the Phoenix-rendered Inertia page. The intended dev entrypoint is Phoenix (`:4000`) with Vite building into `priv/static/assets`.
+- If registration fails mid-flight, you may end up with an orphaned tenant schema (`org_<slug>`) in dev. The registration flow now attempts to detect/clean these up, but manual cleanup may still be required in edge cases.
 
 ---
 

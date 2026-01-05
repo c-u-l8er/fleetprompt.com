@@ -6,6 +6,8 @@ defmodule FleetPromptWeb.Router do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_flash)
+    plug(FleetPromptWeb.Plugs.FetchCurrentUser)
+    plug(FleetPromptWeb.Plugs.FetchOrgContext)
     plug(:assign_request_path)
     plug(FleetPromptWeb.Plugs.AdminTenant)
     plug(:put_root_layout, html: {FleetPromptWeb.Layouts, :root})
@@ -15,16 +17,35 @@ defmodule FleetPromptWeb.Router do
     plug(Inertia.Plug)
   end
 
+  pipeline :protected do
+    plug(FleetPromptWeb.Plugs.RequireAuth, redirect_to: "/login")
+  end
+
+  # Admin baseline:
+  # - requires authentication
+  # - allows any member to view/select their org tenant context
   pipeline :admin do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_flash)
+    plug(FleetPromptWeb.Plugs.FetchCurrentUser)
+    plug(FleetPromptWeb.Plugs.FetchOrgContext)
+    plug(FleetPromptWeb.Plugs.RequireAuth, redirect_to: "/login")
     plug(:assign_request_path)
     plug(FleetPromptWeb.Plugs.AdminTenant)
     plug(:put_root_layout, html: {FleetPromptWeb.Layouts, :root})
     plug(:put_layout, html: {FleetPromptWeb.Layouts, :admin})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
+  end
+
+  # Admin authorization:
+  # - only org roles :owner/:admin may access the actual admin UI surfaces
+  pipeline :admin_org_admin do
+    plug(FleetPromptWeb.Plugs.RequireOrgAdmin,
+      redirect_to: "/admin/tenant",
+      unauthenticated_redirect_to: "/login"
+    )
   end
 
   pipeline :api do
@@ -34,7 +55,26 @@ defmodule FleetPromptWeb.Router do
   scope "/", FleetPromptWeb do
     pipe_through(:browser)
 
+    # Public
     get("/", PageController, :home)
+
+    # Session auth
+    get("/login", AuthController, :new)
+    post("/login", AuthController, :create)
+    delete("/logout", AuthController, :delete)
+
+    # Registration (create org + owner user)
+    get("/register", AuthController, :register_new)
+    post("/register", AuthController, :register_create)
+  end
+
+  scope "/", FleetPromptWeb do
+    pipe_through([:browser, :protected])
+
+    # Org / tenant switching (membership-gated)
+    post("/org/select", OrgController, :select)
+
+    # Protected app pages
     get("/dashboard", PageController, :dashboard)
 
     # Inertia pages (UI scaffold; real implementations land in Phase 2/3)
@@ -45,23 +85,29 @@ defmodule FleetPromptWeb.Router do
     post("/chat/message", ChatController, :send_message)
   end
 
-  # Admin shell + utilities (regular controllers) stay in the FleetPromptWeb namespace
+  # Admin tenant selector is available to any authenticated member.
   scope "/admin", FleetPromptWeb do
     pipe_through(:admin)
+
+    get("/tenant", AdminTenantController, :index)
+    post("/tenant", AdminTenantController, :select)
+  end
+
+  # Admin UI surfaces are restricted to org roles :owner/:admin.
+  scope "/admin", FleetPromptWeb do
+    pipe_through([:admin, :admin_org_admin])
 
     # Shell page: app-style header with AshAdmin embedded (iframe)
     get("/", AdminShellController, :index)
 
     get("/portal", AdminPortalController, :index)
-    get("/tenant", AdminTenantController, :index)
-    post("/tenant", AdminTenantController, :select)
   end
 
   # AshAdmin (LiveView) is mounted under /admin/ui so the /admin shell can embed it in an iframe.
   #
   # NOTE: This scope intentionally has no `FleetPromptWeb` namespace.
   scope "/admin" do
-    pipe_through(:admin)
+    pipe_through([:admin, :admin_org_admin])
 
     ash_admin("/ui")
   end

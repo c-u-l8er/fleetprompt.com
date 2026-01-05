@@ -59,7 +59,7 @@ defmodule FleetPromptWeb.MarketplaceController do
       end
 
     # Keep props stable; the current `Marketplace.svelte` will safely ignore extra props.
-    render_inertia(conn, "Marketplace", %{
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Marketplace", %{
       title: "Marketplace",
       subtitle: "Browse installable packages (agents, workflows, skills). Coming soon.",
       packages: serialize_packages(packages),
@@ -83,7 +83,7 @@ defmodule FleetPromptWeb.MarketplaceController do
         nil ->
           conn
           |> put_status(:not_found)
-          |> render_inertia("Marketplace", %{
+          |> FleetPromptWeb.InertiaHelpers.render_inertia("Marketplace", %{
             title: "Marketplace",
             subtitle: "Package not found.",
             packages: [],
@@ -93,7 +93,7 @@ defmodule FleetPromptWeb.MarketplaceController do
 
         pkg ->
           # Render the same Marketplace page for now; Phase 2 can switch to `Marketplace/Show`.
-          render_inertia(conn, "Marketplace", %{
+          FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Marketplace", %{
             title: "Marketplace",
             subtitle: "Package details (placeholder until Phase 2 UI lands).",
             package: serialize_package_detail(pkg),
@@ -103,7 +103,7 @@ defmodule FleetPromptWeb.MarketplaceController do
           })
       end
     else
-      render_inertia(conn, "Marketplace", %{
+      FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Marketplace", %{
         title: "Marketplace",
         subtitle: "Package system not implemented yet.",
         packages: [],

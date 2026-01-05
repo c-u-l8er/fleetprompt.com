@@ -37,6 +37,31 @@
     export let featured: MarketplacePackage[] = [];
     export let filters: Filters = {};
 
+    // Shared props (provided globally by the backend via Inertia shared props)
+    export let user: {
+        id?: string | null;
+        name?: string | null;
+        email?: string | null;
+        role?: string | null;
+    } | null = null;
+
+    // `tenant` is intended to be a slug like "demo"; `tenant_schema` can be "org_demo"
+    export let tenant: string | null = null;
+    export let tenant_schema: string | null = null;
+
+    // Organization selection context (multi-org membership)
+    export let organizations: Array<{
+        id: string;
+        name: string;
+        slug: string;
+    }> | null = null;
+
+    export let current_organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null = null;
+
     const categories = [
         { value: "", label: "All categories" },
         { value: "operations", label: "Operations" },
@@ -104,7 +129,16 @@
     <title>{title} • FleetPrompt</title>
 </svelte:head>
 
-<AppShell {title} {subtitle} showAdminLink={true}>
+<AppShell
+    {title}
+    {subtitle}
+    showAdminLink={true}
+    {user}
+    {tenant}
+    {tenant_schema}
+    {organizations}
+    {current_organization}
+>
     <svelte:fragment slot="header-actions">
         <a
             use:inertia

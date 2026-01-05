@@ -12,6 +12,7 @@
 # and Ash migrations for these resources to have been run.
 
 alias FleetPrompt.Accounts.Organization
+alias FleetPrompt.Accounts.OrganizationMembership
 alias FleetPrompt.Accounts.User
 alias FleetPrompt.Skills.Skill
 alias FleetPrompt.Agents.Agent
@@ -89,7 +90,7 @@ admin_params = %{
   role: :admin
 }
 
-_admin =
+admin =
   case User |> Ash.Changeset.for_create(:create, admin_params) |> Ash.create() do
     {:ok, admin} ->
       IO.puts("OK: Created admin user: #{admin.email}")
@@ -118,6 +119,56 @@ _admin =
         {:error, read_error} ->
           raise """
           Could not create admin user and failed to load existing.
+          Create error:
+          #{format_error.(error)}
+
+          Read error:
+          #{format_error.(read_error)}
+          """
+      end
+  end
+
+#
+# 2b) Ensure admin user has an owner membership in the demo organization
+#
+membership_params = %{
+  user_id: admin.id,
+  organization_id: org.id,
+  role: :owner,
+  status: :active
+}
+
+_membership =
+  case OrganizationMembership
+       |> Ash.Changeset.for_create(:create, membership_params)
+       |> Ash.create() do
+    {:ok, membership} ->
+      IO.puts("OK: Created membership: #{admin.email} is owner of #{org.slug}")
+      membership
+
+    {:error, error} ->
+      IO.puts(
+        "INFO: Membership create failed (likely already exists). Trying to load by user+org..."
+      )
+
+      case OrganizationMembership
+           |> Ash.Query.for_read(:read)
+           |> Ash.Query.filter(expr(user_id == ^admin.id and organization_id == ^org.id))
+           |> Ash.read_one() do
+        {:ok, membership} when not is_nil(membership) ->
+          IO.puts("OK: Loaded existing membership: #{admin.email} in #{org.slug}")
+          membership
+
+        {:ok, nil} ->
+          raise """
+          Could not create or load organization membership for admin user.
+          Create error:
+          #{format_error.(error)}
+          """
+
+        {:error, read_error} ->
+          raise """
+          Could not create organization membership and failed to load existing.
           Create error:
           #{format_error.(error)}
 

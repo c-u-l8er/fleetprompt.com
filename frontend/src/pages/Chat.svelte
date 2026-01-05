@@ -27,9 +27,30 @@
         | { type: string; [key: string]: unknown };
 
     export let initialMessages: ChatMessage[] = [];
+
+    // Shared props (provided by the backend via Inertia shared props)
     export let user: {
+        id?: string | null;
         name?: string | null;
         email?: string | null;
+        role?: string | null;
+    } | null = null;
+
+    // Tenant context (slug + full schema name)
+    export let tenant: string | null = null;
+    export let tenant_schema: string | null = null;
+
+    // Organization selection context (multi-org membership)
+    export let organizations: Array<{
+        id: string;
+        name: string;
+        slug: string;
+    }> | null = null;
+
+    export let current_organization: {
+        id: string;
+        name: string;
+        slug: string;
     } | null = null;
 
     let messages: ChatMessage[] = initialMessages ?? [];
@@ -251,6 +272,10 @@
     subtitle="Streaming chat (SSE) — backed by POST /chat/message"
     showAdminLink={true}
     {user}
+    {tenant}
+    {tenant_schema}
+    {organizations}
+    {current_organization}
 >
     <div
         class="h-[calc(100vh-10.5rem)] flex flex-col rounded-2xl border border-border bg-card text-card-foreground overflow-hidden"

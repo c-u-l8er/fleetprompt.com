@@ -9,6 +9,7 @@ defmodule FleetPrompt.Accounts do
   resources do
     resource(FleetPrompt.Accounts.Organization)
     resource(FleetPrompt.Accounts.User)
+    resource(FleetPrompt.Accounts.OrganizationMembership)
   end
 
   admin do

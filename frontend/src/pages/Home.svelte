@@ -3,6 +3,33 @@
     import AppShell from "../lib/components/AppShell.svelte";
 
     export let message: string;
+
+    // Shared props (provided globally via Inertia shared props)
+    export let user: {
+        id?: string | null;
+        name?: string | null;
+        email?: string | null;
+        role?: string | null;
+    } | null = null;
+
+    // Tenant context (slug + full schema name)
+    export let tenant: string | null = null;
+    export let tenant_schema: string | null = null;
+
+    // Org selection context (for multi-org membership)
+    export let organizations: Array<{
+        id: string;
+        name?: string | null;
+        slug?: string | null;
+        tier?: string | null;
+    }> = [];
+
+    export let current_organization: {
+        id: string;
+        name?: string | null;
+        slug?: string | null;
+        tier?: string | null;
+    } | null = null;
 </script>
 
 <svelte:head>
@@ -13,6 +40,11 @@
     title="FleetPrompt v0.0.1"
     subtitle="Deploy AI agent fleets in minutes — multi-tenant, package-driven, and chat-oriented. (Pre v1: use at your own risk!)"
     showAdminLink={true}
+    {user}
+    {tenant}
+    {tenant_schema}
+    {organizations}
+    {current_organization}
 >
     <section
         class="rounded-2xl border border-border bg-card text-card-foreground p-6 sm:p-8"

@@ -9,7 +9,9 @@ defmodule FleetPromptWeb.Plugs.AdminTenant do
     which makes a tenant cookie the most compatible persistence mechanism.
 
   Behavior:
-  - If `?tenant=` is present, it wins and will update the tenant cookie (and session).
+  - If a signed-in user can be determined for this request, the tenant is pinned to that user's organization.
+    Any `tenant` query param is ignored and the cookie/session are updated to the user's org tenant.
+  - Otherwise, if `?tenant=` is present, it wins and will update the tenant cookie (and session).
   - If `?tenant=public|none|""`, it clears the tenant cookie (and session).
   - If `?tenant=<slug>` is given (e.g. `demo`), it will normalize to `org_<slug>`.
   - If no `tenant` param is present, it keeps whatever is already stored (cookie wins over session).
@@ -21,6 +23,8 @@ defmodule FleetPromptWeb.Plugs.AdminTenant do
 
   import Plug.Conn
   require Logger
+
+  alias FleetPrompt.Accounts.{Organization, User}
 
   @tenant_cookie "tenant"
   @tenant_session_key "tenant"
@@ -35,9 +39,18 @@ defmodule FleetPromptWeb.Plugs.AdminTenant do
       |> fetch_query_params()
       |> fetch_cookies()
 
+    allowed_tenant = allowed_tenant_for_conn(conn)
+
     case Map.fetch(conn.params, "tenant") do
       {:ok, raw} ->
-        tenant = normalize_tenant(raw)
+        requested = normalize_tenant(raw)
+
+        tenant =
+          if is_binary(allowed_tenant) and allowed_tenant != "" do
+            allowed_tenant
+          else
+            requested
+          end
 
         conn =
           conn
@@ -51,14 +64,73 @@ defmodule FleetPromptWeb.Plugs.AdminTenant do
         end
 
       :error ->
-        # No explicit override on this request; keep whatever is already in cookie/session.
-        current =
-          conn.req_cookies[@tenant_cookie] ||
-            get_session(conn, @tenant_session_key)
+        if is_binary(allowed_tenant) and allowed_tenant != "" do
+          conn
+          |> apply_tenant(allowed_tenant)
+        else
+          # No explicit override on this request; keep whatever is already in cookie/session.
+          current =
+            conn.req_cookies[@tenant_cookie] ||
+              get_session(conn, @tenant_session_key)
 
-        conn
-        |> Ash.PlugHelpers.set_tenant(current)
-        |> assign(:ash_tenant, current)
+          conn
+          |> Ash.PlugHelpers.set_tenant(current)
+          |> assign(:ash_tenant, current)
+        end
+    end
+  end
+
+  defp allowed_tenant_for_conn(conn) do
+    cond do
+      match?(%Organization{}, conn.assigns[:current_organization]) ->
+        org_to_tenant(conn.assigns.current_organization)
+
+      match?(%User{}, conn.assigns[:current_user]) ->
+        user = conn.assigns.current_user
+
+        case Map.get(user, :organization) do
+          %Organization{} = org -> org_to_tenant(org)
+          _ -> tenant_from_session(conn)
+        end
+
+      true ->
+        tenant_from_session(conn)
+    end
+  end
+
+  defp tenant_from_session(conn) do
+    user_id = get_session(conn, :user_id) || get_session(conn, "user_id")
+
+    if is_binary(user_id) and String.trim(user_id) != "" do
+      case safe_load_user_org(user_id) do
+        {:ok, %Organization{} = org} -> org_to_tenant(org)
+        _ -> nil
+      end
+    else
+      nil
+    end
+  end
+
+  defp safe_load_user_org(user_id) when is_binary(user_id) do
+    try do
+      case Ash.get(User, user_id, load: [:organization]) do
+        {:ok, %User{} = user} -> {:ok, Map.get(user, :organization)}
+        other -> {:error, other}
+      end
+    rescue
+      err -> {:error, err}
+    catch
+      kind, reason -> {:error, {kind, reason}}
+    end
+  end
+
+  defp org_to_tenant(%Organization{} = org) do
+    slug = Map.get(org, :slug)
+
+    if is_binary(slug) and String.trim(slug) != "" do
+      "org_" <> String.trim(slug)
+    else
+      nil
     end
   end
 

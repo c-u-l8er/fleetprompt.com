@@ -1,13 +1,16 @@
 defmodule FleetPromptWeb.PageController do
   use FleetPromptWeb, :controller
 
+  # Use the shared Inertia helper with a module prefix to avoid conflicts with the
+  # `render_inertia/3` imported by `use FleetPromptWeb, :controller`.
+
   alias FleetPrompt.Accounts.Organization
   alias FleetPrompt.Accounts.User
   alias FleetPrompt.Skills.Skill
   alias FleetPrompt.Agents.Agent
 
   def home(conn, _params) do
-    render_inertia(conn, "Home", %{
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Home", %{
       message: "Deploy AI agent fleets in minutes"
     })
   end
@@ -48,7 +51,7 @@ defmodule FleetPromptWeb.PageController do
         0
       end
 
-    render_inertia(conn, "Dashboard", %{
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Dashboard", %{
       title: "Dashboard",
       message: "Welcome to your FleetPrompt dashboard.",
       tenant: tenant,
@@ -62,13 +65,13 @@ defmodule FleetPromptWeb.PageController do
   end
 
   def marketplace(conn, _params) do
-    render_inertia(conn, "Marketplace", %{
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Marketplace", %{
       title: "Marketplace",
       subtitle: "Browse installable packages (agents, workflows, skills). Coming soon."
     })
   end
 
   def chat(conn, _params) do
-    render_inertia(conn, "Chat", %{})
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Chat", %{})
   end
 end

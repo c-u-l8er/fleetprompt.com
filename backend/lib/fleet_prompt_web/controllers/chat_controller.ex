@@ -26,7 +26,7 @@ defmodule FleetPromptWeb.ChatController do
   def index(conn, _params) do
     now = DateTime.utc_now() |> DateTime.to_iso8601()
 
-    render_inertia(conn, "Chat", %{
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Chat", %{
       initialMessages: [
         %{
           id: "msg_welcome",
@@ -36,11 +36,7 @@ defmodule FleetPromptWeb.ChatController do
           actions: [],
           inserted_at: now
         }
-      ],
-      user: %{
-        name: "Demo User",
-        email: "admin@demo.com"
-      }
+      ]
     })
   end
 
