@@ -1,0 +1,190 @@
+<div class="min-h-screen bg-background text-foreground">
+  <header class="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div class="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
+          <h1 class="text-xl font-semibold tracking-tight">
+            Admin tenant selector
+          </h1>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Select an organization tenant schema (e.g. <code class="rounded bg-muted px-1.5 py-0.5">org_demo</code>) before
+            browsing tenant-scoped resources like <span class="font-medium text-foreground">Agents</span> in AshAdmin.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            <span class="inline-block h-2 w-2 rounded-full bg-primary/80"></span>
+            Current tenant:
+            <span class="font-medium text-foreground">
+              <%= @current_tenant || "public" %>
+            </span>
+          </span>
+
+          <a
+            href={~p"/admin"}
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-background hover:bg-muted h-9 px-3"
+          >
+            Open Admin
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <section class="rounded-2xl border border-border bg-card text-card-foreground p-5 sm:p-6">
+      <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">Choose a tenant</h2>
+          <p class="mt-1 text-sm text-muted-foreground">
+            This selection is stored in your session and used when AshAdmin mounts.
+            You can also jump directly with
+            <code class="rounded bg-muted px-1.5 py-0.5">/admin?tenant=demo</code>
+            or
+            <code class="rounded bg-muted px-1.5 py-0.5">/admin?tenant=org_demo</code>.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <a
+            href={~p"/admin?tenant=public"}
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-background hover:bg-muted h-9 px-3"
+          >
+            Clear (public)
+          </a>
+
+          <a
+            href={~p"/admin?tenant=demo"}
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-background hover:bg-muted h-9 px-3"
+          >
+            Use demo
+          </a>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <.form for={to_form(%{}, as: :tenant)} method="post" action={~p"/admin/tenant"} class="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+
+          <label for="tenant" class="text-sm font-medium text-muted-foreground">
+            Tenant
+          </label>
+
+          <div class="flex-1">
+            <select
+              id="tenant"
+              name="tenant"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="public" selected={is_nil(@current_tenant) || @current_tenant == "public"}>
+                public (no tenant)
+              </option>
+              <option value="demo" selected={@current_tenant == "org_demo"}>
+                demo (org_demo)
+              </option>
+
+              <%= for org <- @organizations || [] do %>
+                <% slug = to_string(org.slug || "") %>
+                <% tenant = "org_" <> slug %>
+                <option value={slug} selected={@current_tenant == tenant}>
+                  <%= org.name %> (<%= tenant %>)
+                </option>
+              <% end %>
+            </select>
+
+            <p class="mt-2 text-xs text-muted-foreground">
+              Tip: choose a tenant before opening Agents. Organizations/Users/Skills live in the public schema.
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4"
+          >
+            Use tenant
+          </button>
+        </.form>
+      </div>
+    </section>
+
+    <section class="mt-8">
+      <div class="flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">Organizations</h2>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Select a tenant for each org. Tenant schemas are created as <code class="rounded bg-muted px-1.5 py-0.5">org_&lt;slug&gt;</code>.
+          </p>
+        </div>
+
+        <a
+          href={~p"/admin"}
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-background hover:bg-muted h-9 px-3"
+        >
+          Back to Admin
+        </a>
+      </div>
+
+      <div class="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+        <table class="w-full text-sm">
+          <thead class="bg-muted/30 text-muted-foreground">
+            <tr>
+              <th class="px-4 py-3 text-left font-medium">Name</th>
+              <th class="px-4 py-3 text-left font-medium">Slug</th>
+              <th class="px-4 py-3 text-left font-medium">Tenant</th>
+              <th class="px-4 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <%= if (@organizations || []) == [] do %>
+              <tr>
+                <td colspan="4" class="px-4 py-6 text-center text-muted-foreground">
+                  No organizations found (or failed to load organizations).
+                </td>
+              </tr>
+            <% else %>
+              <%= for org <- @organizations do %>
+                <% slug = to_string(org.slug || "") %>
+                <% tenant = "org_" <> slug %>
+                <tr class="hover:bg-muted/20">
+                  <td class="px-4 py-3">
+                    <div class="font-medium text-foreground"><%= org.name %></div>
+                    <div class="text-xs text-muted-foreground">
+                      Tier: <%= org.tier %>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <code class="rounded bg-muted px-1.5 py-0.5"><%= slug %></code>
+                  </td>
+                  <td class="px-4 py-3">
+                    <code class="rounded bg-muted px-1.5 py-0.5"><%= tenant %></code>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <div class="inline-flex items-center gap-2">
+                      <a
+                        href={~p"/admin?tenant=#{tenant}"}
+                        class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-background hover:bg-muted h-9 px-3"
+                      >
+                        Open in Admin
+                      </a>
+                      <a
+                        href={~p"/admin/tenant?tenant=#{tenant}"}
+                        class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-background hover:bg-muted h-9 px-3"
+                      >
+                        Select
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-4 text-xs text-muted-foreground">
+        Note: LiveReload warnings about <code class="rounded bg-muted px-1.5 py-0.5">inotify-tools</code> are optional and do not affect Admin functionality.
+      </p>
+    </section>
+  </main>
+</div>

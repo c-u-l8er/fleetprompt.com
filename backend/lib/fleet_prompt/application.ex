@@ -13,11 +13,8 @@ defmodule FleetPrompt.Application do
         FleetPrompt.Repo,
         {DNSCluster, query: Application.get_env(:fleet_prompt, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: FleetPrompt.PubSub},
-        {Finch, name: FleetPrompt.Finch},
-
-        # Oban for background jobs
-        {Oban, Application.fetch_env!(:fleet_prompt, Oban)}
-      ] ++ inertia_ssr_children() ++ [FleetPromptWeb.Endpoint]
+        {Finch, name: FleetPrompt.Finch}
+      ] ++ oban_children() ++ inertia_ssr_children() ++ [FleetPromptWeb.Endpoint]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -28,6 +25,30 @@ defmodule FleetPrompt.Application do
   defp inertia_ssr_children do
     if Application.get_env(:inertia, :ssr, false) do
       [{Inertia.SSR, path: Path.join([Application.app_dir(:fleet_prompt), "priv"])}]
+    else
+      []
+    end
+  end
+
+  defp oban_children do
+    start_oban? =
+      case Application.get_env(:fleet_prompt, :start_oban, :auto) do
+        true ->
+          true
+
+        false ->
+          false
+
+        :auto ->
+          if Code.ensure_loaded?(Mix) do
+            Mix.env() != :test
+          else
+            true
+          end
+      end
+
+    if start_oban? do
+      [{Oban, Application.fetch_env!(:fleet_prompt, Oban)}]
     else
       []
     end

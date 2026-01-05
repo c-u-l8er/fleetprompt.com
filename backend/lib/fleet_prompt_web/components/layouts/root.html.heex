@@ -4,10 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.inertia_title>
-      <%= assigns[:page_title] || "FleetPrompt" %>
-    </.inertia_title>
-    <.inertia_head content={@inertia_head} />
+
+    <%= if assigns[:inertia_head] do %>
+      <.inertia_title>
+        <%= assigns[:page_title] || "FleetPrompt" %>
+      </.inertia_title>
+      <.inertia_head content={@inertia_head} />
+    <% else %>
+      <title><%= assigns[:page_title] || "FleetPrompt" %></title>
+    <% end %>
+
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="module" src={~p"/assets/app.js"}></script>
   </head>

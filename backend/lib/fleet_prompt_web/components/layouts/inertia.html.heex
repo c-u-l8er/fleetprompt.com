@@ -1,0 +1,7 @@
+<%!-- Minimal controller layout for Inertia-rendered routes.
+     Intentionally does NOT include any app chrome (headers/nav/sidebar),
+     since Inertia/Svelte pages render their own UI shell. --%>
+
+{@inner_content}
+
+<Layouts.flash_group flash={@flash} />

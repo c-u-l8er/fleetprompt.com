@@ -23,6 +23,12 @@ config :fleet_prompt, FleetPromptWeb.Endpoint,
 # In test we don't send emails
 config :fleet_prompt, FleetPrompt.Mailer, adapter: Swoosh.Adapters.Test
 
+# Do not run Oban queues/plugins during tests (avoids background DB access under SQL sandbox).
+config :fleet_prompt, Oban,
+  repo: FleetPrompt.Repo,
+  plugins: false,
+  queues: false
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

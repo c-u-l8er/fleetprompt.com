@@ -26,7 +26,8 @@ config :fleet_prompt, FleetPromptWeb.Endpoint,
     formats: [html: FleetPromptWeb.ErrorHTML, json: FleetPromptWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: FleetPrompt.PubSub
+  pubsub_server: FleetPrompt.PubSub,
+  live_view: [signing_salt: "GIeo_fKca-BhFCHE"]
 
 # Configure Inertia
 config :inertia,

@@ -11,6 +11,12 @@ defmodule FleetPromptWeb.Endpoint do
     same_site: "Lax"
   ]
 
+  # LiveView socket (required for AshAdmin)
+  socket("/live", Phoenix.LiveView.Socket,
+    websocket: [connect_info: [session: @session_options]],
+    longpoll: false
+  )
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),

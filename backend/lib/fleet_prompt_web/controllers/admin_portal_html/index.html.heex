@@ -1,0 +1,221 @@
+<div class="space-y-8">
+  <section class="rounded-2xl border border-border bg-card text-card-foreground p-5 sm:p-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div class="min-w-0">
+        <h1 class="text-xl font-semibold tracking-tight">Admin portal</h1>
+
+        <p class="mt-1 text-sm text-muted-foreground">
+          This is the admin landing page. Use it to confirm tenant context and jump into AshAdmin.
+        </p>
+
+        <div class="mt-3 text-sm">
+          <span class="text-muted-foreground">Current tenant:</span>
+          <%= if @current_tenant do %>
+            <code class="ml-2 rounded bg-muted px-1.5 py-0.5"><%= @current_tenant %></code>
+          <% else %>
+            <span class="ml-2 text-muted-foreground">public</span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <a
+          href={~p"/admin/tenant"}
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                 border border-border bg-background hover:bg-muted h-9 px-3"
+        >
+          Select tenant
+        </a>
+
+        <a
+          href={~p"/admin"}
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3"
+        >
+          Open AshAdmin
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="rounded-xl border border-border bg-background p-4">
+        <div class="text-sm font-semibold">Recommended flow</div>
+        <ol class="mt-2 space-y-1 text-sm text-muted-foreground list-decimal pl-5">
+          <li>Pick a tenant (e.g. <code class="rounded bg-muted px-1.5 py-0.5">demo</code>).</li>
+          <li>Open AshAdmin and browse <span class="font-medium text-foreground">Agents</span>.</li>
+          <li>Return here to keep context and navigate.</li>
+        </ol>
+      </div>
+
+      <div class="rounded-xl border border-border bg-background p-4">
+        <div class="text-sm font-semibold">Tenant-scoped resources</div>
+        <p class="mt-2 text-sm text-muted-foreground">
+          Agents live in tenant schemas (<code class="rounded bg-muted px-1.5 py-0.5">org_*</code>).
+          If you are in <span class="font-medium text-foreground">public</span>, you won’t see tenant-scoped records.
+        </p>
+      </div>
+
+      <div class="rounded-xl border border-border bg-background p-4">
+        <div class="text-sm font-semibold">Public resources</div>
+        <p class="mt-2 text-sm text-muted-foreground">
+          Organizations, Users, and Skills are stored in the public schema and are always visible.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 rounded-2xl border border-border bg-card text-card-foreground p-5 sm:p-6">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">Organizations</h2>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Choose a tenant per organization. Tenant schema is <code class="rounded bg-muted px-1.5 py-0.5">org_&lt;slug&gt;</code>.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <a
+            href={~p"/admin/tenant"}
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                   border border-border bg-background hover:bg-muted h-9 px-3"
+          >
+            Tenant selector
+          </a>
+          <a
+            href={~p"/admin"}
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                   border border-border bg-background hover:bg-muted h-9 px-3"
+          >
+            AshAdmin
+          </a>
+        </div>
+      </div>
+
+      <div class="mt-4 overflow-hidden rounded-2xl border border-border bg-background">
+        <table class="w-full text-sm">
+          <thead class="bg-muted/30 text-muted-foreground">
+            <tr>
+              <th class="px-4 py-3 text-left font-medium">Name</th>
+              <th class="px-4 py-3 text-left font-medium">Slug</th>
+              <th class="px-4 py-3 text-left font-medium">Tenant</th>
+              <th class="px-4 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <%= if (@organizations || []) == [] do %>
+              <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-muted-foreground">
+                  No organizations found.
+                </td>
+              </tr>
+            <% else %>
+              <%= for org <- @organizations do %>
+                <% slug = to_string(org.slug || "") %>
+                <% tenant = "org_" <> slug %>
+                <tr class="hover:bg-muted/20">
+                  <td class="px-4 py-3">
+                    <div class="font-medium text-foreground"><%= org.name %></div>
+                    <div class="text-xs text-muted-foreground">
+                      Tier: <%= org.tier %> • Billing: <%= org.billing_status %>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <code class="rounded bg-muted px-1.5 py-0.5"><%= slug %></code>
+                  </td>
+                  <td class="px-4 py-3">
+                    <code class="rounded bg-muted px-1.5 py-0.5"><%= tenant %></code>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex justify-end gap-2">
+                      <a
+                        href={~p"/admin?tenant=#{tenant}"}
+                        class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                               border border-border bg-background hover:bg-muted h-9 px-3"
+                      >
+                        Open in AshAdmin
+                      </a>
+                      <a
+                        href={~p"/admin/tenant?tenant=#{tenant}"}
+                        class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                               border border-border bg-background hover:bg-muted h-9 px-3"
+                      >
+                        Select tenant
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-4 text-xs text-muted-foreground">
+        Tip: you can also jump directly via <code class="rounded bg-muted px-1.5 py-0.5">/admin?tenant=demo</code>.
+      </p>
+    </div>
+
+    <aside class="rounded-2xl border border-border bg-card text-card-foreground p-5 sm:p-6">
+      <h2 class="text-base font-semibold">Quick actions</h2>
+
+      <div class="mt-4 space-y-3">
+        <a
+          href={~p"/admin/tenant"}
+          class="block rounded-xl border border-border bg-background p-4 hover:bg-muted/30 transition-colors"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="font-medium">Select tenant</div>
+              <div class="mt-1 text-sm text-muted-foreground">
+                Required to browse tenant-scoped resources (Agents).
+              </div>
+            </div>
+            <span class="text-muted-foreground">→</span>
+          </div>
+        </a>
+
+        <a
+          href={~p"/admin"}
+          class="block rounded-xl border border-border bg-background p-4 hover:bg-muted/30 transition-colors"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="font-medium">Open AshAdmin</div>
+              <div class="mt-1 text-sm text-muted-foreground">
+                Browse Organizations, Users, Skills, and Agents.
+              </div>
+            </div>
+            <span class="text-muted-foreground">→</span>
+          </div>
+        </a>
+
+        <a
+          href={~p"/dashboard"}
+          class="block rounded-xl border border-border bg-background p-4 hover:bg-muted/30 transition-colors"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="font-medium">Back to app</div>
+              <div class="mt-1 text-sm text-muted-foreground">
+                Return to the Svelte/Inertia UI scaffold.
+              </div>
+            </div>
+            <span class="text-muted-foreground">→</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="mt-6 rounded-xl border border-border bg-muted/20 p-4">
+        <div class="text-sm font-semibold">Tenant status</div>
+        <p class="mt-2 text-sm text-muted-foreground">
+          <%= if @current_tenant do %>
+            You’re set to <code class="rounded bg-muted px-1.5 py-0.5"><%= @current_tenant %></code>.
+          <% else %>
+            You’re in <span class="font-medium text-foreground">public</span>. Select a tenant to see tenant-scoped data.
+          <% end %>
+        </p>
+      </div>
+    </aside>
+  </section>
+</div>
