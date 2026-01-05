@@ -6,6 +6,7 @@ defmodule FleetPromptWeb.Router do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_flash)
+    plug(:assign_request_path)
     plug(FleetPromptWeb.Plugs.AdminTenant)
     plug(:put_root_layout, html: {FleetPromptWeb.Layouts, :root})
     plug(:put_layout, html: {FleetPromptWeb.Layouts, :inertia})
@@ -18,6 +19,7 @@ defmodule FleetPromptWeb.Router do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_flash)
+    plug(:assign_request_path)
     plug(FleetPromptWeb.Plugs.AdminTenant)
     plug(:put_root_layout, html: {FleetPromptWeb.Layouts, :root})
     plug(:put_layout, html: {FleetPromptWeb.Layouts, :admin})
@@ -43,28 +45,25 @@ defmodule FleetPromptWeb.Router do
     post("/chat/message", ChatController, :send_message)
   end
 
-  # Admin utilities (regular controllers) stay in the FleetPromptWeb namespace
+  # Admin shell + utilities (regular controllers) stay in the FleetPromptWeb namespace
   scope "/admin", FleetPromptWeb do
     pipe_through(:admin)
+
+    # Shell page: app-style header with AshAdmin embedded (iframe)
+    get("/", AdminShellController, :index)
 
     get("/portal", AdminPortalController, :index)
     get("/tenant", AdminTenantController, :index)
     post("/tenant", AdminTenantController, :select)
   end
 
-  # AshAdmin (LiveView) should not be namespaced under FleetPromptWeb to avoid
-  # module resolution/verification warnings during compilation.
+  # AshAdmin (LiveView) is mounted under /admin/ui so the /admin shell can embed it in an iframe.
+  #
+  # NOTE: This scope intentionally has no `FleetPromptWeb` namespace.
   scope "/admin" do
     pipe_through(:admin)
 
-    ash_admin("/",
-      domains: [
-        FleetPrompt.Accounts,
-        FleetPrompt.Agents,
-        FleetPrompt.Skills,
-        FleetPrompt.Packages
-      ]
-    )
+    ash_admin("/ui")
   end
 
   # Other scopes may use custom stacks.
@@ -87,5 +86,9 @@ defmodule FleetPromptWeb.Router do
       live_dashboard("/dashboard", metrics: FleetPromptWeb.Telemetry)
       forward("/mailbox", Plug.Swoosh.MailboxPreview)
     end
+  end
+
+  defp assign_request_path(conn, _opts) do
+    assign(conn, :fp_request_path, conn.request_path)
   end
 end

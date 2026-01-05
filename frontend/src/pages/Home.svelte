@@ -11,7 +11,7 @@
 
 <AppShell
     title="FleetPrompt v0.0.1"
-    subtitle="Deploy AI agent fleets in minutes — multi-tenant, package-driven, and chat-oriented. (Open for beta testers!)"
+    subtitle="Deploy AI agent fleets in minutes — multi-tenant, package-driven, and chat-oriented. (Pre v1: use at your own risk!)"
     showAdminLink={true}
 >
     <section
