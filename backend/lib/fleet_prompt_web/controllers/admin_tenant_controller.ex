@@ -12,6 +12,11 @@ defmodule FleetPromptWeb.AdminTenantController do
 
   use FleetPromptWeb, :controller
 
+  # This page renders its own header chrome (homepage-style header), so we
+  # override the admin layout with the minimal Inertia layout to avoid
+  # double headers.
+  plug(:put_layout, html: {FleetPromptWeb.Layouts, :inertia})
+
   alias FleetPrompt.Accounts.Organization
 
   require Ash.Query

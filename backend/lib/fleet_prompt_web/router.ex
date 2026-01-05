@@ -36,8 +36,11 @@ defmodule FleetPromptWeb.Router do
     get("/dashboard", PageController, :dashboard)
 
     # Inertia pages (UI scaffold; real implementations land in Phase 2/3)
-    get("/marketplace", PageController, :marketplace)
-    get("/chat", PageController, :chat)
+    get("/marketplace", MarketplaceController, :index)
+    get("/chat", ChatController, :index)
+
+    # Chat SSE endpoint (Phase 3 transport)
+    post("/chat/message", ChatController, :send_message)
   end
 
   # Admin utilities (regular controllers) stay in the FleetPromptWeb namespace
@@ -58,7 +61,8 @@ defmodule FleetPromptWeb.Router do
       domains: [
         FleetPrompt.Accounts,
         FleetPrompt.Agents,
-        FleetPrompt.Skills
+        FleetPrompt.Skills,
+        FleetPrompt.Packages
       ]
     )
   end

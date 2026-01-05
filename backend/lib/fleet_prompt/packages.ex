@@ -1,17 +1,23 @@
 defmodule FleetPrompt.Packages do
   @moduledoc """
-  Ash domain placeholder for package-related resources.
+  Ash domain for package-related resources (Phase 2).
 
-  This module exists so `FleetPrompt.Packages` can be referenced in configuration
-  (e.g. `:ash_domains`) before Phase 2 resources are implemented.
+  Packages are global (public schema). Tenant-scoped installs will be added as a
+  separate resource in Phase 2/3.
   """
 
-  use Ash.Domain
+  use Ash.Domain, extensions: [AshAdmin.Domain]
+
+  admin do
+    show?(true)
+    name("Packages")
+  end
 
   resources do
-    # Phase 2 will register resources here, e.g.:
-    # resource FleetPrompt.Packages.Package
-    # resource FleetPrompt.Packages.Installation
-    # resource FleetPrompt.Packages.Review
+    resource(FleetPrompt.Packages.Package)
+    resource(FleetPrompt.Packages.Review)
+
+    # Phase 2 (next):
+    # resource(FleetPrompt.Packages.Installation)
   end
 end

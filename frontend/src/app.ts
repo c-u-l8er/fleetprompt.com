@@ -54,9 +54,9 @@ if (inertiaEl && initialPage) {
         throw new Error(`Inertia page not found: ${name}`);
       }
 
-      // Vite's eager glob returns the module object; Svelte page components are the default export.
-      // Fall back to the module itself for compatibility with different bundler outputs.
-      return (pageModule as any).default ?? pageModule;
+      // The Inertia Svelte adapter expects the *module object* (it reads `.default` internally).
+      // Returning the component itself will cause the adapter to render nothing.
+      return pageModule as any;
     },
     setup({ el, App, props }) {
       const target = (el as HTMLElement | null) ?? inertiaEl;

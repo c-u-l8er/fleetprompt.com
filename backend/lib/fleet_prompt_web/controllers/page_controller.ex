@@ -1,6 +1,11 @@
 defmodule FleetPromptWeb.PageController do
   use FleetPromptWeb, :controller
 
+  alias FleetPrompt.Accounts.Organization
+  alias FleetPrompt.Accounts.User
+  alias FleetPrompt.Skills.Skill
+  alias FleetPrompt.Agents.Agent
+
   def home(conn, _params) do
     render_inertia(conn, "Home", %{
       message: "Deploy AI agent fleets in minutes"
@@ -8,9 +13,51 @@ defmodule FleetPromptWeb.PageController do
   end
 
   def dashboard(conn, _params) do
+    # Tenant is optional for the app UI, but required to read tenant-scoped resources like Agents.
+    tenant =
+      case conn.assigns[:ash_tenant] do
+        t when is_binary(t) and t != "" -> t
+        _ -> nil
+      end
+
+    org_count =
+      Organization
+      |> Ash.Query.for_read(:read)
+      |> Ash.read!()
+      |> length()
+
+    user_count =
+      User
+      |> Ash.Query.for_read(:read)
+      |> Ash.read!()
+      |> length()
+
+    skill_count =
+      Skill
+      |> Ash.Query.for_read(:read)
+      |> Ash.read!()
+      |> length()
+
+    agent_count =
+      if tenant do
+        Agent
+        |> Ash.Query.for_read(:read)
+        |> Ash.read!(tenant: tenant)
+        |> length()
+      else
+        0
+      end
+
     render_inertia(conn, "Dashboard", %{
       title: "Dashboard",
-      message: "Welcome to your FleetPrompt dashboard."
+      message: "Welcome to your FleetPrompt dashboard.",
+      tenant: tenant,
+      stats: %{
+        organizations: org_count,
+        users: user_count,
+        skills: skill_count,
+        agents: agent_count
+      }
     })
   end
 

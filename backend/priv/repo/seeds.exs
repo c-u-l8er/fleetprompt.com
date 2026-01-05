@@ -15,6 +15,7 @@ alias FleetPrompt.Accounts.Organization
 alias FleetPrompt.Accounts.User
 alias FleetPrompt.Skills.Skill
 alias FleetPrompt.Agents.Agent
+alias FleetPrompt.Packages.Package
 
 import Ash.Expr
 require Ash.Query
@@ -258,6 +259,202 @@ _agent =
       #{format_error.(error)}
       """)
   end
+
+#
+# 5) Seed marketplace packages (global / public)
+#
+packages_data = [
+  %{
+    name: "Field Service Management",
+    slug: "field-service",
+    version: "1.0.0",
+    description:
+      "Complete field service system with dispatcher, customer service, QA, and inventory agents",
+    long_description: """
+    The Field Service Management package includes everything you need to run a professional field service operation:
+
+    - Dispatcher Agent: Intelligent scheduling and technician assignment
+    - Customer Service Agent: Automated customer communication
+    - QA Inspector Agent: Quality assurance and compliance checking
+    - Inventory Manager Agent: Parts tracking and automated ordering
+
+    Perfect for HVAC, plumbing, electrical, and other field service businesses.
+    """,
+    category: :operations,
+    author: "FleetPrompt Team",
+    license: "MIT",
+    icon_url: "/images/packages/field-service.svg",
+    pricing_model: :freemium,
+    pricing_config: %{
+      "tiers" => [
+        %{"name" => "Free", "limit" => 100, "price" => 0},
+        %{"name" => "Pro", "limit" => 5000, "price" => 99}
+      ]
+    },
+    min_fleet_prompt_tier: :pro,
+    dependencies: [],
+    includes: %{
+      "agents" => [
+        %{
+          "name" => "Dispatcher",
+          "description" => "Intelligent scheduling",
+          "system_prompt" => "You are a dispatcher agent. Optimize schedules and assignments."
+        },
+        %{
+          "name" => "Customer Service",
+          "description" => "Automated communication",
+          "system_prompt" => "You are a customer service agent. Communicate clearly and politely."
+        },
+        %{
+          "name" => "QA Inspector",
+          "description" => "Quality assurance",
+          "system_prompt" => "You are a QA inspector. Verify work quality and compliance."
+        },
+        %{
+          "name" => "Inventory Manager",
+          "description" => "Parts management",
+          "system_prompt" => "You manage inventory. Track parts and recommend reorders."
+        }
+      ],
+      "workflows" => [
+        %{"name" => "Service Request", "description" => "End-to-end service workflow"}
+      ],
+      "skills" => [],
+      "tools" => []
+    },
+    install_count: 2547,
+    rating_avg: Decimal.new("4.8"),
+    rating_count: 234,
+    is_verified: true,
+    is_featured: true,
+    is_published: true
+  },
+  %{
+    name: "Customer Support Hub",
+    slug: "customer-support",
+    version: "2.1.0",
+    description: "AI-powered ticket management, live chat, email responses, and knowledge base",
+    long_description: """
+    Transform your customer support with AI agents that handle tickets, chat, and email automatically.
+    """,
+    category: :customer_service,
+    author: "FleetPrompt Team",
+    license: "MIT",
+    icon_url: "/images/packages/customer-support.svg",
+    pricing_model: :paid,
+    pricing_config: %{"price" => 149},
+    min_fleet_prompt_tier: :free,
+    dependencies: [],
+    includes: %{
+      "agents" => [
+        %{
+          "name" => "Ticket Manager",
+          "description" => "Automatic ticket triage",
+          "system_prompt" => "Triage and route customer tickets efficiently."
+        },
+        %{
+          "name" => "Live Chat",
+          "description" => "Real-time chat support",
+          "system_prompt" => "Provide real-time chat support with friendly tone."
+        },
+        %{
+          "name" => "Email Responder",
+          "description" => "Intelligent email handling",
+          "system_prompt" => "Draft clear and correct email replies."
+        }
+      ],
+      "workflows" => [],
+      "skills" => [],
+      "tools" => []
+    },
+    install_count: 3201,
+    rating_avg: Decimal.new("4.9"),
+    rating_count: 412,
+    is_verified: true,
+    is_featured: true,
+    is_published: true
+  },
+  %{
+    name: "Sales Automation",
+    slug: "sales-automation",
+    version: "1.5.0",
+    description:
+      "Lead qualification, outreach sequences, meeting scheduling, and proposal generation",
+    long_description: """
+    Automate your sales pipeline: qualify inbound leads, run outreach sequences, schedule meetings, and generate proposals.
+    """,
+    category: :sales,
+    author: "SalesAI Inc",
+    license: "Proprietary",
+    icon_url: "/images/packages/sales-automation.svg",
+    pricing_model: :revenue_share,
+    pricing_config: %{"percentage" => 15},
+    min_fleet_prompt_tier: :pro,
+    dependencies: [],
+    includes: %{
+      "agents" => [
+        %{
+          "name" => "Lead Qualifier",
+          "description" => "Intelligent lead scoring",
+          "system_prompt" => "Score leads based on fit and intent."
+        },
+        %{
+          "name" => "Outreach Agent",
+          "description" => "Automated email sequences",
+          "system_prompt" => "Run outreach sequences and track responses."
+        }
+      ],
+      "workflows" => [],
+      "skills" => [],
+      "tools" => []
+    },
+    install_count: 1876,
+    rating_avg: Decimal.new("4.6"),
+    rating_count: 189,
+    is_verified: false,
+    is_featured: false,
+    is_published: true
+  }
+]
+
+Enum.each(packages_data, fn package_data ->
+  case Package |> Ash.Changeset.for_create(:create, package_data) |> Ash.create() do
+    {:ok, pkg} ->
+      IO.puts("OK: Created package: #{pkg.name} (#{pkg.slug}@#{pkg.version})")
+
+    {:error, error} ->
+      IO.puts(
+        "INFO: Package #{package_data[:slug]}@#{package_data[:version]} create failed (likely exists). Trying to load by slug/version..."
+      )
+
+      case Package
+           |> Ash.Query.for_read(:read)
+           |> Ash.Query.filter(
+             expr(slug == ^package_data[:slug] and version == ^package_data[:version])
+           )
+           |> Ash.read_one() do
+        {:ok, pkg} when not is_nil(pkg) ->
+          IO.puts("OK: Loaded existing package: #{pkg.name} (#{pkg.slug}@#{pkg.version})")
+
+        {:ok, nil} ->
+          IO.puts("""
+          WARN: Could not create or load package #{package_data[:slug]}@#{package_data[:version]}.
+          Error:
+          #{format_error.(error)}
+          """)
+
+        {:error, read_error} ->
+          IO.puts("""
+          WARN: Could not create package #{package_data[:slug]}@#{package_data[:version]} and failed to load existing.
+          Create error:
+          #{format_error.(error)}
+
+          Read error:
+          #{format_error.(read_error)}
+          """)
+      end
+  end
+end)
 
 IO.puts("\nOK: Seed data finished.")
 IO.puts("\nLogin credentials:")

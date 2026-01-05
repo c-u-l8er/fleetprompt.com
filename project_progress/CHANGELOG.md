@@ -66,6 +66,9 @@ This project is early-stage and is being built iteratively from the phase docs i
   - fixed missing DOM render into `#app` by mounting via Inertia’s provided `el` and supporting both constructor-based Svelte components (`new App({ target, props })`) and function components (`mount(App, { target, props })`).
 - AshAdmin LiveView wiring:
   - added LiveView signing salt configuration and mounted the LiveView websocket endpoint at `/live` so AshAdmin can connect.
+- Admin tenant selector UI/layout:
+  - updated `/admin/tenant` to match the homepage header styling
+  - avoided double headers by overriding `AdminTenantController` to use the minimal controller layout (instead of `Layouts.admin`)
 - Oban runtime failures:
   - fixed repeated `relation "public.oban_jobs" does not exist` by adding and running the Oban migration.
 - Phoenix CodeReloader warning:

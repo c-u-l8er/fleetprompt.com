@@ -1,6 +1,6 @@
 # FleetPrompt — Current Status
 
-Last updated: 2026-01-04
+Last updated: 2026-01-05
 
 ## Executive summary
 
@@ -19,13 +19,47 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
   - `FleetPrompt.Agents.Agent` (multi-tenant via schema-per-tenant using `multitenancy :context`, state machine via `AshStateMachine`)
 - Migrations generated and applied (including required Postgres extensions like `pgcrypto` and Ash SQL helper functions).
 - AshAdmin (LiveView) is wired at `/admin` and is functional (LiveView socket mounted at `/live`).
-- AshAdmin tenant selection UX is available at `/admin/tenant` (persists tenant in session; supports `demo` → `org_demo`) so you can browse tenant-scoped resources like Agents.
+- AshAdmin tenant selection UX is available at `/admin/tenant` (persists tenant in cookie + session; supports `demo` → `org_demo`) so you can browse tenant-scoped resources like Agents. The `/admin/tenant` header now matches the homepage header styling; the page uses the minimal controller layout to avoid a double-header with the Admin layout.
 - UI/UX scaffolding (Inertia + Svelte) is in progress:
   - shared `AppShell` layout component
   - placeholder pages/routes: `/dashboard`, `/marketplace`, `/chat`
 - Seeds script updated to create a demo org/user/skills and a tenant-scoped agent.
 
 **Frontend note:** the Inertia client mounting code has been updated to mount using Inertia’s provided element (`setup({ el, ... })`) and to support both constructor-based and `mount(...)` based component styles. You still need to validate DOM rendering in the browser.
+
+## Code map (backend `lib/` and frontend `src/`)
+
+### Backend (`backend/lib`)
+- `backend/lib/fleet_prompt/`
+  - `application.ex` — OTP app boot (supervision tree)
+  - `repo.ex` — `AshPostgres.Repo` and tenant discovery (`all_tenants/0`)
+  - `accounts/` + `accounts.ex` — Accounts domain/resources (e.g. `Organization`, `User`)
+  - `agents/` + `agents.ex` — Agents domain/resources (tenant-scoped `Agent`)
+  - `skills/` + `skills.ex` — Skills domain/resources (global `Skill`)
+  - `packages/` + `packages.ex` — Package domain placeholder (Phase 2+)
+  - `workflows/` + `workflows.ex` — Workflow domain placeholder (Phase 3+)
+- `backend/lib/fleet_prompt_web/`
+  - `router.ex` — route + pipeline definitions (browser/admin; `/admin` + `/admin/tenant`)
+  - `endpoint.ex` — Phoenix endpoint configuration
+  - `controllers/` — controller actions + HEEx templates
+    - `admin_tenant_controller.ex` + `admin_tenant_html/index.html.heex` — tenant selector UI
+    - `page_controller.ex` — Inertia entry pages (`/`, `/dashboard`)
+    - `marketplace_controller.ex`, `chat_controller.ex` — scaffold routes
+  - `components/layouts/`
+    - `root.html.heex` — root HTML shell + asset tags + inertia head/title
+    - `admin.html.heex` — AshAdmin chrome (header + tenant context banner)
+    - `inertia.html.heex` — minimal layout for Inertia pages (no chrome)
+
+### Frontend (`frontend/src`)
+- `frontend/src/app.ts` — Inertia + Svelte client bootstrap
+- `frontend/src/app.css` — global styles
+- `frontend/src/lib/components/AppShell.svelte` — shared app chrome (homepage-style header + page header block)
+- `frontend/src/pages/` — Inertia page components
+  - `Home.svelte` — homepage content (uses `AppShell`)
+  - `Dashboard.svelte` — dashboard scaffold page (uses `AppShell`)
+  - `Marketplace.svelte` — marketplace scaffold page (uses `AppShell`)
+  - `Chat.svelte` — chat scaffold page (uses `AppShell`)
+- `frontend/src/types/` — shared TS types (as needed)
 
 ---
 
@@ -40,7 +74,7 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
   - `<div id="app" data-page="...json..."></div>` (valid JSON payload)
 - Ash resources/domains compile and migrations have been generated + applied via `mix ash_postgres.generate_migrations` and `mix ash_postgres.migrate`.
 - AshAdmin is available at `http://127.0.0.1:4000/admin`.
-- Tenant selector is available at `http://127.0.0.1:4000/admin/tenant` (choose `demo` / `org_demo` to browse tenant-scoped resources like `Agents`).
+- Tenant selector is available at `http://127.0.0.1:4000/admin/tenant` (choose `demo` / `org_demo` to browse tenant-scoped resources like `Agents`). The page header matches the homepage header styling and does not overlap with the Admin layout header (layout is overridden to the minimal Inertia layout for this controller).
 
 ### Frontend build pipeline
 - Frontend builds successfully with Vite (pinned to v5 to satisfy peer deps) and outputs:
