@@ -10,8 +10,8 @@
 </svelte:head>
 
 <AppShell
-    title="FleetPrompt"
-    subtitle="Deploy AI agent fleets in minutes — multi-tenant, package-driven, and production-ready."
+    title="FleetPrompt v0.0.1"
+    subtitle="Deploy AI agent fleets in minutes — multi-tenant, package-driven, and chat-oriented. (Open for beta testers!)"
     showAdminLink={true}
 >
     <section
