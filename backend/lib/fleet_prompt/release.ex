@@ -20,10 +20,26 @@ defmodule FleetPrompt.Release do
     load_app()
 
     for repo <- repos() do
-      {:ok, _result} =
+      result =
         Ecto.Migrator.with_repo(repo, fn repo ->
           Ecto.Migrator.run(repo, migrations_path(), :up, all: true)
         end)
+
+      case result do
+        {:ok, _result} ->
+          :ok
+
+        {:ok, _result, _log} ->
+          :ok
+
+        {:error, reason} ->
+          raise RuntimeError,
+                "migration failed for #{inspect(repo)}: #{inspect(reason)}"
+
+        other ->
+          raise RuntimeError,
+                "unexpected result from Ecto.Migrator.with_repo for #{inspect(repo)}: #{inspect(other)}"
+      end
     end
 
     :ok
@@ -38,10 +54,26 @@ defmodule FleetPrompt.Release do
     load_app()
 
     for repo <- repos() do
-      {:ok, _result} =
+      result =
         Ecto.Migrator.with_repo(repo, fn repo ->
           Ecto.Migrator.run(repo, migrations_path(), :down, to: version)
         end)
+
+      case result do
+        {:ok, _result} ->
+          :ok
+
+        {:ok, _result, _log} ->
+          :ok
+
+        {:error, reason} ->
+          raise RuntimeError,
+                "rollback failed for #{inspect(repo)} to #{version}: #{inspect(reason)}"
+
+        other ->
+          raise RuntimeError,
+                "unexpected result from Ecto.Migrator.with_repo for #{inspect(repo)} to #{version}: #{inspect(other)}"
+      end
     end
 
     :ok
