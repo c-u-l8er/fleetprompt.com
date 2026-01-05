@@ -56,6 +56,7 @@ defmodule FleetPromptWeb.Router do
     pipe_through(:browser)
 
     # Public
+    get("/health", HealthController, :index)
     get("/", PageController, :home)
 
     # Session auth
