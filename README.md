@@ -1,6 +1,12 @@
 FleetPrompt
 ========
 
+### Production
+```bash
+fly deploy --app fleetprompt
+```
+
+### Development
 ```bash
 cd ./frontend
 vite build --watch
