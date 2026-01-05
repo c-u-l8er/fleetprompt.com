@@ -24,6 +24,10 @@ config :fleet_prompt, FleetPromptWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
+  # Fly runs releases from a read-only filesystem; tzdata's autoupdater
+  # attempts to write under the app dir unless configured otherwise.
+  config :tzdata, :autoupdate, :disabled
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """
