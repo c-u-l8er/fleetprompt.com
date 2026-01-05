@@ -2,7 +2,7 @@
 export default {
   content: [
     "./src/**/*.{html,js,svelte,ts}",
-    "../backend/fleet_prompt/lib/fleet_prompt_web/**/*.{ex,heex}",
+    "../backend/lib/fleet_prompt_web/**/*.{ex,heex}",
   ],
   theme: {
     extend: {

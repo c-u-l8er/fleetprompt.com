@@ -4,13 +4,28 @@ Last updated: 2026-01-04
 
 ## Executive summary
 
-You now have a working split setup:
+You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place:
 
 - **Backend**: Phoenix app under `fleetprompt.com/backend`
 - **Frontend**: Vite + Svelte app under `fleetprompt.com/frontend`
-- **Integration**: Phoenix serves built assets from `backend/priv/static/assets`, and the `/` route renders an **Inertia page payload** (`<div id="app" data-page="...">`) that the frontend successfully boots and reaches Inertia `setup()`.
+- **Integration**: Phoenix serves built assets from `backend/priv/static/assets`, and `/` renders an Inertia payload (`<div id="app" data-page="...">`).
 
-The remaining gap is **actual DOM rendering into `#app`** (Svelte mount results in `#app.children.length === 0` even though boot and setup run). There are no console errors right now, so the next work should focus on verifying the Svelte/Inertia root component is mounting as expected and whether the adapter is targeting the correct element.
+**Phase 1 (Core Resources + Multi-tenancy) implementation is now in the codebase:**
+- Ash domains added: `FleetPrompt.Accounts`, `FleetPrompt.Agents`, `FleetPrompt.Skills` (+ placeholders `FleetPrompt.Workflows`, `FleetPrompt.Packages` for later phases).
+- Ash resources added:
+  - `FleetPrompt.Accounts.Organization` (tenant schema management via `manage_tenant`)
+  - `FleetPrompt.Accounts.User`
+  - `FleetPrompt.Skills.Skill` (global)
+  - `FleetPrompt.Agents.Agent` (multi-tenant via schema-per-tenant using `multitenancy :context`, state machine via `AshStateMachine`)
+- Migrations generated and applied (including required Postgres extensions like `pgcrypto` and Ash SQL helper functions).
+- AshAdmin (LiveView) is wired at `/admin` and is functional (LiveView socket mounted at `/live`).
+- AshAdmin tenant selection UX is available at `/admin/tenant` (persists tenant in session; supports `demo` → `org_demo`) so you can browse tenant-scoped resources like Agents.
+- UI/UX scaffolding (Inertia + Svelte) is in progress:
+  - shared `AppShell` layout component
+  - placeholder pages/routes: `/dashboard`, `/marketplace`, `/chat`
+- Seeds script updated to create a demo org/user/skills and a tenant-scoped agent.
+
+**Frontend note:** the Inertia client mounting code has been updated to mount using Inertia’s provided element (`setup({ el, ... })`) and to support both constructor-based and `mount(...)` based component styles. You still need to validate DOM rendering in the browser.
 
 ---
 
@@ -23,6 +38,9 @@ The remaining gap is **actual DOM rendering into `#app`** (Svelte mount results 
   - `<script type="module" src="/assets/app.js"></script>`
   - `<link rel="stylesheet" href="/assets/app.css">`
   - `<div id="app" data-page="...json..."></div>` (valid JSON payload)
+- Ash resources/domains compile and migrations have been generated + applied via `mix ash_postgres.generate_migrations` and `mix ash_postgres.migrate`.
+- AshAdmin is available at `http://127.0.0.1:4000/admin`.
+- Tenant selector is available at `http://127.0.0.1:4000/admin/tenant` (choose `demo` / `org_demo` to browse tenant-scoped resources like `Agents`).
 
 ### Frontend build pipeline
 - Frontend builds successfully with Vite (pinned to v5 to satisfy peer deps) and outputs:
@@ -39,19 +57,36 @@ Using `/?fp_debug=1` on Phoenix (`:4000`) confirms:
   - `initialComponent`
   - `resolveComponent`
 
+### Phase 1 verification (local)
+- Core resources exist in code: `Organization`, `User`, `Skill`, `Agent` (tenant-scoped).
+- Tenant migration(s) exist for `agents` tables in tenant schemas.
+- Seeds create:
+  - public data: organizations/users/skills
+  - tenant data: `org_demo.agents`
+- AshAdmin tenant selection UX exists at `/admin/tenant` to select `org_demo` before browsing tenant-scoped resources in `/admin`.
+- Multi-tenancy smoke tests exist and pass (`Agent` creation in tenant context + state transition).
+- Test environment is configured to avoid running background Oban queues/plugins during tests (prevents DB sandbox ownership issues).
+
 ---
 
 ## What is blocked / not yet working
 
-### UI does not render into `#app`
-On Phoenix (`:4000`), `document.querySelector("#app")?.children?.length` remains `0` after boot and setup. This means:
+### Validate UI renders into `#app` after the Inertia mount fix
+The Inertia client now uses a more compatible mounting strategy (uses `setup({ el, ... })`’s mount element and falls back between `new App(...)` and `mount(...)`).
 
-- the Inertia + Svelte root is not producing DOM nodes, or
-- it mounts somewhere unexpected, or
-- the adapter `setup`/mount call is not correct for the version combination, or
-- the root component renders an empty fragment due to component/layout wiring.
+How to validate:
+- Visit Phoenix at `http://127.0.0.1:4000/?fp_debug=1`
+- In the browser console, confirm you see:
+  - `"[FleetPrompt] Inertia setup()"` log
+  - `"[FleetPrompt] Inertia mounted"` log, including:
+    - `mountedWith: "new"` or `mountedWith: "mount"`
+    - `targetChildren` should be `> 0`
+- Visually confirm the Home page content appears (e.g., “Welcome to FleetPrompt” and the CTA buttons)
 
-This is the **current primary blocker**.
+If `targetChildren` is still `0` after `"[FleetPrompt] Inertia mounted"`:
+- confirm the server response contains `<div id="app" data-page="...">` (valid JSON)
+- confirm `resolve("Home")` is actually finding `./pages/Home.svelte`
+- confirm the page component isn’t rendering an empty fragment (e.g., unexpected conditional rendering)
 
 ---
 
@@ -73,35 +108,49 @@ This is the **current primary blocker**.
 
 ## Next concrete steps (in order)
 
-### 1) Fix the missing DOM render into `#app` (highest priority)
+### 1) Validate the Inertia DOM render in the browser (highest priority)
 Goal: after loading `/`, `#app` should contain rendered markup for the Home page.
 
 Concrete checks to perform:
-- Confirm `mount()` is targeting the exact `HTMLElement` returned by `document.querySelector("#app[data-page]")`.
-- Confirm the resolved page component returned by `resolve("Home")` is the Svelte component default export (not the module wrapper).
-- Confirm the Home page component is receiving the `message` prop and generating DOM (not throwing internally).
-- Add a temporary visible “smoke test” render (e.g., render a static text node before boot) to verify `#app` can be mutated.
+- Load `http://127.0.0.1:4000/?fp_debug=1`
+- Confirm `"[FleetPrompt] Inertia mounted"` appears in console and indicates:
+  - `mountedWith` is `"new"` or `"mount"`
+  - `targetChildren > 0`
+- Visually confirm the Home page renders (“Welcome to FleetPrompt”, CTA buttons)
 
 Exit criteria:
 - Home page DOM appears
 - `#app.children.length > 0`
+- Debug log shows a successful mount (`mountedWith` + `targetChildren`)
 - No runtime errors
 
-### 2) Normalize repo structure
-There were earlier “nested” paths created during scaffolding (e.g., `backend/fleet_prompt/...`) that should not be treated as the canonical backend. Canonical paths should be:
-- Backend: `fleetprompt.com/backend`
-- Frontend: `fleetprompt.com/frontend`
+### 2) Phase 1: run seeds and verify AshAdmin + tenant behavior
+Goal: confirm Phase 1 resources work end-to-end locally.
+
+Concrete checks to perform:
+- Run `mix run priv/repo/seeds.exs`
+- Visit `http://127.0.0.1:4000/admin/tenant` and select `demo` (or `org_demo`)
+- Visit `http://127.0.0.1:4000/admin` and confirm you can browse:
+  - Organizations (and tenant schema management is working)
+  - Users
+  - Skills
+  - Agents (tenant-scoped; visible after selecting a tenant)
+- Visit the UI scaffold routes to validate navigation + layout:
+  - `http://127.0.0.1:4000/dashboard`
+  - `http://127.0.0.1:4000/marketplace`
+  - `http://127.0.0.1:4000/chat`
+- Run `mix test` and confirm the multi-tenancy agent tests pass.
 
 Exit criteria:
-- Only one backend app is considered “active”
-- Build outputs match the active backend’s `priv/static/assets`
+- Admin tenant selector loads at `/admin/tenant`
+- Admin UI loads at `/admin`
+- Seed data creates demo org/user/skills and a tenant-scoped agent
+- Tenant-scoped Agents are browsable in AshAdmin after selecting a tenant
+- Tests pass
 
-### 3) Phase 1 start: Ash resources + multi-tenancy
-Once the UI mounts, proceed with:
-- Ash domain modules + resources from `docs/phase_1_core_resources.md`
-- Repo multi-tenancy configuration
-- migrations + seeds
-- minimal pages/routes to exercise resources
+### 3) Phase 2: Package system + marketplace
+After Phase 1 verification:
+- Implement package resources + installer job and marketplace controllers/pages from the Phase 2 doc.
 
 ### 4) Optional: upgrade dev ergonomics (HMR)
 If desired:

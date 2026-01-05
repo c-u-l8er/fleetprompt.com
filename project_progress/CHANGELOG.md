@@ -17,6 +17,32 @@ This project is early-stage and is being built iteratively from the phase docs i
   - only mount when `#app[data-page]` is present
   - explicit parsing of Inertia `data-page` JSON to avoid undefined initialPage edge cases
   - optional debug logging gated by `?fp_debug=1`
+- Phase 1 core resources (Ash):
+  - Ash domains: `FleetPrompt.Accounts`, `FleetPrompt.Agents`, `FleetPrompt.Skills` (plus placeholder domains for `FleetPrompt.Workflows` and `FleetPrompt.Packages` to satisfy `:ash_domains` config).
+  - Resources: `FleetPrompt.Accounts.Organization`, `FleetPrompt.Accounts.User`, `FleetPrompt.Agents.Agent` (tenant-scoped), `FleetPrompt.Skills.Skill`.
+  - Multi-tenancy foundation:
+    - `Organization` configured with `manage_tenant` schema creation using `org_<slug>` template.
+    - Repo updated to `AshPostgres.Repo` and `all_tenants/0` implemented (with bootstrap-safe fallback).
+- Phase 1 migrations and seeds:
+  - Generated AshPostgres migrations for core resources, including tenant migrations for `agents`.
+  - Generated/installed required Postgres extensions and Ash SQL helper functions (`pgcrypto`, `ash-functions`, etc.).
+  - Seed script updated to create demo organization/user/skills and a tenant-scoped demo agent via `Ash.Changeset.set_tenant/2`.
+- Phase 1 admin and tests:
+  - Added `AshAdmin` UI mounted at `/admin`.
+  - Added admin tenant selector UI at `/admin/tenant` to choose the active tenant schema for tenant-scoped resources.
+  - Improved tenant selector UX:
+    - moved from an inline string-built HTML response to a proper HEEx template (`FleetPromptWeb.AdminTenantHTML`)
+    - added Tailwind styling consistent with the app design
+    - supports `GET /admin/tenant?tenant=...` as a convenience action (sets tenant then redirects back)
+  - Added `FleetPromptWeb.Plugs.AdminTenant` to persist/normalize `tenant` (supports `?tenant=demo` -> `org_demo`) for AshAdmin sessions.
+  - Added an Admin controller layout (`Layouts.admin`) with a visible “Tenant context” banner and quick links (`/admin`, `/admin/tenant`, app routes).
+  - Added a minimal Inertia controller layout (`Layouts.inertia`) so Inertia pages don’t get extra server-rendered chrome.
+  - Added multi-tenancy smoke tests for tenant-scoped agent creation and state transitions.
+  - Disabled running Oban queues/plugins during tests to avoid SQL sandbox ownership issues.
+- UI/UX scaffolding (Inertia):
+  - Added shared Svelte layout component `AppShell`.
+  - Added placeholder Inertia pages: `Dashboard`, `Marketplace`, `Chat`.
+  - Added backend routes and controller actions for `/dashboard`, `/marketplace`, `/chat`.
 
 ### Changed
 - Backend asset pipeline:
@@ -37,6 +63,9 @@ This project is early-stage and is being built iteratively from the phase docs i
 - Inertia mount/runtime issues:
   - resolved “Cannot read properties of null (reading 'component')” by ensuring a valid Inertia page payload and correct `render_inertia` usage.
   - resolved “Cannot use 'in' operator to search for 'Symbol($state)' in undefined” by fixing the Inertia Svelte resolver to return the page module’s `default` export and using a compatible mount strategy.
+  - fixed missing DOM render into `#app` by mounting via Inertia’s provided `el` and supporting both constructor-based Svelte components (`new App({ target, props })`) and function components (`mount(App, { target, props })`).
+- AshAdmin LiveView wiring:
+  - added LiveView signing salt configuration and mounted the LiveView websocket endpoint at `/live` so AshAdmin can connect.
 - Oban runtime failures:
   - fixed repeated `relation "public.oban_jobs" does not exist` by adding and running the Oban migration.
 - Phoenix CodeReloader warning:

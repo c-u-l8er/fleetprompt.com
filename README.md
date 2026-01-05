@@ -7,3 +7,10 @@ cd ./backend
 mix deps.get
 mix phx.server
 ```
+
+Login credentials:
+  Email: admin@demo.com
+  Password: password123
+
+Admin panel:
+  http://localhost:4000/admin

@@ -1,46 +1,89 @@
 <script lang="ts">
     import { inertia } from "@inertiajs/svelte";
+    import AppShell from "../lib/components/AppShell.svelte";
 
     export let message: string;
 </script>
 
-<div class="min-h-screen bg-background flex items-center justify-center">
-    <div class="text-center max-w-2xl px-6">
-        <h1 class="text-4xl font-bold text-foreground mb-4">
-            Welcome to FleetPrompt
-        </h1>
+<svelte:head>
+    <title>FleetPrompt</title>
+</svelte:head>
 
-        <p class="text-muted-foreground mb-8">
-            {message}
-        </p>
+<AppShell
+    title="FleetPrompt"
+    subtitle="Deploy AI agent fleets in minutes — multi-tenant, package-driven, and production-ready."
+    showAdminLink={true}
+>
+    <section
+        class="rounded-2xl border border-border bg-card text-card-foreground p-6 sm:p-8"
+    >
+        <div class="max-w-2xl">
+            <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">
+                Build, install, and run AI agents with confidence
+            </h2>
 
-        <div class="flex items-center justify-center gap-3">
-            <a
-                use:inertia
-                href="/dashboard"
-                class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors
-               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-               disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90
-               h-10 px-4 py-2"
-            >
-                Get Started
-            </a>
+            <p class="mt-3 text-muted-foreground">
+                {message}
+            </p>
 
-            <a
-                use:inertia
-                href="/marketplace"
-                class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors
-               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-               disabled:pointer-events-none disabled:opacity-50 border border-border bg-background hover:bg-muted
-               h-10 px-4 py-2"
-            >
-                Browse Marketplace
-            </a>
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+                <a
+                    use:inertia
+                    href="/dashboard"
+                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                    bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4"
+                >
+                    Open Dashboard
+                </a>
+
+                <a
+                    use:inertia
+                    href="/marketplace"
+                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                    border border-border bg-background hover:bg-muted h-10 px-4"
+                >
+                    Browse Marketplace
+                </a>
+
+                <a
+                    href="/admin/tenant"
+                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                    border border-border bg-background hover:bg-muted h-10 px-4"
+                >
+                    Admin Tenant Selector
+                </a>
+            </div>
+
+            <p class="mt-4 text-xs text-muted-foreground">
+                Admin runs on LiveView (AshAdmin); the rest of the app uses
+                Inertia + Svelte.
+            </p>
+        </div>
+    </section>
+
+    <section class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-border bg-card p-5">
+            <div class="font-semibold">Multi-tenant by default</div>
+            <p class="mt-2 text-sm text-muted-foreground">
+                Each organization gets its own schema (<code>org_*</code>) for
+                clean isolation and safer operations.
+            </p>
         </div>
 
-        <p class="mt-6 text-xs text-muted-foreground">
-            Powered by Phoenix + Ash on the backend, and Svelte + Inertia on the
-            frontend.
-        </p>
-    </div>
-</div>
+        <div class="rounded-xl border border-border bg-card p-5">
+            <div class="font-semibold">Packages as building blocks</div>
+            <p class="mt-2 text-sm text-muted-foreground">
+                Install curated capabilities (agents, workflows, skills) from
+                the marketplace into your org.
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-border bg-card p-5">
+            <div class="font-semibold">Streaming chat + execution</div>
+            <p class="mt-2 text-sm text-muted-foreground">
+                Chat UX, execution logs, and workflow runs will share one
+                consistent UI surface.
+            </p>
+        </div>
+    </section>
+</AppShell>

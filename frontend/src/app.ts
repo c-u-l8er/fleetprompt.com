@@ -58,15 +58,54 @@ if (inertiaEl && initialPage) {
       // Fall back to the module itself for compatibility with different bundler outputs.
       return (pageModule as any).default ?? pageModule;
     },
-    setup({ App, props }) {
+    setup({ el, App, props }) {
+      const target = (el as HTMLElement | null) ?? inertiaEl;
+
       if (FP_DEBUG) {
         console.info("[FleetPrompt] Inertia setup()", {
           hasApp: !!App,
           propsKeys: props ? Object.keys(props) : null,
+          hasTarget: !!target,
         });
       }
 
-      mount(App, { target: inertiaEl, props });
+      if (!target) {
+        throw new Error(
+          "[FleetPrompt] Inertia setup() did not receive a mount element.",
+        );
+      }
+
+      // Support both:
+      // - Svelte 5 function components (use `mount`)
+      // - constructor-based components (use `new App(...)`)
+      let app: any;
+      let mountedWith: "mount" | "new" | "unknown" = "unknown";
+
+      const isConstructorComponent =
+        typeof App === "function" &&
+        (App as any).prototype &&
+        (typeof (App as any).prototype.$destroy === "function" ||
+          typeof (App as any).prototype.$set === "function");
+
+      if (isConstructorComponent) {
+        app = new (App as any)({ target, props });
+        mountedWith = "new";
+      } else {
+        app = mount(App as any, { target, props });
+        mountedWith = "mount";
+      }
+
+      if (FP_DEBUG) {
+        requestAnimationFrame(() => {
+          console.info("[FleetPrompt] Inertia mounted", {
+            mountedWith,
+            targetChildren: target.children?.length ?? null,
+            targetInnerHTMLPreview: target.innerHTML?.slice(0, 200) ?? null,
+          });
+        });
+      }
+
+      return app;
     },
   });
 } else if (appEl && !inertiaEl) {
