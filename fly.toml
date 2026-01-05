@@ -1,0 +1,63 @@
+# Fly.io app configuration for FleetPrompt (Phoenix backend serving built frontend assets)
+#
+# Notes:
+# - This repo has a split frontend (Svelte/Vite) and backend (Phoenix).
+#   Production builds should run `mix assets.deploy` in the backend, which in turn
+#   runs `npm run build` in `./frontend` and then `phx.digest`.
+# - You must set secrets on Fly:
+#   - DATABASE_URL (recommended: use Fly Postgres and attach it)
+#   - SECRET_KEY_BASE (generate via: `mix phx.gen.secret`)
+#
+# Replace the `app` name and `PHX_HOST` to match your Fly app / custom domain.
+
+app = "fleetprompt" # TODO: change to your actual Fly app name
+primary_region = "iad"
+
+[build]
+  # If you use a Dockerfile-based deployment, point this at the correct Dockerfile.
+  # Common options:
+  # - "Dockerfile" (repo root)
+  # - "backend/Dockerfile"
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # Run DB migrations on each deploy using the release task module.
+  release_command = 'bin/fleet_prompt eval "FleetPrompt.Release.migrate()"'
+
+[env]
+  PHX_SERVER = "true"
+  PORT = "4000"
+
+  # Phoenix uses this for URL generation in prod (see `backend/config/runtime.exs`).
+  # Set to your app host (e.g. "<your-app>.fly.dev") or your custom domain.
+  PHX_HOST = "fleetprompt.fly.dev" # TODO: change
+
+  # Fly Postgres commonly prefers IPv6 connectivity.
+  ECTO_IPV6 = "true"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+
+  auto_start_machines = true
+  auto_stop_machines = "stop"
+  min_machines_running = 0
+
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 500
+    hard_limit = 1000
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/"
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "30s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
