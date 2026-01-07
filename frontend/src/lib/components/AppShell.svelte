@@ -1,5 +1,6 @@
 <script lang="ts">
     import { inertia } from "@inertiajs/svelte";
+    import { onMount } from "svelte";
 
     export let title: string = "FleetPrompt";
     export let subtitle: string | null = null;
@@ -43,8 +44,28 @@
         if (!selectedOrgId && preferred) selectedOrgId = preferred;
     }
 
-    const currentPath =
-        typeof window !== "undefined" ? window.location.pathname : "";
+    let currentPath = "";
+
+    const updateCurrentPath = () => {
+        if (typeof window === "undefined") return;
+        currentPath = window.location.pathname;
+    };
+
+    onMount(() => {
+        updateCurrentPath();
+
+        // Keep nav highlighting in sync with Inertia client-side navigation.
+        // Inertia dispatches DOM events; we listen for them instead of importing a router.
+        const handler = () => updateCurrentPath();
+
+        document.addEventListener("inertia:navigate", handler);
+        document.addEventListener("inertia:finish", handler);
+
+        return () => {
+            document.removeEventListener("inertia:navigate", handler);
+            document.removeEventListener("inertia:finish", handler);
+        };
+    });
 
     const isActive = (href: string) => {
         if (!currentPath) return false;
@@ -189,6 +210,13 @@
                             class={linkClass("/dashboard")}
                         >
                             Dashboard
+                        </a>
+                        <a
+                            use:inertia
+                            href="/forums"
+                            class={linkClass("/forums")}
+                        >
+                            Forums
                         </a>
                         <a
                             use:inertia

@@ -43,6 +43,11 @@ This project is early-stage and is being built iteratively from the phase docs i
   - Added shared Svelte layout component `AppShell`.
   - Added placeholder Inertia pages: `Dashboard`, `Marketplace`, `Chat`.
   - Added backend routes and controller actions for `/dashboard`, `/marketplace`, `/chat`.
+  - Added Forums UX scaffold (Phase 6 foundation; mocked UI for now):
+    - Added backend routes: `/forums`, `/forums/new`, `/forums/c/:slug`, `/forums/t/:id` (authenticated).
+    - Added `FleetPromptWeb.ForumsController` to render forum Inertia pages with mocked props.
+    - Added Inertia pages: `Forums`, `ForumsNew`, `ForumsCategory`, `ForumsThread`.
+    - Added a “Forums” link in the primary app navigation (after Dashboard, before Marketplace).
 - Authentication + org context (multi-org):
   - Added session-based auth endpoints and Inertia pages:
     - routes: `GET /login`, `POST /login`, `DELETE /logout`
@@ -74,6 +79,8 @@ This project is early-stage and is being built iteratively from the phase docs i
 ### Fixed
 - Frontend dependency resolution:
   - resolved npm peer dependency conflict by aligning `vite` to the peer range required by `@sveltejs/vite-plugin-svelte`.
+- App navigation highlighting:
+  - fixed `AppShell` active-link styling to stay in sync after Inertia client-side navigation (listen to Inertia navigation events).
 - Phoenix watcher working directory:
   - corrected Vite watcher `cd:` so Phoenix can run `vite build --watch` without crashing.
 - Inertia mount/runtime issues:

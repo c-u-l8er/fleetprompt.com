@@ -78,6 +78,16 @@ defmodule FleetPromptWeb.Router do
     # Protected app pages
     get("/dashboard", PageController, :dashboard)
 
+    # Forums (Phase 6) — UX scaffold (Inertia) + placeholder routes.
+    #
+    # These routes are safe to ship early:
+    # - the controller can render mocked / placeholder payloads
+    # - Phase 6 will replace the backing data with real Ash resources + Signals/Directives
+    get("/forums", ForumsController, :index)
+    get("/forums/new", ForumsController, :new)
+    get("/forums/c/:slug", ForumsController, :category)
+    get("/forums/t/:id", ForumsController, :thread)
+
     # Inertia pages (UI scaffold; real implementations land in Phase 2/3)
     get("/marketplace", MarketplaceController, :index)
     get("/chat", ChatController, :index)

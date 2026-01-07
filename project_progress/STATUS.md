@@ -1,6 +1,6 @@
 # FleetPrompt — Current Status
 
-Last updated: 2026-01-05
+Last updated: 2026-01-07
 
 ## Executive summary
 
@@ -37,7 +37,10 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
   - current user display + sign out
   - organization dropdown (when user belongs to multiple orgs)
   - tenant badge (derived from selected org)
-- Inertia pages: `Home`, `Dashboard`, `Marketplace`, `Chat`, `Login`, `Register`
+- Primary nav now includes: `Dashboard` → `Forums` → `Marketplace` → `Chat`
+- Inertia pages: `Home`, `Dashboard`, `Forums`, `ForumsNew`, `ForumsCategory`, `ForumsThread`, `Marketplace`, `Chat`, `Login`, `Register`
+- Navigation UX fix:
+  - `AppShell` active-link styling stays in sync after Inertia client-side navigation.
 - Seeds updated to ensure demo admin has an owner membership in the demo org.
 
 **Frontend note:** the Inertia client mounting code has been updated to mount using Inertia’s provided element (`setup({ el, ... })`) and to support both constructor-based and `mount(...)` based component styles. You still need to validate DOM rendering in the browser.
@@ -77,6 +80,7 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
     - `admin_tenant_controller.ex` + `admin_tenant_html/index.html.heex` — org/tenant selector UI (restricted to org-admin memberships)
     - `page_controller.ex` — Inertia entry pages (`/`, `/dashboard`)
     - `marketplace_controller.ex`, `chat_controller.ex` — scaffold routes (render via shared inertia helper)
+    - `forums_controller.ex` — forum UX scaffold routes (`/forums`, `/forums/new`, `/forums/c/:slug`, `/forums/t/:id`) with mocked props (Phase 6 foundation)
   - `components/layouts/`
     - `root.html.heex` — root HTML shell + asset tags + inertia head/title
     - `admin.html.heex` — AshAdmin chrome (admin header + context banner)
@@ -94,6 +98,10 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
 - `frontend/src/pages/` — Inertia page components
   - `Home.svelte`
   - `Dashboard.svelte`
+  - `Forums.svelte` — forums index (mocked UI; Phase 6 foundation)
+  - `ForumsNew.svelte` — new thread form (mocked UI; Phase 6 foundation)
+  - `ForumsCategory.svelte` — category view (mocked UI; Phase 6 foundation)
+  - `ForumsThread.svelte` — thread view (mocked UI; Phase 6 foundation)
   - `Marketplace.svelte`
   - `Chat.svelte`
   - `Login.svelte` — session sign-in UI
@@ -210,6 +218,7 @@ Concrete checks to perform:
   - Agents (tenant-scoped; visible after selecting a tenant)
 - Visit the UI scaffold routes to validate navigation + layout:
   - `http://127.0.0.1:4000/dashboard`
+  - `http://127.0.0.1:4000/forums`
   - `http://127.0.0.1:4000/marketplace`
   - `http://127.0.0.1:4000/chat`
 - Run `mix test` and confirm the multi-tenancy agent tests pass.
