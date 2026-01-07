@@ -1,5 +1,6 @@
 <script lang="ts">
     import { inertia } from "@inertiajs/svelte";
+    import { onMount } from "svelte";
     import AppShell from "../lib/components/AppShell.svelte";
 
     type PricingModel = "free" | "freemium" | "paid" | "revenue_share";
@@ -9,6 +10,7 @@
         id: string;
         name: string;
         slug: string;
+        version?: string | null;
         description?: string | null;
         category?: string | null;
         icon_url?: string | null;
@@ -36,6 +38,26 @@
     export let packages: MarketplacePackage[] = [];
     export let featured: MarketplacePackage[] = [];
     export let filters: Filters = {};
+
+    type InstallationStatusEntry = {
+        id?: string;
+        status?:
+            | "requested"
+            | "installing"
+            | "installed"
+            | "failed"
+            | "disabled"
+            | string;
+        enabled?: boolean;
+        installed_at?: string | null;
+        updated_at?: string | null;
+        last_error?: string | null;
+        last_error_at?: string | null;
+    };
+
+    // Provided by backend Marketplace controller (tenant-scoped installation states keyed by package slug).
+    export let installation_status: Record<string, InstallationStatusEntry> =
+        {};
 
     // Shared props (provided globally by the backend via Inertia shared props)
     export let user: {
@@ -123,6 +145,275 @@
         }
         return "Pricing";
     };
+
+    type InstallResponse =
+        | {
+              ok: true;
+              installation_id: string;
+              status: string;
+              enqueued: boolean;
+              tenant: string;
+              package: { slug: string; version: string };
+          }
+        | { ok: false; error: string; [key: string]: unknown };
+
+    let installingBySlug: Record<string, boolean> = {};
+    let queuedBySlug: Record<string, boolean> = {};
+    let installedBySlug: Record<string, boolean> = {};
+    let installErrorsBySlug: Record<string, string> = {};
+
+    // Local copy that we can refresh by polling without relying on a full Inertia page reload.
+    let installationStatusLocal: Record<string, InstallationStatusEntry> =
+        installation_status ?? {};
+
+    // Keep local map in sync if the server-provided prop changes (e.g., page reload or filter navigation).
+    $: if (installation_status && typeof installation_status === "object") {
+        installationStatusLocal = installation_status;
+    }
+
+    const getCsrfToken = () =>
+        document
+            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.getAttribute("content") ?? "";
+
+    const getKnownStatus = (slug: string) => {
+        const s = (slug ?? "").trim();
+        if (!s) return null;
+
+        const entry = installationStatusLocal?.[s];
+        const status = (entry?.status ?? null) as string | null;
+        const enabled = entry?.enabled;
+
+        return { status, enabled };
+    };
+
+    const hydrateInstallBadgesFromStatusMap = (
+        map: Record<string, InstallationStatusEntry> | null | undefined,
+    ) => {
+        const nextInstalled: Record<string, boolean> = {};
+        const nextQueued: Record<string, boolean> = {};
+
+        const source = map ?? {};
+        for (const [slug, entry] of Object.entries(source)) {
+            if (!slug) continue;
+
+            const enabled = entry?.enabled !== false;
+            const status = (entry?.status ?? "").toString();
+
+            if (!enabled) continue;
+
+            if (status === "installed") nextInstalled[slug] = true;
+            if (status === "requested" || status === "installing")
+                nextQueued[slug] = true;
+        }
+
+        installedBySlug = { ...installedBySlug, ...nextInstalled };
+        queuedBySlug = { ...queuedBySlug, ...nextQueued };
+    };
+
+    onMount(() => {
+        hydrateInstallBadgesFromStatusMap(installationStatusLocal);
+    });
+
+    const installLabel = (pkg: MarketplacePackage) => {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return "Install";
+
+        const known = getKnownStatus(slug);
+
+        if (installingBySlug[slug]) return "Requesting…";
+        if (known?.enabled !== false && known?.status === "installed")
+            return "Installed";
+        if (known?.enabled !== false && known?.status === "installing")
+            return "Installing…";
+        if (known?.enabled !== false && known?.status === "requested")
+            return "Queued";
+        if (known?.status === "failed") return "Retry install";
+        if (known?.status === "disabled") return "Disabled";
+
+        if (installedBySlug[slug]) return "Installed";
+        if (queuedBySlug[slug]) return "Queued";
+
+        return "Install";
+    };
+
+    const installDisabled = (pkg: MarketplacePackage) => {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return true;
+        if (installingBySlug[slug]) return true;
+
+        const known = getKnownStatus(slug);
+
+        if (known?.enabled !== false && known?.status === "installed")
+            return true;
+        if (known?.enabled !== false && known?.status === "installing")
+            return true;
+        if (known?.enabled !== false && known?.status === "requested")
+            return true;
+        if (known?.status === "disabled") return true;
+
+        // allow retry if failed
+        return false;
+    };
+
+    const installTitle = (pkg: MarketplacePackage) => {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return "Missing package slug";
+
+        const known = getKnownStatus(slug);
+
+        if (known?.enabled !== false && known?.status === "installed")
+            return "Already installed";
+        if (known?.enabled !== false && known?.status === "installing")
+            return "Installation is in progress";
+        if (known?.enabled !== false && known?.status === "requested")
+            return "Installation has been queued";
+        if (known?.status === "failed")
+            return "Previous install failed; click to retry";
+        if (known?.status === "disabled") return "Installation is disabled";
+
+        if (queuedBySlug[slug]) return "Installation queued";
+        if (installingBySlug[slug]) return "Submitting install request";
+
+        return "Install this package into your current organization";
+    };
+
+    async function refreshInstallationStatusOnce() {
+        const res = await fetch("/marketplace/installations/status", {
+            method: "GET",
+            headers: { Accept: "application/json" },
+        });
+
+        const data = (await res.json().catch(() => null)) as any;
+
+        if (!res.ok || !data || data.ok !== true) return null;
+
+        const next = (data.installation_status ?? {}) as Record<
+            string,
+            InstallationStatusEntry
+        >;
+
+        installationStatusLocal = next;
+        hydrateInstallBadgesFromStatusMap(next);
+        return next;
+    }
+
+    async function pollInstallUntilSettled(slug: string) {
+        const target = (slug ?? "").trim();
+        if (!target) return;
+
+        // Poll for up to ~30s
+        for (let attempt = 0; attempt < 30; attempt++) {
+            await new Promise((r) => setTimeout(r, 1000));
+
+            const map = await refreshInstallationStatusOnce();
+            if (!map) continue;
+
+            const entry = map[target];
+            const status = (entry?.status ?? "").toString();
+
+            if (status === "installed") {
+                installedBySlug = { ...installedBySlug, [target]: true };
+                queuedBySlug = { ...queuedBySlug, [target]: false };
+                installErrorsBySlug = { ...installErrorsBySlug, [target]: "" };
+                return;
+            }
+
+            if (status === "failed") {
+                queuedBySlug = { ...queuedBySlug, [target]: false };
+                installedBySlug = { ...installedBySlug, [target]: false };
+
+                const lastError = (entry?.last_error ?? "").toString().trim();
+                const lastErrorAt = (entry?.last_error_at ?? "")
+                    .toString()
+                    .trim();
+
+                const message = lastError
+                    ? `Install failed: ${lastError}${lastErrorAt ? ` (at ${lastErrorAt})` : ""}`
+                    : "Install failed (see Admin for details).";
+
+                installErrorsBySlug = {
+                    ...installErrorsBySlug,
+                    [target]: message,
+                };
+                return;
+            }
+
+            if (status === "disabled") {
+                queuedBySlug = { ...queuedBySlug, [target]: false };
+                installedBySlug = { ...installedBySlug, [target]: false };
+                return;
+            }
+        }
+    }
+
+    async function installPackage(pkg: MarketplacePackage) {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return;
+
+        // If the server already knows it’s installed or in progress, don’t re-request.
+        const known = getKnownStatus(slug);
+        if (known?.enabled !== false && known?.status === "installed") return;
+        if (known?.enabled !== false && known?.status === "installing") return;
+        if (known?.enabled !== false && known?.status === "requested") return;
+
+        if (installingBySlug[slug]) return;
+
+        installingBySlug = { ...installingBySlug, [slug]: true };
+        installErrorsBySlug = { ...installErrorsBySlug, [slug]: "" };
+
+        try {
+            const csrf = getCsrfToken();
+
+            const res = await fetch("/marketplace/install", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+                },
+                body: JSON.stringify({
+                    slug,
+                    version: pkg.version ?? undefined,
+                }),
+            });
+
+            const data = (await res
+                .json()
+                .catch(() => null)) as InstallResponse | null;
+
+            if (!res.ok) {
+                const err =
+                    (data as any)?.error ??
+                    `Install failed (${res.status} ${res.statusText})`;
+                installErrorsBySlug = { ...installErrorsBySlug, [slug]: err };
+                return;
+            }
+
+            if (!data || (data as any).ok !== true) {
+                const err = (data as any)?.error ?? "Install failed";
+                installErrorsBySlug = { ...installErrorsBySlug, [slug]: err };
+                return;
+            }
+
+            // Optimistic UI: show queued immediately, then poll until installed/failed.
+            const status = (data as any).status;
+            if (status === "installed") {
+                installedBySlug = { ...installedBySlug, [slug]: true };
+                queuedBySlug = { ...queuedBySlug, [slug]: false };
+            } else {
+                queuedBySlug = { ...queuedBySlug, [slug]: true };
+            }
+
+            await pollInstallUntilSettled(slug);
+        } catch (_err) {
+            installErrorsBySlug = {
+                ...installErrorsBySlug,
+                [slug]: "Install request failed (network error)",
+            };
+        } finally {
+            installingBySlug = { ...installingBySlug, [slug]: false };
+        }
+    }
 </script>
 
 <svelte:head>
@@ -404,15 +695,24 @@
                         </div>
 
                         <div class="mt-4 flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
-                       border border-border bg-background hover:bg-muted h-9 px-3"
-                                title="Install flow lands in Phase 2"
-                                disabled
-                            >
-                                Install
-                            </button>
+                            <div class="flex flex-col items-end gap-1">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9 px-3 disabled:opacity-60 disabled:pointer-events-none"
+                                    title={installTitle(pkg)}
+                                    disabled={installDisabled(pkg)}
+                                    on:click={() => installPackage(pkg)}
+                                >
+                                    {installLabel(pkg)}
+                                </button>
+
+                                {#if installErrorsBySlug[pkg.slug]}
+                                    <div class="text-xs text-red-600">
+                                        {installErrorsBySlug[pkg.slug]}
+                                    </div>
+                                {/if}
+                            </div>
                         </div>
                     </div>
                 {/each}
@@ -549,15 +849,24 @@
                         </div>
 
                         <div class="mt-4 flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
-                       border border-border bg-background hover:bg-muted h-9 px-3"
-                                title="Install flow lands in Phase 2"
-                                disabled
-                            >
-                                Install
-                            </button>
+                            <div class="flex flex-col items-end gap-1">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9 px-3 disabled:opacity-60 disabled:pointer-events-none"
+                                    title={installTitle(pkg)}
+                                    disabled={installDisabled(pkg)}
+                                    on:click={() => installPackage(pkg)}
+                                >
+                                    {installLabel(pkg)}
+                                </button>
+
+                                {#if installErrorsBySlug[pkg.slug]}
+                                    <div class="text-xs text-red-600">
+                                        {installErrorsBySlug[pkg.slug]}
+                                    </div>
+                                {/if}
+                            </div>
                         </div>
                     </div>
                 {/each}

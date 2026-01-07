@@ -16,8 +16,6 @@ defmodule FleetPrompt.Packages do
   resources do
     resource(FleetPrompt.Packages.Package)
     resource(FleetPrompt.Packages.Review)
-
-    # Phase 2 (next):
-    # resource(FleetPrompt.Packages.Installation)
+    resource(FleetPrompt.Packages.Installation)
   end
 end

@@ -4,7 +4,7 @@ Last updated: 2026-01-07
 
 ## Executive summary
 
-You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** an initial end-to-end **session auth + org membership + org/tenant selection** layer:
+You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** an initial end-to-end **session auth + org membership + org/tenant selection** layer — **plus** an initial Phase 2A thin-slice for **package installs** (tenant-scoped `Installation` + an Oban `PackageInstaller` worker + `POST /marketplace/install` + a functional Marketplace “Install” button).
 
 - **Backend**: Phoenix app under `fleetprompt.com/backend`
 - **Frontend**: Vite + Svelte app under `fleetprompt.com/frontend`
@@ -18,7 +18,11 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
   - `FleetPrompt.Accounts.OrganizationMembership` (multi-org membership + per-org roles)
   - `FleetPrompt.Skills.Skill` (global)
   - `FleetPrompt.Agents.Agent` (tenant-scoped, `multitenancy :context`, state machine via `AshStateMachine`)
-- Tenant migrations exist for tenant-scoped resources (`org_<slug>` schemas), and the Agents tenant migration has been hardened for UUID default resolution and idempotency.
+- Package marketplace (Phase 2A thin-slice):
+  - `FleetPrompt.Packages.Package` + `FleetPrompt.Packages.Review` (public schema)
+  - `FleetPrompt.Packages.Installation` (tenant-scoped, `multitenancy :context`)
+  - `FleetPrompt.Jobs.PackageInstaller` (Oban worker) installs package “includes” into a tenant (agents now; workflows/skills are stubbed for forward compatibility)
+- Tenant migrations exist for tenant-scoped resources (`org_<slug>` schemas). Agents tenant migrations are hardened for UUID default resolution/idempotency, and a tenant migration now exists for `package_installations`.
 
 **Auth + org access control (new):**
 - Session-based auth endpoints:
@@ -58,7 +62,8 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
     - `accounts/auth.ex` — auth helpers (email/password verification against Ash users)
   - `agents/` + `agents.ex` — Agents domain/resources (tenant-scoped `Agent`)
   - `skills/` + `skills.ex` — Skills domain/resources (global `Skill`)
-  - `packages/` + `packages.ex` — Package domain placeholder (Phase 2+)
+  - `packages/` + `packages.ex` — Packages domain (Phase 2A): `Package` + `Review` (public) and `Installation` (tenant-scoped)
+  - `jobs/package_installer.ex` — Oban worker to apply package installs into tenant schemas (Phase 2A thin-slice)
   - `workflows/` + `workflows.ex` — Workflow domain placeholder (Phase 3+)
 - `backend/lib/fleet_prompt_web/`
   - `router.ex` — route + pipeline definitions
@@ -230,9 +235,11 @@ Exit criteria:
 - Tenant-scoped Agents are browsable in AshAdmin after selecting a tenant
 - Tests pass
 
-### 3) Phase 2: Package system + marketplace
-After Phase 1 verification:
-- Implement package resources + installer job and marketplace controllers/pages from the Phase 2 doc.
+### 3) Phase 2A: Package installs (thin slice) + marketplace
+Now that the package registry + Marketplace page wiring exists, the next verification work is to prove the install loop end-to-end:
+- Apply tenant migrations (ensure the tenant has `package_installations`).
+- Verify `POST /marketplace/install` creates a tenant-scoped `Installation` and enqueues the Oban `PackageInstaller`.
+- Verify the worker installs included Agents into the tenant schema (idempotent-ish create, no duplicates on retry).
 
 ### 4) Optional: upgrade dev ergonomics (HMR)
 If desired:

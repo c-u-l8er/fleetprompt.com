@@ -90,6 +90,8 @@ defmodule FleetPromptWeb.Router do
 
     # Inertia pages (UI scaffold; real implementations land in Phase 2/3)
     get("/marketplace", MarketplaceController, :index)
+    post("/marketplace/install", MarketplaceController, :install)
+    get("/marketplace/installations/status", MarketplaceController, :installation_status)
     get("/chat", ChatController, :index)
 
     # Chat SSE endpoint (Phase 3 transport)

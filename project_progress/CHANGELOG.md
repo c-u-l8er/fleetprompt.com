@@ -43,6 +43,12 @@ This project is early-stage and is being built iteratively from the phase docs i
   - Added shared Svelte layout component `AppShell`.
   - Added placeholder Inertia pages: `Dashboard`, `Marketplace`, `Chat`.
   - Added backend routes and controller actions for `/dashboard`, `/marketplace`, `/chat`.
+  - Phase 2 marketplace install mechanics (tenant-scoped):
+    - Added `FleetPrompt.Packages.Installation` (tenant-scoped) to track package install lifecycle, status, and idempotency key.
+    - Added `FleetPrompt.Jobs.PackageInstaller` (Oban worker) to install package-defined content into the tenant schema (agents now; workflows/skills stubbed).
+    - Added `POST /marketplace/install` endpoint to request installs for the current org tenant (published + tier checks, avoids re-enqueueing when already installed/installing).
+    - Added tenant migration for `package_installations` in `backend/priv/repo/tenant_migrations`.
+    - Added `FleetPrompt.Packages.PackageInstallerTest` to validate the installer behavior (installs agents into tenant, retry-safe/idempotent-ish, and failure modes update installation status).
   - Added Forums UX scaffold (Phase 6 foundation; mocked UI for now):
     - Added backend routes: `/forums`, `/forums/new`, `/forums/c/:slug`, `/forums/t/:id` (authenticated).
     - Added `FleetPromptWeb.ForumsController` to render forum Inertia pages with mocked props.
