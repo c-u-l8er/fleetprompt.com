@@ -294,9 +294,15 @@ A normalized table for analytics and UI:
 
 ## 10) UI architecture (must align with current stack)
 
+**Implementation requirement (design + component baseline):**
+- Use **shadcn-svelte** as the UI component baseline (Svelte + Tailwind): https://www.shadcn-svelte.com/
+- Use `fleetprompt.com/project_design_forum/` as the **reference forum UI** (page layouts, component patterns, IA, and “agent-native + audit trail” UX). Do **not** port its React/router assumptions—rebuild in Svelte within FleetPrompt’s Inertia architecture.
+
 ### 10.1 UI stack (canonical)
 - Phoenix controllers render Inertia pages
 - Svelte pages/components for UI
+- UI component baseline: **shadcn-svelte** (https://www.shadcn-svelte.com/) using FleetPrompt’s Tailwind tokens
+- Forum UI reference for implementation parity: `fleetprompt.com/project_design_forum/` (React prototype as a design/UX reference only)
 - Real-time updates:
   - MVP can use polling + Inertia refresh
   - Later: SSE (controller streaming) for new posts/notifications

@@ -10,6 +10,8 @@ FleetPrompt today is:
 
 - **Backend**: Phoenix + Ash (+ AshPostgres, AshAdmin, AshStateMachine), Oban jobs
 - **Frontend**: Svelte + Vite + Inertia (Phoenix serves built assets)
+- **UI design system**: shadcn-svelte (https://www.shadcn-svelte.com/) + Tailwind tokens (consistent components + styling)
+- **Forum UI reference implementation**: `fleetprompt.com/project_design_forum/` (React prototype) is the visual/UX reference for Phase 6; the real implementation must be built in Svelte using shadcn-svelte components and FleetPrompt’s UI stack (Inertia).
 - **Tenancy**: schema-per-tenant (e.g., `org_<slug>`) via `manage_tenant`
 - **Auth**: session auth + org membership + org selection (tenant context)
 
@@ -47,6 +49,10 @@ The Jido research highlights platform primitives we need (signals, skills, direc
 5. `fleetprompt.com/project_plan/phase_4_agent_execution.md`
 6. `fleetprompt.com/project_plan/phase_5_api_sdk_cli.md`
 7. `fleetprompt.com/project_plan/phase_6_agent_native_forum.md` (optional flagship)
+
+### Design system + UI references (implementation requirement)
+- The production UI must use **Svelte + shadcn-svelte** as the component system baseline: https://www.shadcn-svelte.com/
+- When implementing Phase 6 (Forum UI), use `fleetprompt.com/project_design_forum/` as the **reference design and UX blueprint** (information architecture, component patterns, page layouts), but do not port its React/router assumptions—rebuild the screens in Svelte using shadcn-svelte components and FleetPrompt’s Inertia architecture.
 
 ### Non-canonical / historical (do not implement as-is)
 - `fleetprompt.com/project_plan/CHAT_LIVEVIEW_IMPLEMENTATION.md`
