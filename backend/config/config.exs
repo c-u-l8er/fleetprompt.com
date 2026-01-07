@@ -15,7 +15,9 @@ config :fleet_prompt,
     FleetPrompt.Agents,
     FleetPrompt.Skills,
     FleetPrompt.Workflows,
-    FleetPrompt.Packages
+    FleetPrompt.Packages,
+    FleetPrompt.Signals,
+    FleetPrompt.Directives
   ]
 
 # Configure the endpoint

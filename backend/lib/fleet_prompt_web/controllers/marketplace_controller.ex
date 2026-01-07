@@ -15,8 +15,11 @@ defmodule FleetPromptWeb.MarketplaceController do
   use FleetPromptWeb, :controller
   require Logger
 
+  alias FleetPrompt.Agents.Agent
   alias FleetPrompt.Packages.{Installation, Package}
-  alias FleetPrompt.Jobs.PackageInstaller
+  alias FleetPrompt.Directives.Directive
+  alias FleetPrompt.Jobs.DirectiveRunner
+  alias FleetPrompt.Signals.SignalBus
 
   @category_map %{
     "operations" => :operations,
@@ -256,10 +259,15 @@ defmodule FleetPromptWeb.MarketplaceController do
         |> put_status(:not_implemented)
         |> json(%{ok: false, error: "installations are not implemented yet"})
 
-      !Code.ensure_loaded?(PackageInstaller) ->
+      !Code.ensure_loaded?(Directive) ->
         conn
         |> put_status(:not_implemented)
-        |> json(%{ok: false, error: "package installer job is not implemented yet"})
+        |> json(%{ok: false, error: "directives are not implemented yet"})
+
+      !Code.ensure_loaded?(DirectiveRunner) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "directive runner job is not implemented yet"})
 
       true ->
         slug = String.trim(slug)
@@ -267,13 +275,37 @@ defmodule FleetPromptWeb.MarketplaceController do
         with %Package{} = pkg <- load_package_by_slug(slug),
              :ok <- ensure_version_matches(pkg, requested_version),
              :ok <- ensure_package_installable(pkg, org),
+             caller_idempotency_key = normalize_blank(idempotency_key),
+             shared_install_key = "package.install:#{tenant}:#{pkg.slug}@#{pkg.version}",
+             install_key = caller_idempotency_key || shared_install_key,
              {:ok, installation} <-
-               get_or_create_installation(pkg, tenant, user, config, idempotency_key),
-             {:ok, enqueue_status} <- maybe_enqueue_install_job(installation, tenant) do
+               get_or_create_installation(pkg, tenant, user, config, install_key),
+             {:ok, directive, directive_marker} <-
+               get_or_create_install_directive(
+                 pkg,
+                 tenant,
+                 user,
+                 config,
+                 caller_idempotency_key,
+                 shared_install_key,
+                 installation.id
+               ),
+             :ok <-
+               emit_install_directive_requested_signal(
+                 tenant,
+                 pkg,
+                 installation,
+                 directive,
+                 user,
+                 directive_marker
+               ),
+             {:ok, enqueue_status} <- maybe_enqueue_directive_job(directive, tenant) do
           json(conn, %{
             ok: true,
             installation_id: installation.id,
             status: installation.status,
+            directive_id: directive.id,
+            directive_status: directive.status,
             enqueued: enqueue_status == :enqueued,
             tenant: tenant,
             package: %{
@@ -311,6 +343,14 @@ defmodule FleetPromptWeb.MarketplaceController do
               error: normalize_install_error(:tenant_installations_table_missing)
             })
 
+          {:error, :tenant_directives_table_missing} ->
+            conn
+            |> put_status(:conflict)
+            |> json(%{
+              ok: false,
+              error: normalize_install_error(:tenant_directives_table_missing)
+            })
+
           {:error, reason} ->
             conn
             |> put_status(:unprocessable_entity)
@@ -328,6 +368,258 @@ defmodule FleetPromptWeb.MarketplaceController do
         end
     end
   end
+
+  # POST /marketplace/uninstall
+  #
+  # Directive-driven uninstall request (Phase 2B-aligned).
+  #
+  # This endpoint no longer performs synchronous destructive operations. Instead it:
+  # - creates (or re-uses) a tenant-scoped `Directive` named `package.uninstall`
+  # - enqueues `DirectiveRunner` to execute it (and optionally purge matching agent templates)
+  #
+  # Expects JSON (or form) params:
+  # - slug (required)
+  # - version (optional; if provided, runner will enforce it matches the installed version)
+  # - idempotency_key (optional; if omitted, a deterministic key is used for idempotency)
+  # - purge (optional boolean; if true, runner may delete matching included agents by name+system_prompt)
+  #
+  # Response: JSON with `{ok, directive_id, directive_status, enqueued, tenant, package}`
+  def uninstall(conn, params) do
+    tenant = conn.assigns[:ash_tenant]
+    user = conn.assigns[:current_user]
+    org = conn.assigns[:current_organization]
+
+    slug =
+      params["slug"] ||
+        params["package_slug"] ||
+        params["id"]
+
+    requested_version =
+      params["version"] ||
+        params["package_version"]
+
+    caller_idempotency_key = normalize_blank(params["idempotency_key"])
+    purge? = truthy?(params["purge"] || params["purge_agents"] || params["purge_content"])
+
+    cond do
+      is_nil(user) ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{ok: false, error: "authentication required"})
+
+      is_nil(org) ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{ok: false, error: "organization context is missing"})
+
+      !is_binary(tenant) or String.trim(tenant) == "" ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{ok: false, error: "tenant context is missing"})
+
+      !is_binary(slug) or String.trim(slug) == "" ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{ok: false, error: "missing required param: slug"})
+
+      !Code.ensure_loaded?(Directive) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "directives are not implemented yet"})
+
+      !Code.ensure_loaded?(DirectiveRunner) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "directive runner job is not implemented yet"})
+
+      !Code.ensure_loaded?(Installation) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "installations are not implemented yet"})
+
+      # NOTE: the runner uses Installations to determine what is installed.
+
+      true ->
+        slug = String.trim(slug)
+
+        shared_key = "package.uninstall:#{tenant}:#{slug}"
+        base_key = caller_idempotency_key || shared_key
+
+        _ =
+          emit_uninstall_signal(
+            tenant,
+            "package.uninstall.requested",
+            %{
+              "package_slug" => slug,
+              "requested_version" => normalize_blank(requested_version),
+              "purge" => purge?,
+              "requested_by_user_id" => user.id,
+              "idempotency_key" => base_key
+            }
+          )
+
+        existing_query =
+          Directive
+          |> Ash.Query.for_read(:by_idempotency_key, %{idempotency_key: base_key})
+
+        with {:ok, existing_or_nil} <- Ash.read_one(existing_query, tenant: tenant),
+             {:ok, directive, marker} <-
+               (case existing_or_nil do
+                  %Directive{} = existing ->
+                    {:ok, existing, :existing}
+
+                  nil ->
+                    Directive
+                    |> Ash.Changeset.for_create(:request, %{
+                      name: "package.uninstall",
+                      idempotency_key: base_key,
+                      requested_by_user_id: user.id,
+                      payload: %{
+                        "slug" => slug,
+                        "version" => normalize_blank(requested_version),
+                        "purge" => purge?
+                      },
+                      metadata: %{
+                        "source" => "marketplace"
+                      }
+                    })
+                    |> Ash.Changeset.set_tenant(tenant)
+                    |> Ash.create()
+                    |> case do
+                      {:ok, %Directive{} = created} -> {:ok, created, :created}
+                      {:error, err} -> {:error, err}
+                    end
+                end) do
+          # If the directive previously failed, re-enqueue with `rerun: true` so the runner will execute again.
+          enqueue_result =
+            case directive.status do
+              :failed -> do_enqueue_directive_job(directive.id, tenant, rerun: true)
+              :succeeded -> do_enqueue_directive_job(directive.id, tenant, rerun: true)
+              _ -> do_enqueue_directive_job(directive.id, tenant)
+            end
+
+          case enqueue_result do
+            {:ok, enqueue_status} ->
+              conn
+              |> json(%{
+                ok: true,
+                directive_id: directive.id,
+                directive_status: directive.status,
+                directive_created: marker == :created,
+                enqueued: enqueue_status == :enqueued,
+                tenant: tenant,
+                package: %{
+                  slug: slug,
+                  version: normalize_blank(requested_version)
+                }
+              })
+
+            {:error, err} ->
+              msg = Exception.message(err)
+
+              conn
+              |> put_status(:unprocessable_entity)
+              |> json(%{ok: false, error: msg})
+          end
+        else
+          {:error, err} ->
+            msg = Exception.message(err)
+
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{ok: false, error: msg})
+        end
+    end
+  end
+
+  defp load_installation_by_slug(tenant, slug) when is_binary(tenant) and is_binary(slug) do
+    query =
+      Installation
+      |> Ash.Query.for_read(:by_slug, %{package_slug: slug})
+
+    Ash.read_one(query, tenant: tenant)
+  end
+
+  defp purge_package_agents_by_slug(tenant, slug) when is_binary(tenant) and is_binary(slug) do
+    # Best-effort: only purge agents that match the package includes signature (name+system_prompt).
+    # If the package cannot be loaded, or agents cannot be read, do nothing.
+    case load_package_by_slug(slug) do
+      %Package{} = pkg ->
+        includes = Map.get(pkg, :includes) || %{}
+        agent_specs = Map.get(includes, "agents") || Map.get(includes, :agents) || []
+
+        signatures =
+          agent_specs
+          |> List.wrap()
+          |> Enum.filter(&is_map/1)
+          |> Enum.map(fn spec ->
+            name = Map.get(spec, "name") || Map.get(spec, :name)
+            system_prompt = Map.get(spec, "system_prompt") || Map.get(spec, :system_prompt)
+
+            if is_binary(name) and is_binary(system_prompt) do
+              {String.trim(name), String.trim(system_prompt)}
+            else
+              nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+
+        case Ash.read(Agent, tenant: tenant) do
+          {:ok, agents} when is_list(agents) ->
+            agents
+            |> Enum.filter(fn a ->
+              Enum.any?(signatures, fn {n, sp} -> a.name == n and a.system_prompt == sp end)
+            end)
+            |> Enum.reduce(0, fn agent, acc ->
+              case Ash.destroy(agent, tenant: tenant) do
+                {:ok, _} -> acc + 1
+                {:error, _} -> acc
+              end
+            end)
+
+          _ ->
+            0
+        end
+
+      _ ->
+        0
+    end
+  end
+
+  defp emit_uninstall_signal(tenant, name, payload) when is_map(payload) do
+    cond do
+      not Code.ensure_loaded?(SignalBus) ->
+        :ok
+
+      true ->
+        dedupe_key =
+          "marketplace:#{tenant}:#{name}:#{payload["package_slug"] || payload[:package_slug] || "unknown"}"
+
+        try do
+          _ =
+            SignalBus.emit(
+              tenant,
+              name,
+              payload,
+              %{},
+              dedupe_key: dedupe_key,
+              source: "marketplace"
+            )
+
+          :ok
+        rescue
+          _ -> :ok
+        end
+    end
+  end
+
+  defp emit_uninstall_signal(_tenant, _name, _payload), do: :ok
+
+  defp truthy?(true), do: true
+  defp truthy?("true"), do: true
+  defp truthy?("1"), do: true
+  defp truthy?(1), do: true
+  defp truthy?(_), do: false
 
   defp ensure_version_matches(_pkg, nil), do: :ok
   defp ensure_version_matches(_pkg, ""), do: :ok
@@ -420,35 +712,167 @@ defmodule FleetPromptWeb.MarketplaceController do
     end
   end
 
-  # Avoid re-enqueueing when a package is already installed or already installing.
-  defp maybe_enqueue_install_job(%Installation{} = installation, tenant) do
-    case installation.status do
-      :installed -> {:ok, :skipped}
-      :installing -> {:ok, :skipped}
-      :disabled -> {:ok, :skipped}
-      _ -> do_enqueue_install_job(installation.id, tenant)
+  # Create (or re-use) the `package.install` directive, then enqueue it for execution.
+  #
+  # This makes the Marketplace install flow align with Phase 2B:
+  # - installs are requested via Directives (auditable intent)
+  # - side effects (enqueuing PackageInstaller, etc.) happen in the DirectiveRunner
+  defp get_or_create_install_directive(
+         %Package{} = pkg,
+         tenant,
+         user,
+         config,
+         caller_idempotency_key,
+         shared_install_key,
+         installation_id
+       ) do
+    requested_key = normalize_blank(caller_idempotency_key)
+    base_key = requested_key || shared_install_key
+
+    existing_query =
+      Directive
+      |> Ash.Query.for_read(:by_idempotency_key, %{idempotency_key: base_key})
+
+    case Ash.read_one(existing_query, tenant: tenant) do
+      {:ok, %Directive{} = existing} ->
+        # Reuse the existing directive even if it previously failed.
+        # This keeps installs idempotent by `idempotency_key` and allows a re-enqueue
+        # (the runner/handler can decide whether and how to retry).
+        {:ok, existing, :existing}
+
+      {:ok, nil} ->
+        Directive
+        |> Ash.Changeset.for_create(:request, %{
+          name: "package.install",
+          idempotency_key: base_key,
+          requested_by_user_id: user.id,
+          payload: %{
+            "slug" => pkg.slug,
+            "version" => pkg.version,
+            "installation_id" => installation_id,
+            "config" => config || %{}
+          },
+          metadata: %{
+            "source" => "marketplace",
+            "package_slug" => pkg.slug,
+            "package_version" => pkg.version
+          }
+        })
+        |> Ash.Changeset.set_tenant(tenant)
+        |> Ash.create()
+        |> case do
+          {:ok, %Directive{} = created} ->
+            {:ok, created, :created}
+
+          {:error, err} ->
+            msg = Exception.message(err)
+
+            if tenant_directives_table_missing?(msg) do
+              {:error, :tenant_directives_table_missing}
+            else
+              {:error, err}
+            end
+        end
+
+      {:error, err} ->
+        msg = Exception.message(err)
+
+        if tenant_directives_table_missing?(msg) do
+          {:error, :tenant_directives_table_missing}
+        else
+          {:error, err}
+        end
     end
   end
 
-  defp do_enqueue_install_job(installation_id, tenant) do
-    case enqueue_install_job(installation_id, tenant) do
+  # Avoid re-enqueueing when a directive is already terminal or running.
+  defp maybe_enqueue_directive_job(%Directive{} = directive, tenant) do
+    case directive.status do
+      :succeeded -> {:ok, :skipped}
+      :canceled -> {:ok, :skipped}
+      :running -> {:ok, :skipped}
+      :failed -> do_enqueue_directive_job(directive.id, tenant, rerun: true)
+      _ -> do_enqueue_directive_job(directive.id, tenant)
+    end
+  end
+
+  defp do_enqueue_directive_job(directive_id, tenant, opts \\ []) do
+    case enqueue_directive_job(directive_id, tenant, opts) do
       {:ok, _job} -> {:ok, :enqueued}
       {:error, err} -> {:error, err}
     end
   end
 
-  defp enqueue_install_job(installation_id, tenant) do
-    job =
-      PackageInstaller.new(%{
-        "installation_id" => installation_id,
+  defp enqueue_directive_job(directive_id, tenant, opts \\ []) do
+    args =
+      %{
+        "directive_id" => directive_id,
         "tenant" => tenant
-      })
+      }
+      |> then(fn base ->
+        if Keyword.get(opts, :rerun) == true do
+          Map.put(base, "rerun", true)
+        else
+          base
+        end
+      end)
+
+    job = DirectiveRunner.new(args)
 
     Oban.insert(job)
   end
 
+  defp emit_install_directive_requested_signal(
+         tenant,
+         %Package{} = pkg,
+         %Installation{} = installation,
+         %Directive{} = directive,
+         user,
+         directive_marker
+       ) do
+    # Best-effort only: marketplace should keep working even if signals are not yet migrated.
+    cond do
+      not Code.ensure_loaded?(SignalBus) ->
+        :ok
+
+      true ->
+        dedupe_key = "marketplace:#{tenant}:package.install.requested:#{directive.id}"
+
+        payload = %{
+          "package" => %{"slug" => pkg.slug, "version" => pkg.version},
+          "installation_id" => installation.id,
+          "directive_id" => directive.id,
+          "directive_status" => directive.status,
+          "directive_created" => directive_marker == :created,
+          "requested_by_user_id" => if(is_map(user), do: Map.get(user, :id), else: nil),
+          "source" => "marketplace"
+        }
+
+        try do
+          _ =
+            SignalBus.emit(
+              tenant,
+              "package.install.requested",
+              payload,
+              %{},
+              dedupe_key: dedupe_key,
+              source: "marketplace"
+            )
+
+          :ok
+        rescue
+          _ -> :ok
+        end
+    end
+  end
+
   defp normalize_install_error(:tenant_installations_table_missing) do
     "This organization tenant schema is missing the `package_installations` table. " <>
+      "Run tenant migrations for this org (or recreate the org schema in dev), then retry."
+  end
+
+  defp normalize_install_error(:tenant_directives_table_missing) do
+    "This organization tenant schema is missing the `directives` table. " <>
       "Run tenant migrations for this org (or recreate the org schema in dev), then retry."
   end
 
@@ -489,6 +913,14 @@ defmodule FleetPromptWeb.MarketplaceController do
   end
 
   defp tenant_installations_table_missing?(_), do: false
+
+  defp tenant_directives_table_missing?(message) when is_binary(message) do
+    String.contains?(message, "directives") and
+      (String.contains?(message, "undefined_table") or String.contains?(message, "42P01") or
+         String.contains?(message, "does not exist"))
+  end
+
+  defp tenant_directives_table_missing?(_), do: false
 
   # -----------------------
   # Ash loading (optional)

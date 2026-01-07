@@ -4,25 +4,43 @@ Last updated: 2026-01-07
 
 ## Executive summary
 
-You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** an initial end-to-end **session auth + org membership + org/tenant selection** layer — **plus** an initial Phase 2A thin-slice for **package installs** (tenant-scoped `Installation` + an Oban `PackageInstaller` worker + `POST /marketplace/install` + a functional Marketplace “Install” button).
+You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** end-to-end **session auth + org membership + org/tenant selection** — **plus** Phase 2A package installs — and you’ve started Phase 2B platform primitives:
+
+- **Signals** (tenant-scoped persisted events) + a minimal Signal fanout/replay mechanism
+- **Directives** (tenant-scoped persisted commands) + a Directive runner (Oban) to execute side effects audibly
+
+Most importantly, the Marketplace install path has been realigned so installs are requested via **Directives** (auditable intent), and executed by the **DirectiveRunner**, which then enqueues the existing `PackageInstaller`.
 
 - **Backend**: Phoenix app under `fleetprompt.com/backend`
 - **Frontend**: Vite + Svelte app under `fleetprompt.com/frontend`
 - **Integration**: Phoenix serves built assets from `backend/priv/static/assets`, and routes render Inertia payloads (`<div id="app" data-page="...">`).
 
 **Core foundation (Ash + multi-tenancy):**
-- Ash domains: `FleetPrompt.Accounts`, `FleetPrompt.Agents`, `FleetPrompt.Skills` (+ placeholders `FleetPrompt.Workflows`, `FleetPrompt.Packages`).
+- Ash domains: `FleetPrompt.Accounts`, `FleetPrompt.Agents`, `FleetPrompt.Skills` (+ placeholders `FleetPrompt.Workflows` and `FleetPrompt.Packages`).
 - Resources:
   - `FleetPrompt.Accounts.Organization` (schema-per-tenant via `manage_tenant`)
   - `FleetPrompt.Accounts.User`
   - `FleetPrompt.Accounts.OrganizationMembership` (multi-org membership + per-org roles)
   - `FleetPrompt.Skills.Skill` (global)
   - `FleetPrompt.Agents.Agent` (tenant-scoped, `multitenancy :context`, state machine via `AshStateMachine`)
-- Package marketplace (Phase 2A thin-slice):
+- Platform primitives (Phase 2B foundation now present in code):
+  - `FleetPrompt.Signals.Signal` (tenant-scoped persisted events / immutable facts)
+  - `FleetPrompt.Directives.Directive` (tenant-scoped persisted commands / controlled intent)
+  - `FleetPrompt.Signals.SignalBus` (idempotent-ish signal emission by `dedupe_key`)
+  - `FleetPrompt.Jobs.SignalFanout` (durable fanout to configured handlers)
+  - `FleetPrompt.Signals.Replay` (re-enqueue fanout jobs for existing signals)
+  - `FleetPrompt.Jobs.DirectiveRunner` (executes directives; v1 supports `package.install`)
+- Package marketplace (Phase 2A thin-slice, now Phase 2B-aligned):
   - `FleetPrompt.Packages.Package` + `FleetPrompt.Packages.Review` (public schema)
   - `FleetPrompt.Packages.Installation` (tenant-scoped, `multitenancy :context`)
-  - `FleetPrompt.Jobs.PackageInstaller` (Oban worker) installs package “includes” into a tenant (agents now; workflows/skills are stubbed for forward compatibility)
-- Tenant migrations exist for tenant-scoped resources (`org_<slug>` schemas). Agents tenant migrations are hardened for UUID default resolution/idempotency, and a tenant migration now exists for `package_installations`.
+  - `POST /marketplace/install` now creates/uses:
+    - a tenant-scoped `Installation` record (state/progress)
+    - a tenant-scoped `Directive` (`package.install`) (auditable intent)
+    - enqueues `DirectiveRunner`, which enqueues `PackageInstaller` to do the actual tenant writes
+  - `FleetPrompt.Jobs.PackageInstaller` now emits best-effort install lifecycle signals and attempts to mark the matching directive succeeded/failed (see “Known gaps” below).
+- Tenant migrations exist for tenant-scoped resources (`org_<slug>` schemas). Agents tenant migrations are hardened for UUID default resolution/idempotency, and tenant migrations exist for:
+  - `package_installations`
+  - `signals` + `directives` (new)
 
 **Auth + org access control (new):**
 - Session-based auth endpoints:
@@ -235,13 +253,43 @@ Exit criteria:
 - Tenant-scoped Agents are browsable in AshAdmin after selecting a tenant
 - Tests pass
 
-### 3) Phase 2A: Package installs (thin slice) + marketplace
-Now that the package registry + Marketplace page wiring exists, the next verification work is to prove the install loop end-to-end:
-- Apply tenant migrations (ensure the tenant has `package_installations`).
-- Verify `POST /marketplace/install` creates a tenant-scoped `Installation` and enqueues the Oban `PackageInstaller`.
-- Verify the worker installs included Agents into the tenant schema (idempotent-ish create, no duplicates on retry).
+### 3) Phase 2B (MVP): apply tenant migrations for Signals + Directives
+Goal: make Phase 2B primitives *actually usable* per-tenant.
 
-### 4) Optional: upgrade dev ergonomics (HMR)
+Concrete checks to perform:
+- Run tenant migrations (so `org_<slug>` schemas have `signals` and `directives` tables).
+- In AshAdmin (after selecting a tenant), confirm you can browse:
+  - Signals (tenant-scoped)
+  - Directives (tenant-scoped)
+
+Exit criteria:
+- `signals` table exists in tenant schema(s)
+- `directives` table exists in tenant schema(s)
+- AshAdmin can list Signals/Directives in the selected tenant without errors
+
+### 4) Phase 2A → 2B-aligned install loop: prove Marketplace install is directive-driven
+Now that the Marketplace install flow is routed through directives, verify the loop end-to-end:
+
+- Apply tenant migrations (ensure tenant has `package_installations`, `directives`, and `signals`).
+- Verify `POST /marketplace/install`:
+  - creates (or re-uses) a tenant-scoped `Installation`,
+  - creates (or re-uses) a tenant-scoped `Directive` named `package.install`,
+  - enqueues `DirectiveRunner`.
+- Verify `DirectiveRunner` enqueues `PackageInstaller`, and the package includes are installed into the tenant (agents now).
+- Verify Signals are emitted (best-effort) for:
+  - `package.install.requested` (from Marketplace)
+  - `package.installation.*` lifecycle (from PackageInstaller)
+
+Exit criteria:
+- A Marketplace install results in a persisted Directive + Installation for the tenant
+- Directive transitions to `running` then `succeeded` (or `failed` with error)
+- Installation transitions to `installed` (or `failed` with error)
+- Tenant Signals show at least one install-related signal
+
+### 5) Known gaps to close next (small but important)
+- Directive ↔ installation linkage now uses a shared `idempotency_key` (Marketplace sets the same key on both the tenant `Installation` record and the `package.install` directive), so `PackageInstaller` can reliably mark the directive succeeded/failed.
+
+### 6) Optional: upgrade dev ergonomics (HMR)
 If desired:
 - Run Vite `dev` and load assets from `:5173` in Phoenix layout in dev only, while still using Phoenix for HTML and Inertia payload.
 - This makes UI iteration much faster.

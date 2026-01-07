@@ -26,15 +26,44 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
   require Ash.Query
 
   alias FleetPrompt.Agents.Agent
+  alias FleetPrompt.Directives.Directive
   alias FleetPrompt.Packages.{Installation, Package}
+  alias FleetPrompt.Signals.SignalBus
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"installation_id" => installation_id, "tenant" => tenant}} = _job)
+  def perform(%Oban.Job{args: %{"installation_id" => installation_id, "tenant" => tenant}} = job)
       when is_binary(installation_id) and is_binary(tenant) do
     case load_installation(installation_id, tenant) do
       {:ok, %Installation{} = installation} ->
+        _ =
+          emit_install_signal(
+            tenant,
+            "package.installation.started",
+            %{
+              "installation_id" => installation.id,
+              "package_slug" => installation.package_slug,
+              "package_version" => installation.package_version
+            },
+            "package_installation_started:#{tenant}:#{installation.id}",
+            job
+          )
+
         case mark_installing(installation, tenant) do
           {:ok, %Installation{} = installing} ->
+            _ =
+              emit_install_signal(
+                tenant,
+                "package.installation.installing",
+                %{
+                  "installation_id" => installing.id,
+                  "package_slug" => installing.package_slug,
+                  "package_version" => installing.package_version,
+                  "status" => to_string(installing.status)
+                },
+                "package_installation_installing:#{tenant}:#{installing.id}",
+                job
+              )
+
             case load_package(installing) do
               {:ok, %Package{} = package} ->
                 case install_agents(package, tenant) do
@@ -44,8 +73,29 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
                         case install_skills(package, tenant) do
                           {:ok, _} ->
                             case mark_installed(installing, tenant) do
-                              {:ok, _installed} ->
+                              {:ok, %Installation{} = installed} ->
                                 bump_package_stats(package)
+
+                                _ =
+                                  maybe_mark_directive_succeeded(installed, tenant, package)
+
+                                _ =
+                                  emit_install_signal(
+                                    tenant,
+                                    "package.installation.installed",
+                                    %{
+                                      "installation_id" => installed.id,
+                                      "package" => %{
+                                        "slug" => package.slug,
+                                        "version" => package.version
+                                      },
+                                      "status" => to_string(installed.status),
+                                      "installed_at" => installed.installed_at
+                                    },
+                                    "package_installation_installed:#{tenant}:#{installed.id}",
+                                    job
+                                  )
+
                                 :ok
 
                               {:error, reason} ->
@@ -94,6 +144,17 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
           error: msg
         )
 
+        _ =
+          emit_install_signal(
+            tenant,
+            "package.installation.failed",
+            %{
+              "installation_id" => installation_id,
+              "error" => msg
+            },
+            "package_installation_failed:#{tenant}:#{installation_id}"
+          )
+
         # Best-effort: record failure on the installation record. If this fails, keep retrying anyway.
         _ = mark_failed_by_id(installation_id, tenant, msg)
 
@@ -137,8 +198,26 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
 
   defp fail_install(%Installation{} = installation, installation_id, tenant, reason) do
     msg = normalize_error(reason)
+
+    _ =
+      emit_install_signal(
+        tenant,
+        "package.installation.failed",
+        %{
+          "installation_id" => installation_id,
+          "package_slug" => installation.package_slug,
+          "package_version" => installation.package_version,
+          "status" => to_string(installation.status),
+          "error" => msg
+        },
+        "package_installation_failed:#{tenant}:#{installation_id}"
+      )
+
     _ = mark_failed(installation, tenant, msg)
     _ = mark_failed_by_id(installation_id, tenant, msg)
+
+    _ = maybe_mark_directive_failed(installation, tenant, msg)
+
     {:error, msg}
   end
 
@@ -347,6 +426,127 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
         :ok
     end
   end
+
+  # -----------------------
+  # Signals + Directive linkage (Phase 2B)
+  # -----------------------
+
+  defp emit_install_signal(tenant, name, payload, dedupe_key, %Oban.Job{} = job)
+       when is_binary(tenant) and is_binary(name) and is_map(payload) and is_binary(dedupe_key) do
+    emit_install_signal(
+      tenant,
+      name,
+      payload,
+      dedupe_key,
+      %{
+        "oban_job_id" => job.id,
+        "oban_attempt" => job.attempt,
+        "oban_queue" => job.queue
+      }
+    )
+  end
+
+  defp emit_install_signal(tenant, name, payload, dedupe_key)
+       when is_binary(tenant) and is_binary(name) and is_map(payload) and is_binary(dedupe_key) do
+    emit_install_signal(tenant, name, payload, dedupe_key, %{})
+  end
+
+  defp emit_install_signal(tenant, name, payload, dedupe_key, metadata)
+       when is_binary(tenant) and is_binary(name) and is_map(payload) and is_binary(dedupe_key) and
+              is_map(metadata) do
+    cond do
+      not Code.ensure_loaded?(SignalBus) ->
+        :noop
+
+      true ->
+        # Best-effort only: signals should not break installs if tenant signal migrations
+        # haven't been applied yet.
+        try do
+          _ =
+            SignalBus.emit(
+              tenant,
+              name,
+              payload,
+              metadata,
+              dedupe_key: dedupe_key,
+              source: "package_installer"
+            )
+
+          :ok
+        rescue
+          _ -> :noop
+        end
+    end
+  end
+
+  defp maybe_mark_directive_succeeded(
+         %Installation{} = installation,
+         tenant,
+         %Package{} = package
+       ) do
+    with {:ok, %Directive{} = directive} <- load_directive_for_installation(installation, tenant) do
+      result =
+        %{
+          "type" => "package.install",
+          "installation_id" => installation.id,
+          "package" => %{"slug" => package.slug, "version" => package.version},
+          "status" => "installed"
+        }
+        |> drop_nils()
+
+      directive
+      |> Ash.Changeset.for_update(:mark_succeeded, %{result: result})
+      |> Ash.update(tenant: tenant)
+      |> case do
+        {:ok, _} -> :ok
+        {:error, _} -> :noop
+      end
+    else
+      _ -> :noop
+    end
+  rescue
+    _ -> :noop
+  end
+
+  defp maybe_mark_directive_failed(%Installation{} = installation, tenant, error_message)
+       when is_binary(error_message) do
+    with {:ok, %Directive{} = directive} <- load_directive_for_installation(installation, tenant) do
+      directive
+      |> Ash.Changeset.for_update(:mark_failed, %{error: error_message})
+      |> Ash.update(tenant: tenant)
+      |> case do
+        {:ok, _} -> :ok
+        {:error, _} -> :noop
+      end
+    else
+      _ -> :noop
+    end
+  rescue
+    _ -> :noop
+  end
+
+  defp maybe_mark_directive_failed(_installation, _tenant, _error_message), do: :noop
+
+  defp load_directive_for_installation(%Installation{} = installation, tenant) do
+    key = normalize_optional_string(installation.idempotency_key)
+
+    cond do
+      is_nil(key) ->
+        {:error, :no_idempotency_key}
+
+      not Code.ensure_loaded?(Directive) ->
+        {:error, :directives_not_loaded}
+
+      true ->
+        query =
+          Directive
+          |> Ash.Query.for_read(:by_idempotency_key, %{idempotency_key: key})
+
+        Ash.read_one(query, tenant: tenant)
+    end
+  end
+
+  defp drop_nils(map) when is_map(map), do: Map.reject(map, fn {_k, v} -> is_nil(v) end)
 
   # -----------------------
   # Small helpers

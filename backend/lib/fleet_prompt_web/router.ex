@@ -17,6 +17,27 @@ defmodule FleetPromptWeb.Router do
     plug(Inertia.Plug)
   end
 
+  # JSON-capable browser pipeline for lightweight polling endpoints.
+  #
+  # This exists because the Marketplace UI polls install status using:
+  #   Accept: application/json
+  #
+  # While most app routes are HTML/Inertia, polling endpoints should allow JSON.
+  pipeline :browser_json do
+    plug(:accepts, ["html", "json"])
+    plug(:fetch_session)
+    plug(:fetch_flash)
+    plug(FleetPromptWeb.Plugs.FetchCurrentUser)
+    plug(FleetPromptWeb.Plugs.FetchOrgContext)
+    plug(:assign_request_path)
+    plug(FleetPromptWeb.Plugs.AdminTenant)
+    plug(:put_root_layout, html: {FleetPromptWeb.Layouts, :root})
+    plug(:put_layout, html: {FleetPromptWeb.Layouts, :inertia})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
+    plug(Inertia.Plug)
+  end
+
   pipeline :protected do
     plug(FleetPromptWeb.Plugs.RequireAuth, redirect_to: "/login")
   end
@@ -91,11 +112,23 @@ defmodule FleetPromptWeb.Router do
     # Inertia pages (UI scaffold; real implementations land in Phase 2/3)
     get("/marketplace", MarketplaceController, :index)
     post("/marketplace/install", MarketplaceController, :install)
-    get("/marketplace/installations/status", MarketplaceController, :installation_status)
+    post("/marketplace/uninstall", MarketplaceController, :uninstall)
     get("/chat", ChatController, :index)
 
     # Chat SSE endpoint (Phase 3 transport)
     post("/chat/message", ChatController, :send_message)
+  end
+
+  # Marketplace polling endpoints (JSON).
+  #
+  # The frontend polls this endpoint with:
+  #   Accept: application/json
+  #
+  # So we route it through a JSON-capable browser pipeline.
+  scope "/", FleetPromptWeb do
+    pipe_through([:browser_json, :protected])
+
+    get("/marketplace/installations/status", MarketplaceController, :installation_status)
   end
 
   # Admin tenant selector is available to any authenticated member.

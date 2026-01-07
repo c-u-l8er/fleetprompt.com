@@ -90,9 +90,10 @@ We prioritize the smallest path to:
 
 That means: **Phase 2 → Phase 4 (thin slice) → Phase 3 (UX) → Phase 5 (distribution)**, with “Platform Hardening” woven in.
 
-**Optional flagship (“killer app”) track (guardrailed): Agent-native Forum**
-- This is a potential distribution + validation wedge, but it must **not** preempt the platform primitives.
-- Rule: only start the forum milestone once **Signals + Directives (A2)** and **Execution thin-slice (B)** are stable enough to power agent participation with auditability and idempotency.
+**Lighthouse priority (revised): Forums-first (guardrailed)**
+- The “lighthouse” should be **our Forums experience** (native, internal surface), not an external comms integration.
+- Rule: start the Forums lighthouse immediately after **Signals + Directives (A2)** are stable enough to provide an auditable timeline (signals) and controlled actions (directives).
+- Agent participation in forums still remains guardrailed: require the **Execution thin-slice (B)** before allowing agents to post/reply automatically (so we preserve idempotency and auditability), but we can ship a human-only forum earlier as the lighthouse.
 
 ---
 
@@ -143,42 +144,45 @@ That means: **Phase 2 → Phase 4 (thin slice) → Phase 3 (UX) → Phase 5 (dis
 
 ---
 
-### Milestone A3 — Lighthouse Package (Phase 2C) — “Prove the loop end-to-end”
-**Goal:** ship **one real package** that installs into a tenant, provisions visible capability, executes reliably, and produces measurable signals/logs.
+### Milestone A3 — Lighthouse (revised) — Forums Thin Slice — “Prove the loop end-to-end (native)”
+**Goal:** ship **one real, user-facing capability** (Forums) that proves the platform loop end-to-end without depending on external comms integrations.
 
 **Why this milestone exists**
-Without at least one “lighthouse” package, Phase 2 risks becoming a marketplace UI with no undeniable proof of value. This milestone is the answer to the marketplace chicken-and-egg problem: we seed the ecosystem with one credible, end-to-end package.
+Without at least one “lighthouse” outcome, Phase 2 risks becoming a marketplace UI with no undeniable proof of value. Forums gives us a native surface to prove:
+- tenant-scoped truth (Signals),
+- controlled side effects (Directives),
+- replay/debuggability,
+- and later: safe agent participation.
 
-**Deliverables**
-- Choose **one** lighthouse package with the lowest integration risk:
-  - Recommended candidates: **Mattermost “Daily Ops/Client Reporting”** OR **Proton Mail “Follow-up Copilot”**
-- Package must:
-  - install via **Directive** (`package.install`) and emit full lifecycle **Signals**
-  - provision something tenant-visible (e.g., agent template + workflow template + installation config)
-  - execute on-demand (and optionally on schedule) via the Execution engine
-  - emit “value signals” that can be used for GTM proof (e.g., report delivered, follow-up drafted, triage completed)
-- Define (and implement minimally) **package execution model constraints** for v1:
-  - packages are **metadata + templates** (no third-party arbitrary code execution in v1)
+**Deliverables (Forums lighthouse)**
+- Ship a minimal Forums experience (Phase 6 “thin slice”), backed by real data (not mocked props):
+  - categories
+  - threads
+  - posts
+  - basic permissions (org members)
+- Forums must be **Signal-first + Directive-driven**:
+  - Creating a thread/post emits tenant signals (e.g. `forum.thread.created`, `forum.post.created`)
+  - Mutations that have risk/side effects are directives (e.g. `forum.post.publish`, `forum.post.moderate`, `forum.thread.lock`)
+- Add an “audit trail” view per thread/post (Signals + Directives timeline).
+- Keep external comms integrations (email/chatbot/instant messenger) **deprioritized** until Forums proves the loop.
 
 **Exit criteria**
-- Install → configure → run completes with:
-  - installation signals present and replayable
-  - execution logs present and attributable
-  - a user-visible output inside the target surface (Slack message / email draft / etc.)
-- “Time to first value” target: **< 15 minutes** from install.
+- A tenant can use Forums end-to-end:
+  - create a thread
+  - post replies
+  - view an audit trail (signals + directives) for the thread
+- Replay is operationally meaningful:
+  - re-enqueue signal fanout or re-run a directive in a controlled way (idempotent)
+- “Time to first value” target: **< 15 minutes** from a fresh tenant to a working forum thread + audit trail.
 
-**Operational hardening required for the lighthouse package**
-- Credential handling strategy is defined (encryption-at-rest for OAuth tokens/secrets; never store secrets in signals)
-- Idempotency key scheme is applied for:
-  - directives
-  - installs
-  - external webhook/event ingestion (if used)
-- Rate limiting policy exists (at least per-tenant + per-integration-instance)
+**Operational hardening required (Forums lighthouse)**
+- No secrets in signals/logs (forums content is user-generated; treat it as data, not secrets).
+- Idempotency key scheme is applied for directives that can be retried (moderation, publishing, locking).
+- Basic abuse controls exist (rate limiting / throttling for posting is acceptable as an initial safeguard).
 
 **Source docs**
-- Lighthouse spec (canonical): `fleetprompt.com/project_plan/phase_2c_lighthouse_package.md`
-- Credentials/security (canonical): `fleetprompt.com/project_theory/SECURITY_AND_CREDENTIALS.md`
-- Tenancy scaling/migration tooling (canonical): `fleetprompt.com/project_theory/TENANCY_SCALING_PLAN.md`
+- Forums spec (canonical): `fleetprompt.com/project_plan/phase_6_agent_native_forum.md`
+- Signals + Directives (canonical): `fleetprompt.com/project_plan/phase_2b_signals_and_directives.md`
 
 ---
 

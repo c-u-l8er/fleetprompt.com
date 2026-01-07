@@ -43,11 +43,25 @@ This project is early-stage and is being built iteratively from the phase docs i
   - Added shared Svelte layout component `AppShell`.
   - Added placeholder Inertia pages: `Dashboard`, `Marketplace`, `Chat`.
   - Added backend routes and controller actions for `/dashboard`, `/marketplace`, `/chat`.
-  - Phase 2 marketplace install mechanics (tenant-scoped):
+  - Phase 2 marketplace install mechanics (tenant-scoped, now Phase 2B-aligned):
     - Added `FleetPrompt.Packages.Installation` (tenant-scoped) to track package install lifecycle, status, and idempotency key.
     - Added `FleetPrompt.Jobs.PackageInstaller` (Oban worker) to install package-defined content into the tenant schema (agents now; workflows/skills stubbed).
-    - Added `POST /marketplace/install` endpoint to request installs for the current org tenant (published + tier checks, avoids re-enqueueing when already installed/installing).
+    - Realigned installs to be **directive-driven** (Phase 2B):
+      - Added Signals + Directives foundations:
+        - Added Ash domains: `FleetPrompt.Signals` and `FleetPrompt.Directives`.
+        - Added tenant-scoped resources: `FleetPrompt.Signals.Signal` and `FleetPrompt.Directives.Directive`.
+        - Added tenant migration to create `signals` and `directives` tables (`backend/priv/repo/tenant_migrations/..._add_signals_and_directives.exs`).
+      - Added durable plumbing:
+        - Added `FleetPrompt.Signals.SignalBus` (best-effort idempotent signal emission via `dedupe_key`).
+        - Added `FleetPrompt.Jobs.SignalFanout` (Oban fanout to configured handlers).
+        - Added `FleetPrompt.Signals.Replay` (re-enqueue fanout jobs for persisted signals).
+        - Added `FleetPrompt.Jobs.DirectiveRunner` (Oban runner; v1 supports `package.install`).
+    - Updated `POST /marketplace/install` endpoint:
+      - creates/uses a tenant-scoped `Installation`,
+      - creates/uses a tenant-scoped `Directive` named `package.install`,
+      - enqueues `DirectiveRunner`, which enqueues `PackageInstaller` to do the tenant writes.
     - Added tenant migration for `package_installations` in `backend/priv/repo/tenant_migrations`.
+    - Updated `PackageInstaller` to emit best-effort install lifecycle signals and attempt to mark the matching directive succeeded/failed.
     - Added `FleetPrompt.Packages.PackageInstallerTest` to validate the installer behavior (installs agents into tenant, retry-safe/idempotent-ish, and failure modes update installation status).
   - Added Forums UX scaffold (Phase 6 foundation; mocked UI for now):
     - Added backend routes: `/forums`, `/forums/new`, `/forums/c/:slug`, `/forums/t/:id` (authenticated).

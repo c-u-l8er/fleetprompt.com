@@ -1,472 +1,304 @@
-# FleetPrompt — Phase 2C: Lighthouse Package Spec (Integration-First)
+# FleetPrompt — Phase 2C: Lighthouse Slice Spec (Forums‑First)
+
 File: `fleetprompt.com/project_plan/phase_2c_lighthouse_package.md`  
-Status: Spec (new)  
-Last updated: 2026-01-06
+Status: Spec (rewritten)  
+Last updated: 2026-01-07
 
 ## 0) Purpose (why Phase 2C exists)
 
 Phase 2A makes packages *installable*.  
 Phase 2B makes installs *real and operable* (Signals + Directives).
 
-**Phase 2C proves the whole loop end-to-end** with one “lighthouse” package that:
-- installs into a tenant via a Directive,
-- provisions visible capability (workflow/agent template + config),
-- executes reliably (Oban-backed),
-- produces durable Signals + logs,
-- delivers a user-visible outcome inside an external tool (integration-first).
+**Phase 2C proves the whole loop end‑to‑end** with one “lighthouse slice” that is:
+- **tenant-visible** (real UI + real tenant data),
+- **signal-first** (durable facts for everything meaningful),
+- **directive-driven** (auditable intent for any side effects),
+- **operable** (replayable signals, retryable directives, safe idempotency),
+- and **demoable** (can be shown without third-party dependencies).
 
-This milestone is explicitly designed to solve the “marketplace chicken-and-egg” problem: we seed the ecosystem with one credible, demoable, retention-capable package.
-
----
-
-## 1) Lighthouse package choice (v1)
-
-### Package: Mattermost Daily Ops Digest
-**Package slug:** `mattermost_daily_ops_digest`  
-**Category:** `:operations` (horizontal, supports many verticals)  
-**Primary surface:** Mattermost (outbound only in v1)  
-**Primary value:** A daily (and on-demand) digest posted to a chosen Mattermost channel summarizing:
-- recent package installs/upgrades/failures,
-- executions completed/failed,
-- top errors (by type),
-- approximate cost/usage (if available),
-- “recommended next action” (optional LLM summary).
-
-This package is intentionally chosen as the first lighthouse because it:
-- demonstrates the integration-first strategy without requiring multiple external data sources,
-- uses FleetPrompt’s own Signals/Directives/Executions as the data source (so it works immediately),
-- naturally exercises the platform primitives (signals retention, replay, directives auditability),
-- can be extended later into vertical-specific reporting (marketing/ecom) by adding data source integrations as additional packages.
-
-**Mattermost-specific rationale (why this is a strong first integration):**
-- Many Mattermost deployments are self-hosted (strong privacy/compliance posture), which matches FleetPrompt’s integration-first + governance narrative.
-- The easiest v1 delivery path is **Incoming Webhooks** (simple, reliable, low surface area).
-- Mattermost also supports **Personal Access Tokens** for REST API access (useful later for richer capabilities).
+**This spec changes the lighthouse stance**: Phase 2C is no longer “an integration-first external tool demo”.  
+Phase 2C is **Forums-first**: we use FleetPrompt’s own Forums feature as the lighthouse to validate platform primitives (Signals + Directives + jobs + tenancy) before prioritizing email/chat/IM integrations.
 
 ---
 
-## 2) Non-goals (explicitly out of scope for Phase 2C)
+## 1) Lighthouse slice choice (v1)
 
-To keep the lighthouse package shippable and safe, v1 does **not** include:
-- inbound Mattermost events (no Events API subscriptions in v1),
-- interactive Mattermost buttons/actions or slash commands,
-- multi-workspace Mattermost “connect many workspaces” support,
-- posting to private channels,
-- any third-party “package code execution” model (packages remain metadata + templates + platform-owned handlers),
-- multi-source agency reporting (GA4/Ads/Shopify/etc. are future packages),
-- marketplace third-party publishing.
+### Lighthouse: FleetPrompt Forums (Dogfood + Demo)
+**Slice name:** Forums Lighthouse  
+**Slice slug:** `forums_lighthouse` (internal label; not necessarily a marketplace slug)  
+**Primary surface:** FleetPrompt web app (Inertia + Svelte)  
+**Primary outcome:** A tenant can use a minimal forum end-to-end, and FleetPrompt can answer “what happened?” for every important action using Signals + Directives.
+
+### Why Forums is the right lighthouse
+Forums is intentionally chosen because it:
+- has **no external dependency** (fastest path to a reliable demo),
+- forces correctness on **tenancy, identity, and permissions**,
+- produces meaningful **signals** immediately (threads/posts/edits/moderation),
+- exercises **directives** for controlled, auditable mutations,
+- creates a natural foundation for later “operator console” UX (support, escalation),
+- can later integrate outward (email/chat/IM) once the internal truth loop is proven.
+
+### Scope stance
+- We can ship a **human-only forum first** (threads + posts + moderation basics).
+- Agent participation is allowed only once the **Execution thin slice** is available, and even then must remain **directive-gated**.
+- The lighthouse is successful even if “agents replying automatically” is deferred, as long as the **Signals/Directives audit loop** is real and visible.
+
+---
+
+## 2) Non-goals (explicit)
+
+To keep Phase 2C shippable, v1 does **not** include:
+- building a full community platform (badges, reputation, advanced search, spam ML, etc.),
+- real-time chat widget work,
+- email, instant messenger, or chatbot integrations as **required** dependencies,
+- third-party package code execution (packages remain metadata + platform-owned handlers),
+- full moderation suite (queues, SLAs, automation trees),
+- “public internet forum” (this is tenant-private, org-member scoped by default).
 
 ---
 
 ## 3) Success criteria (exit criteria)
 
-Phase 2C is complete when all of the following are true:
+Phase 2C is complete when all of the following are true.
 
-### Install → configure → run → output
-- A tenant can install `mattermost_daily_ops_digest` from the marketplace UI.
-- Installation is driven by a **Directive** (`package.install`) and emits full lifecycle **Signals**:
-  - `package.install.requested`
-  - `package.install.started`
-  - `package.install.completed` OR `package.install.failed`
-- The tenant can configure:
-  - Mattermost connection (incoming webhook URL or personal access token)
-  - target channel (optional if the incoming webhook is bound to a channel)
-  - schedule time + timezone
-  - optional: “include LLM summary” toggle
-- The tenant can click “Run now” and receive a Mattermost message in the configured channel within ~30–60 seconds.
+### A) Enable → use → audit
+- A tenant can access Forums pages and perform core actions:
+  - create a category (optional if seeded),
+  - create a thread,
+  - create a post reply.
+- For each of the above, FleetPrompt records **tenant signals** with required metadata and dedupe discipline where applicable.
+- The UI includes at least one “audit trail” surface:
+  - per thread OR per post: show related Signals + Directives in time order.
 
-### Operability + safety
-- All side effects are idempotent:
-  - no duplicate Mattermost messages due to job retries (dedupe enforced)
-  - no duplicate installs due to double-clicks (directive idempotency)
-- No secrets appear in:
-  - Signals
-  - logs
-  - execution outputs stored in DB (token material must never be persisted)
-- The system can answer: “what happened?” for any install or run:
-  - directive history + signals + execution logs
+### B) Directives govern side effects
+The following must be directive-backed (auditable intent), not “hidden updates”:
+- moderation actions (lock/unlock thread, hide/unhide post, delete post),
+- agent participation (request agent reply, publish agent reply),
+- any outbound integration (future) triggered from forum activity.
 
-### Time-to-value
-- Target: **< 15 minutes** from install to first digest posted.
+### C) Idempotency + retry semantics
+- Re-running a directive job must not create duplicate posts.
+- A failed directive must be retryable in a **controlled** way (explicit rerun), not via uncontrolled automatic retries that could duplicate side effects.
+- Signals must be replayable in a dev/support workflow without corrupting state (handlers idempotent).
 
----
-
-## 4) Package contract (metadata-only v1)
-
-This package definition must be representable in the `Package` registry (public schema) and must declare:
-
-### Identity
-- `slug`, `name`, `version`, `description`, `category`
-- `publisher`: FleetPrompt (curated)
-
-### Capabilities
-- Provides:
-  - 1 workflow template: `daily_ops_digest`
-  - 1 agent template (optional): `digest_generator`
-  - 1 integration binding: Mattermost credential (incoming webhook URL or PAT) + message posting action
-
-### Consumes signals
-- `package.*` lifecycle signals (install/upgrade/failed)
-- `directive.*` lifecycle signals
-- `agent.execution.*` signals (completed/failed)
-- (optional) `workflow.run.*` signals
-
-### Emits signals (minimum)
-- `mattermost.digest.requested`
-- `mattermost.digest.generated`
-- `mattermost.message.posted`
-- `mattermost.message.failed`
-
-### Permissions / auth model (Mattermost)
-Mattermost supports multiple integration authentication models. For v1, prefer the simplest, lowest-risk option:
-
-**Option A (recommended v1): Incoming Webhook**
-- You configure an incoming webhook in Mattermost that yields a URL like:
-  - `https://your-mattermost-server.com/hooks/<generatedkey>`
-- FleetPrompt posts JSON payloads to that URL to create messages.
-- **Treat the webhook URL as a secret** (anyone with it can post).
-
-**Option B (later): Personal Access Token (PAT)**
-- PATs can authenticate FleetPrompt against the Mattermost REST API.
-- PATs do not expire by default; treat them as high-sensitivity credentials.
-- This unlocks richer features (channel discovery, richer posts, etc.) but increases scope and risk.
-
-**V1 scope stance:**
-- No OAuth scopes are required for Incoming Webhooks.
-- For PAT-based integrations, keep the token permissions minimal (e.g., a dedicated bot/user with limited posting capability).
+### D) Time-to-value
+Target: **< 15 minutes** from a fresh tenant to:
+- creating a forum thread,
+- seeing Signals and Directives recorded for it,
+- and being able to replay or rerun safely (at least in dev).
 
 ---
 
-## 5) Data model impact (what gets created)
+## 4) Architectural contract (forums-first, Phase 2B aligned)
 
-### Tenant-scoped resources (in `org_<slug>` schema)
-This lighthouse package assumes Phase 2B primitives exist:
+### 4.1 Signals are immutable facts (tenant-scoped)
+Signals represent “what happened”. They are append-only and durable.
 
-1) `signals` (Phase 2B)
-2) `directives` (Phase 2B)
+**Required properties on all forum signals:**
+- `name` (taxonomy below),
+- `occurred_at`,
+- `payload` (JSON-safe, no secrets),
+- `metadata` (JSON-safe: request ids, safe tags),
+- `dedupe_key` when the origin can be duplicated (client retries, job retries).
 
-Additionally, this package requires:
+**No secrets in signals.** Forum content is allowed (it’s the product), but do not store tokens/credentials.
 
-3) `installations` (Phase 2A)
-4) `integration_credentials` (recommended; tenant-scoped)
-   - stores Mattermost credentials encrypted at rest (incoming webhook URL and/or personal access token)
-   - stores Mattermost server identifiers/metadata (e.g., base URL, team/workspace identifiers if applicable)
-   - stores granted roles/scopes/permissions metadata (as applicable) + status
-5) `workflows` / `workflow_runs` (Phase 4-lite or a minimal subset)
-6) `agent_executions` / `execution_logs` (Phase 4-lite)
+### 4.2 Directives are controlled intent (tenant-scoped)
+Directives represent “what should happen” and are the only permitted path for:
+- moderation side effects,
+- agent actions,
+- outbound notifications (later).
 
-If full workflow/agent resources aren’t implemented yet, Phase 2C may implement a minimal scheduled runner that directly creates `Execution` records.
+Directives must include:
+- `name`,
+- `idempotency_key` (recommended for any directive that can be clicked twice),
+- `payload` (parameters),
+- `requested_by_user_id` where applicable,
+- lifecycle state with timestamps.
 
-### Optional tenant-scoped table (strongly recommended for dedupe)
-7) `outbound_messages` (or reuse signals)
-- tracks `(provider, tenant, destination, client_msg_id, status, posted_at)`
-- allows strict idempotency for outbound posting
-
-If you don’t add this table, you must enforce idempotency via `Signal.dedupe_key` and ensure the Mattermost post operation is protected by a stable dedupe key (so retries do not duplicate posts).
-
----
-
-## 6) Configuration schema (installation config)
-
-The installation configuration (tenant-owned) should include:
-
-### Required
-- `mattermost_credential_id` (uuid) — references encrypted credential record (incoming webhook URL or PAT)
-- `timezone` (string) — IANA timezone name (e.g., `America/New_York`)
-- `schedule_time` (string) — `HH:MM` (24h) local time
-- `enabled` (boolean) — default true
-
-### Optional (v1)
-- `channel` (string | null) — Mattermost **public** channel name (e.g., `town-square`).
-  - If the tenant uses an incoming webhook that is configured for a fixed channel in Mattermost, this can be omitted (FleetPrompt posts to the webhook’s default channel).
-  - If provided, FleetPrompt may override the channel in the payload (when supported/allowed by the Mattermost server configuration).
-- `include_llm_summary` (boolean) — default false initially (keeps costs bounded)
-- `max_lines` (integer) — how long the digest can be
-- `include_cost_estimates` (boolean) — if you have cost fields in executions
-- `post_as_username` (string) — override username if Mattermost server allows it
-- `post_icon_url` (string) — override icon if Mattermost server allows it
-
-**Config validation rules**
-- `timezone` must be valid IANA name
-- `schedule_time` must parse
-- `channel` may be empty/null; if present, it must be non-empty and conform to Mattermost naming rules (if you validate strictly)
-- `enabled` can be toggled only by org admin roles
+### 4.3 Relationship between them
+- Directives emit directive lifecycle signals (`directive.started`, `directive.succeeded`, `directive.failed`) and/or domain signals.
+- Domain handlers may emit additional signals (e.g. `forum.post.hidden`).
 
 ---
 
-## 7) Installation flow (Directive-driven)
+## 5) Data model impact (tenant schema)
 
-### Step-by-step (happy path)
-1) User clicks **Install** on marketplace detail page.
-2) Backend creates:
-   - `Installation` (tenant-scoped) with status `requested/queued`
-3) Backend creates:
-   - `Directive` (`type = "package.install"`) with params:
-     - `package_slug`, `version`, `installation_id`, `config` (initial empty)
-     - `actor_user_id`, `actor_role`, `correlation_id`
-   - `DirectiveRunner` job is enqueued.
-4) Directive runner:
-   - emits `package.install.started`
-   - provisions tenant records:
-     - workflow template record `daily_ops_digest` (or schedule record)
-     - agent template record `digest_generator` (optional)
-     - installation defaults
-   - marks installation `installed`
-   - emits `package.install.completed`
+This lighthouse slice assumes Phase 2B primitives exist in tenant schema:
+- `signals`
+- `directives`
 
-### Installation idempotency (required)
-Use directive idempotency:
-- `idempotency_key = "dir:pkg_install:{tenant}:{package_slug}:{version}:{config_checksum}"`
+### 5.1 Tenant-scoped Forum resources (minimum viable)
+These can be Ash resources backed by Postgres (preferred), or first introduced as Ecto schemas if needed—BUT the long-term plan should be Ash.
 
-If the user double-clicks:
-- return the existing directive + installation state, do not create duplicates.
+**`forum_categories`**
+- `id` (uuid)
+- `slug` (string, unique)
+- `name` (string)
+- `description` (text, nullable)
+- `status` (`active` | `archived`)
+- timestamps
 
----
+**`forum_threads`**
+- `id` (uuid)
+- `category_id` (uuid)
+- `title` (string)
+- `status` (`open` | `locked` | `archived`)
+- `created_by_user_id` (uuid)
+- timestamps
 
-## 8) Credential setup (Mattermost)
+**`forum_posts`**
+- `id` (uuid)
+- `thread_id` (uuid)
+- `content` (text)
+- `status` (`published` | `hidden` | `deleted`)
+- `author_type` (`human` | `agent` | `system`)
+- `author_id` (string/uuid depending on actor type; no cross-schema FK)
+- timestamps
 
-### UX stance (v1)
-Credential setup is treated as part of “Configure after install”:
-- After install completes, the UI shows:
-  - “Connect Mattermost” (choose auth method)
-  - “Set channel” (channel name)
-  - “Test post” (Run now)
+### 5.2 Optional but recommended (for durability + idempotency)
+**`forum_directive_links`** (or store in directive payload)
+- maps directives to the entities they created/affected, to support replay/audit.
 
-Recommended v1 UX: **Incoming Webhook**
-- User pastes an incoming webhook URL created in Mattermost.
-- FleetPrompt validates it by sending a minimal test post (or by doing a dry-run validation if you prefer).
-
-Optional (later) UX: **Personal Access Token (PAT)**
-- User supplies:
-  - Mattermost base URL
-  - PAT token
-- FleetPrompt uses the REST API for richer functionality.
-
-### Backend stance (security)
-- Store Mattermost credentials encrypted at rest:
-  - Incoming Webhook URL is a secret (it is effectively a bearer credential).
-  - PAT token is a secret (high sensitivity).
-- Never store credentials in Signals, logs, or execution results.
-- Credential status transitions emit signals (optional):
-  - `integration.credential.connected`
-  - `integration.credential.revoked`
-
-### Mattermost integration prerequisites (user-facing note)
-- Incoming webhooks may be disabled on some Mattermost servers; a System Admin may need to enable them in the Mattermost System Console.
-- Username/icon overrides may be disabled by server configuration; treat overrides as best-effort.
+This is not strictly required if directive payload/result is sufficient, but it becomes useful for:
+- “find directive that created this post”,
+- safe reruns and status transitions.
 
 ---
 
-## 9) Execution model (how the digest is generated and posted)
+## 6) Signal taxonomy (forums v1)
 
-### Two triggers (v1)
-1) Scheduled run (daily at configured time)
-2) Manual “Run now” action (UI button)
+### 6.1 Thread and post signals
+- `forum.category.created`
+- `forum.thread.created`
+- `forum.post.created`
 
-Both triggers must create a durable run record:
-- either a `WorkflowRun` or an `Execution` with correlation ids.
+### 6.2 Moderation signals (minimum)
+- `forum.thread.locked`
+- `forum.thread.unlocked`
+- `forum.post.hidden`
+- `forum.post.unhidden`
+- `forum.post.deleted`
 
-### Execution steps (recommended)
-1) Collect last 24 hours of tenant events:
-   - signals by type:
-     - `package.*`
-     - `directive.*`
-     - `agent.execution.*`
-   - optionally group and count
-2) Format digest message:
-   - v1: deterministic formatting (no LLM required)
-   - v1.1+: optional LLM summarization on top of the deterministic stats
-3) Post message to Mattermost:
-   - v1 (recommended): POST to the configured **Incoming Webhook URL** with a JSON payload (e.g., `text`, and optionally `channel`, `username`, `icon_url`)
-   - later (optional): use the Mattermost REST API authenticated with a PAT
-   - enforce idempotency so retries do not duplicate posts
-4) Emit signals:
-   - `mattermost.digest.generated`
-   - `mattermost.message.posted` or `mattermost.message.failed`
+### 6.3 Agent interaction signals (Phase 2C optional; Phase B required later)
+- `forum.agent.reply.requested`
+- `forum.agent.reply.posted`
+- `forum.agent.reply.failed`
 
-### Correlation + causation
-- Scheduled run correlation_id example:
-  - `corr = "digest:{tenant}:{YYYY-MM-DD}:{channel_id}"`
-- Manual run correlation_id example:
-  - `corr = "digest:{tenant}:manual:{execution_id}"`
-
-These correlation ids must propagate to:
-- directive (if invoked by directive)
-- execution record
-- signals emitted
-- logs
+### 6.4 Required metadata on all forum signals
+At minimum:
+- `tenant`
+- `request_id` (if available)
+- `actor` (type/id) when the action is user-initiated
+- `subject` (type/id) (thread/post/category)
+- correlation/causation ids where appropriate (especially for directives/jobs)
 
 ---
 
-## 10) Idempotency + retry semantics (no duplicate Mattermost messages)
+## 7) Directive taxonomy (forums v1)
 
-### Required behavior
-If the job retries (network error, transient Mattermost issue), FleetPrompt must not post multiple messages.
+### 7.1 Moderation directives (must be directive-backed)
+- `forum.thread.lock`
+- `forum.thread.unlock`
+- `forum.post.hide`
+- `forum.post.unhide`
+- `forum.post.delete`
 
-### Recommended mechanism (pick one, but be explicit)
-**Option A (preferred): Outbound message ledger**
-- Before posting to Mattermost, upsert an `outbound_messages` record with:
-  - `dedupe_key = "mattermost_post:{tenant}:{channel}:{digest_window}:{schedule_time}"`
-- If record exists in `posted` status, no-op.
-- If record exists as `posting`, ensure lock/atomic update prevents concurrent posts.
+### 7.2 Agent directives (only after execution thin-slice is available)
+- `forum.agent.reply_generate` (produces a draft / candidate)
+- `forum.agent.reply_publish` (creates the post, idempotent)
 
-**Option B: Signal-enforced dedupe**
-- Emit `mattermost.digest.generated` with a unique `dedupe_key`.
-- Only post to Mattermost if the “post intent” signal insert succeeds (i.e., dedupe passes).
-- Mark success/failure via additional signals.
-
-Either way, the dedupe key should be stable for a given run window.
-
-### Mattermost rate limiting
-- Enforce a per-tenant limit:
-  - manual “Run now” allowed at most N times per hour (e.g., 3/hr)
-- Scheduled run is once per day; should always be allowed.
+### 7.3 Idempotency key schemes (recommended)
+- `forum.thread.lock:{tenant}:{thread_id}`
+- `forum.post.hide:{tenant}:{post_id}`
+- `forum.agent.reply_publish:{tenant}:{thread_id}:{request_id or client_id}`
 
 ---
 
-## 11) Failure modes + user-facing troubleshooting
+## 8) Implementation plan (forums-first lighthouse)
 
-### Expected failures
-- Incoming webhook URL invalid/revoked (or PAT invalid/revoked)
-- Mattermost channel not found / override channel rejected by server
-- Mattermost API/webhook rate limits or transient errors
-- Tenant has no signals yet (empty digest)
+This plan describes the minimum needed to make Forums a credible lighthouse.
 
-### Required UX surfaces
-- Installation page must show:
-  - current status and last error
-  - “Reconnect Mattermost” if credential invalid
-  - “Retry run” button (manual)
-- Admin/support view must show:
-  - last N signals related to this installation
-  - last N executions/workflow runs and logs
+### Step 1 — Replace mocked Forums controller payloads with real reads
+- Back the existing Inertia pages (`/forums`, `/forums/new`, `/forums/c/:slug`, `/forums/t/:id`) with tenant-scoped reads.
+- Ensure org membership gating remains intact.
 
-### Required signals for failures
-- `mattermost.message.failed` must include:
-  - error kind classification (`auth`, `rate_limit`, `network`, `validation`, `unknown`)
-  - safe error metadata (no tokens, no headers)
+### Step 2 — Add tenant-scoped forum resources + migrations
+- Implement the resources listed in Section 5.
+- Ensure tenant migrations apply cleanly across existing tenants.
 
----
+### Step 3 — Emit signals for all core creates
+- When category/thread/post is created:
+  - emit the corresponding `forum.*.created` signal with an appropriate dedupe key.
 
-## 12) Observability requirements (minimum)
+### Step 4 — Implement moderation via directives + runner
+- Create directives for lock/hide/delete.
+- Add a runner handler (Oban) for these directives:
+  - enforce idempotency,
+  - persist results,
+  - emit signals.
 
-For every install and run:
-- directive record exists (install)
-- signals exist and are replayable (30-day retention)
-- execution/workflow run logs exist (if Phase 4-lite is in place)
+### Step 5 — Add an audit trail UI
+- On thread view, show a timeline sourced from:
+  - `signals` (filtered by thread_id / subject references),
+  - `directives` (filtered via payload references or directive links).
+- This is the user-visible proof of Phase 2B value.
 
-Emit telemetry events (optional but recommended):
-- `fleetprompt.package.install.*`
-- `fleetprompt.directive.*`
-- `fleetprompt.mattermost.post.*`
-- `fleetprompt.digest.run.*`
+### Step 6 — Optional (only after Execution thin-slice exists): agent reply flow
+- “Request agent reply” creates a directive.
+- Runner executes (using execution engine) and publishes a post only via directive.
+- Emit `forum.agent.*` signals.
 
 ---
 
-## 13) Security requirements (must pass before onboarding real tenants)
+## 9) Testing plan (minimum)
 
-- Tokens encrypted at rest.
-- No secrets in signals.
-- No secrets in logs.
-- Directive requests role-gated (org owner/admin).
-- Web endpoints protected from CSRF (browser flows).
-- OAuth callback validates state/nonce and binds to the correct tenant.
+### Unit tests (required)
+- Signal emission:
+  - SignalBus idempotency by `dedupe_key`.
+  - SignalFanout runs handlers and surfaces handler errors.
+- Directive runner:
+  - directive lifecycle transitions (requested → running → succeeded/failed).
+  - rerun semantics: failed directives require explicit rerun flag.
+- Forum model invariants:
+  - tenant scoping works (cannot read across tenants),
+  - unique constraints (category slug, etc.).
 
----
+### Integration tests (required)
+- create thread/post -> signals exist and are tenant-scoped.
+- moderation directive -> state changes + signals emitted + directive marked succeeded.
 
-## 14) Testing plan (minimum)
-
-### Unit tests
-- Config validation (timezone, schedule_time, channel_id)
-- Dedupe key stability (same inputs produce same key)
-- Signal emission rejects non-JSON-safe payloads
-
-### Integration tests
-- Install flow emits expected signals and results in installation `installed`
-- Manual run creates execution record and emits signals
-- Mattermost post call is stubbed and:
-  - success path emits `mattermost.message.posted`
-  - failure path emits `mattermost.message.failed`
-  - retries do not duplicate outbound message
-
-### Multi-tenancy tests
-- Credential record cannot be accessed across tenants
-- Signals and directives are tenant-scoped and cannot leak
+### Security tests (minimum)
+- membership gating on forums routes,
+- directives restricted to org roles for moderation actions,
+- no secrets/tokens in signals.
 
 ---
 
-## 15) Rollout plan (how to ship safely)
+## 10) Rollout plan
 
-### Stage 1: Internal only (dev/staging)
-- Install + configure + run works end-to-end
-- Ensure no secrets in signals/logs
-- Validate dedupe under forced retries
+### Stage 1: Internal / dev (default)
+- Ship real forum backing resources
+- Ship audit trail UI
+- Prove replay and controlled rerun in dev
 
-### Stage 2: Design partners (small number)
-- Add guardrails:
-  - manual run rate limit
-  - cost caps if LLM summary enabled
-- Add a simple “health” status surface:
-  - last successful post timestamp
+### Stage 2: Dogfood (team + early tenants)
+- Add basic abuse controls (rate limiting/throttling for posts)
+- Confirm operability under real usage
 
-### Stage 3: Public marketplace listing (curated)
-- Add better onboarding UX:
-  - connect Mattermost first if desired
-  - channel selection UX (or “use webhook default channel” UX)
-- Add “value event” tracking signals for GTM:
-  - `value.digest.posted` with tenant + timestamp + destination (no message content)
+### Stage 3: Agent participation (guardrailed)
+- Only after execution thin-slice is stable
+- Keep “publish” directive-gated and idempotent
 
 ---
 
-## 16) Future expansion (intentionally not required for Phase 2C completion)
+## 11) Summary
 
-- Add inbound Mattermost triggers:
-  - slash command or webhook-triggered “digest now”
-  - interactive message actions (if/when you add richer integration)
-- Add multiple digest templates:
-  - “Ops digest” (platform health)
-  - “Agency daily client digest” (requires analytics integrations)
-- Add MCP compatibility layer:
-  - expose digest generation tools as MCP “tools”
-  - consume external MCP tools for data sources
-- Add channel routing rules:
-  - different digests per channel / team
+Phase 2C is now a **Forums-first lighthouse**. The goal is to prove FleetPrompt’s platform primitives in a real product surface:
 
-### Proton Mail integration notes (replace Gmail strategy)
-Proton Mail is privacy-first and attractive as an integration target, but it has a key architectural constraint for a SaaS platform:
+- tenant-scoped truth via **Signals**,
+- controlled mutations via **Directives**,
+- replayability and operability,
+- and a credible, demoable, retention-capable feature that does not depend on external integrations.
 
-- Proton Mail’s standard IMAP/SMTP access is typically provided via **Proton Mail Bridge**, which:
-  - runs locally on the customer’s machine,
-  - exposes IMAP/SMTP to mail clients,
-  - is available only on **paid Proton plans** (per Proton documentation).
-
-**Implication for FleetPrompt:**
-- A pure “cloud-only” Proton Mail integration is not straightforward using standard IMAP/SMTP, because the Bridge is a local component.
-- The most realistic path is an **edge connector** model:
-  - a customer-controlled FleetPrompt runner connects to Proton Mail via Proton Mail Bridge locally,
-  - the runner forwards normalized events into FleetPrompt as Signals (webhook → signal),
-  - outbound mail can be sent via the same runner using SMTP through Bridge (or via Proton Business SMTP if available for the tenant).
-
-**Actionable v1 stance:**
-- Keep Phase 2C focused on Mattermost as the lighthouse.
-- Track Proton Mail integration as a follow-on package that is either:
-  - “Proton Mail (Bridge-based) Connector” (edge-runner required), or
-  - “Proton Business SMTP Sender” (outbound only) if the customer has a business plan that supports SMTP for business applications.
-
-In both cases:
-- credentials must be encrypted at rest,
-- never store message bodies or secrets in Signals by default,
-- use idempotency keys based on provider message ids (or stable hashes) to avoid duplicate ingestion.
-
----
-
-## 17) Summary
-
-Phase 2C ships one integration-first package that proves FleetPrompt’s core thesis:
-- packages install into tenants,
-- directives make changes auditable,
-- signals make operations replayable,
-- executions make outcomes measurable,
-- and customers see value inside an existing tool (Mattermost).
-
-This lighthouse package becomes the demo asset, the reference implementation for future packages, and the first anchor of marketplace credibility.
+Email, chatbot, and instant messenger integrations remain valuable—but they become priorities **after** Forums proves the core loop end-to-end.

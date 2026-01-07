@@ -278,6 +278,45 @@
         return "Install this package into your current organization";
     };
 
+    const uninstallVisible = (pkg: MarketplacePackage) => {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return false;
+
+        const known = getKnownStatus(slug);
+
+        // Show uninstall only when it looks installed or in-progress for this tenant.
+        if (known?.enabled !== false && known?.status === "installed")
+            return true;
+        if (known?.enabled !== false && known?.status === "installing")
+            return true;
+        if (known?.enabled !== false && known?.status === "requested")
+            return true;
+
+        if (installedBySlug[slug]) return true;
+        if (queuedBySlug[slug]) return true;
+
+        return false;
+    };
+
+    const uninstallDisabled = (pkg: MarketplacePackage) => {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return true;
+
+        // Don’t allow uninstall while we’re actively submitting an install request from this UI.
+        if (installingBySlug[slug]) return true;
+
+        return false;
+    };
+
+    const uninstallTitle = (pkg: MarketplacePackage) => {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return "Missing package slug";
+        if (installingBySlug[slug])
+            return "Please wait for the install request to finish";
+
+        return "Uninstall this package from your current organization (dev tool)";
+    };
+
     async function refreshInstallationStatusOnce() {
         const res = await fetch("/marketplace/installations/status", {
             method: "GET",
@@ -413,6 +452,80 @@
         } finally {
             installingBySlug = { ...installingBySlug, [slug]: false };
         }
+    }
+
+    type UninstallResponse =
+        | {
+              ok: true;
+              directive_id: string;
+              directive_status: string;
+              directive_created?: boolean;
+              enqueued: boolean;
+              tenant: string;
+              package: { slug: string; version?: string | null };
+          }
+        | { ok: false; error: string; [key: string]: unknown };
+
+    async function uninstallPackageSlug(slug: string, purge: boolean) {
+        const target = (slug ?? "").trim();
+        if (!target) return;
+
+        try {
+            const csrf = getCsrfToken();
+
+            const res = await fetch("/marketplace/uninstall", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+                },
+                body: JSON.stringify({
+                    slug: target,
+                    purge,
+                }),
+            });
+
+            const data = (await res
+                .json()
+                .catch(() => null)) as UninstallResponse | null;
+
+            if (!res.ok) {
+                const err =
+                    (data as any)?.error ??
+                    `Uninstall failed (${res.status} ${res.statusText})`;
+                installErrorsBySlug = { ...installErrorsBySlug, [target]: err };
+                return;
+            }
+
+            if (!data || (data as any).ok !== true) {
+                const err = (data as any)?.error ?? "Uninstall failed";
+                installErrorsBySlug = { ...installErrorsBySlug, [target]: err };
+                return;
+            }
+
+            // Optimistic UI: clear local badges; then refresh status from server.
+            queuedBySlug = { ...queuedBySlug, [target]: false };
+            installedBySlug = { ...installedBySlug, [target]: false };
+
+            // If the server is tracking install status per tenant, refresh it so "Install" becomes available.
+            await refreshInstallationStatusOnce();
+        } catch (_err) {
+            installErrorsBySlug = {
+                ...installErrorsBySlug,
+                [target]: "Uninstall request failed (network error)",
+            };
+        }
+    }
+
+    function confirmAndUninstall(pkg: MarketplacePackage) {
+        const slug = (pkg.slug ?? "").trim();
+        if (!slug) return;
+
+        const purge = window.confirm(
+            "Also purge matching installed agent templates from this tenant?\n\nThis is best-effort and only deletes agents that match the package includes signature (name + system_prompt).",
+        );
+
+        void uninstallPackageSlug(slug, purge);
     }
 </script>
 
@@ -695,6 +808,19 @@
                         </div>
 
                         <div class="mt-4 flex items-center justify-end gap-2">
+                            {#if uninstallVisible(pkg)}
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9 px-3 disabled:opacity-60 disabled:pointer-events-none"
+                                    title={uninstallTitle(pkg)}
+                                    disabled={uninstallDisabled(pkg)}
+                                    on:click={() => confirmAndUninstall(pkg)}
+                                >
+                                    Uninstall
+                                </button>
+                            {/if}
+
                             <div class="flex flex-col items-end gap-1">
                                 <button
                                     type="button"
@@ -849,6 +975,19 @@
                         </div>
 
                         <div class="mt-4 flex items-center justify-end gap-2">
+                            {#if uninstallVisible(pkg)}
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9 px-3 disabled:opacity-60 disabled:pointer-events-none"
+                                    title={uninstallTitle(pkg)}
+                                    disabled={uninstallDisabled(pkg)}
+                                    on:click={() => confirmAndUninstall(pkg)}
+                                >
+                                    Uninstall
+                                </button>
+                            {/if}
+
                             <div class="flex flex-col items-end gap-1">
                                 <button
                                     type="button"
