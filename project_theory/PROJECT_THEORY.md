@@ -39,6 +39,13 @@ FleetPrompt is a **multi-tenant AI automation platform** built around a **Packag
   Browse packages → install package → package provisions tenant capabilities → run/observe agent workflows → measure value.
 - **Non-negotiable addition:** ship at least **one lighthouse package** end-to-end (install → configure → execute → observable outcome) before scaling “marketplace breadth.” This avoids the marketplace chicken-and-egg problem and anchors the ecosystem in a concrete, demoable win.
 
+- **Optional “killer app” wedge (later, not now):** an **agent-native forum** built on FleetPrompt primitives can be a powerful dogfooding and distribution surface *after* Signals/Directives + one lighthouse package exist. Treat it as a **reference application/client** that:
+  - emits Signals from forum events (threads/posts/moderation),
+  - consumes Directives for controlled side effects (agent replies, escalations, summaries),
+  - showcases observability, replay, and governance in a highly legible domain.
+  
+  **Sequencing rule:** build the forum *as a client of FleetPrompt*, not as a parallel engine that bypasses the platform primitives.
+
 ---
 
 ## 3) Product Thesis (Why customers will buy)
@@ -63,6 +70,10 @@ They do want:
 
 ### 3.3 Avoided trap (explicit)
 Do not pivot to commoditized “website chat widget” as the core. If needed, add it later as *one package* (a channel adapter), not the platform identity.
+
+**Clarification (in light of the forum idea):**
+- An agent-native forum can be a **killer app**, but it should not become a “new stack” that competes with your integration-first thesis.
+- The forum is only strategically correct if it is implemented as a **showcase client** of FleetPrompt’s core primitives (packages → installs → signals/directives → executions → telemetry), and if it accelerates (not distracts from) the integration marketplace flywheel.
 
 ---
 
@@ -90,7 +101,8 @@ The marketplace compounding effect requires:
 - versioning and migration,
 - installation lifecycle,
 - trust model (verification, reviews, permissions),
-- analytics (what packages deliver measurable ROI).
+- analytics (what packages deliver measurable ROI),
+- **at least one first-party reference app** that proves the primitives under real usage (optional): e.g., an agent-native forum that demonstrates that packages/agents are not “bolted on,” but operationally first-class (signals, directives, replay, audit).
 
 ---
 
@@ -407,6 +419,18 @@ Mitigation:
   inbound event → normalize → signal → handlers
   signal → action runner → external call → result signal
 
+### Risk: The “agent-native forum” becomes a parallel product (or bypasses primitives)
+Mitigation:
+- treat the forum as a **first-party client** of FleetPrompt’s primitives:
+  - forum emits signals and requests directives; it does not contain a separate “agent engine”
+- do not start the forum track until:
+  - Signals + Directives are stable (Phase 2B),
+  - an execution thin-slice exists and is observable (Phase 4 subset),
+  - basic safety policies exist (role gating + no secrets in signals/logs)
+- ship with guardrails:
+  - agents default to “assist + escalate,” not “auto-enforce”
+  - any side effects beyond posting (moderation actions, notifications, external calls) must be directive-gated and auditable
+
 ### Risk: Over-expanding verticals early
 Mitigation:
 - ship a small set of high-quality packages that demonstrate ROI, then expand via a repeatable template.
@@ -441,6 +465,18 @@ Mitigation:
    - how are OAuth tokens stored per tenant/package?
    - how are scopes presented to admins?
    - rotation and revocation UX?
+
+5) Agent-native forum track (if pursued):
+   - Is the forum a **first-party reference app** (to validate primitives) or a **commercial SKU** (to sell as a product)?
+   - Public vs private by default:
+     - anonymous read/SEO, or authenticated-only?
+   - What is the “human in the loop” boundary for moderation automation in v1 (flag/recommend vs hide/ban)?
+   - What is the minimal agent set that proves value without creating policy risk (FAQ + Summary first, Moderation later)?
+
+6) Actor identity + permissions (platform-wide, but forum makes it obvious):
+   - How do we represent `human | agent | system | integration` consistently across signals/directives/executions?
+   - What are the default tool/directive permissions for agents (and how are they restricted per package/installation)?
+   - What is the required provenance UI (link agent post → execution_id → directive_id → signal_id) to make auditing and replay trustworthy?
 
 These should be resolved before scaling integrations and third-party packages.
 

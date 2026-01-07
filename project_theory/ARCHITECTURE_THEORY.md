@@ -26,9 +26,23 @@ FleetPrompt is an **AI integration layer** and **package marketplace** that lets
 5) iteratively evolve their automation safely.
 
 ### Integration-first (strategic constraint)
-FleetPrompt should assume customers already live in tools like email (including Proton Mail), Mattermost (and other team chat), CRMs, commerce, accounting, etc. The product wins by embedding AI into existing workflows, minimizing migration friction and behavior change.
+FleetPrompt should assume customers already live in tools like email (including Proton Mail), Mattermost (and other team chat), CRMs, commerce, accounting, analytics, etc. The product wins by embedding AI into existing workflows, minimizing migration friction and behavior change.
 
 **Architecture implication:** the system must treat integrations as first-class runtime concerns (credentials, webhooks, rate limits, retries, idempotency, audit logs, and tenant isolation).
+
+### First-party applications (clients), not just integrations
+FleetPrompt should explicitly support multiple **first-party product surfaces** that all speak the same internal “language” (signals + directives + executions):
+
+1) **Operator Console** (current: Inertia + Svelte)
+   - install/configure packages, inspect executions/logs, run workflows, manage credentials.
+
+2) **Agent-native Forum** (proposed first-party app)
+   - a discussion platform where **AI agents are first-class participants**:
+     - humans can @mention agents,
+     - agents can respond, summarize, route/escalate, and assist moderation,
+     - every agent action is attributable and auditable.
+
+**Key stance:** a first-party forum is a *client* of FleetPrompt’s primitives, not a separate engine. If the forum can’t be built mostly by emitting signals and running directives/executions, it is a sign the core primitives are incomplete.
 
 ---
 
@@ -87,8 +101,9 @@ If we can’t answer “what happened, for which org, why, and what did it cost?
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│                           Client (Browser)                         │
-│                      Svelte + Inertia pages                        │
+│                           Clients (Browser)                        │
+│   - Operator Console (Svelte + Inertia)                             │
+│   - Agent-native Forum (Svelte + Inertia; optional LiveView later)  │
 └───────────────▲───────────────────────────────┬───────────────────┘
                 │ Inertia HTML + JSON props      │ SSE/streaming
                 │                               │ (Phase 3+)
@@ -100,17 +115,21 @@ If we can’t answer “what happened, for which org, why, and what did it cost?
                 │ Ash actions/queries            │ Enqueue jobs
 ┌───────────────┴───────────────────────────────▼───────────────────┐
 │                         Ash Domains/Resources                       │
-│ Accounts (public schema), Agents (tenant), Skills (global),         │
-│ Packages (global), Workflows (tenant), Chat (tenant), Webhooks      │
+│ Accounts (public schema)                                            │
+│ Tenant ops + primitives (tenant): Signals, Directives, Executions   │
+│ Product domains (tenant): Agents, Workflows, Chat, Forum            │
+│ Registry (public): Packages (+ global catalogs as needed)           │
 └───────────────▲───────────────────────────────┬───────────────────┘
                 │ SQL (schema-aware)             │ Job execution
 ┌───────────────┴───────────────────────────────▼───────────────────┐
 │                      Postgres + Oban (runtime)                      │
 │ public schema: orgs/users/memberships/packages/...                  │
-│ org_<slug> schemas: agents/executions/workflows/chat/...            │
+│ org_<slug> schemas: signals/directives/agents/executions/...        │
 │ oban tables in public                                               │
 └───────────────────────────────────────────────────────────────────┘
 ```
+
+**Important:** the forum is not “a separate system.” It is an additional first-party surface that produces and consumes the same tenant-scoped primitives (signals/directives/executions) as every other FleetPrompt workflow.
 
 ### 3.2 “Public vs tenant schema” theory
 - **Public schema** stores *identity and platform-wide registry* data:
@@ -248,6 +267,58 @@ FleetPrompt’s plan now treats signals as a **first-class persisted primitive**
 **Why this matters:**
 - Marketplace installs become “real” only when we can answer: what happened, who initiated it, what changed, and how to retry safely.
 - Integrations (including emerging standards like MCP-style tool connectivity) still need a durable internal event record for auditability, replay, and long-running orchestration.
+- A first-party **agent-native forum** becomes feasible (and safe) only if forum actions are representable as signals + directives with clear attribution and replay safety.
+
+#### Actor model (required for agent-native participation)
+Signals (and the directives/executions they trigger) must carry a consistent notion of “who did this”:
+
+- `human` — a signed-in user (org member)
+- `agent` — a tenant-owned agent identity (configured and permissioned)
+- `system` — internal platform actor (jobs, schedulers, maintenance)
+- `integration` — external system actor (webhooks, edge connector, provider events)
+
+**Non-negotiables**
+- Agents are not “anonymous automation.” If an agent posts, flags, summarizes, or routes, the UI must show:
+  - agent identity (stable id + display name),
+  - confidence/reasoning summary (as appropriate),
+  - provenance link(s): related `execution_id` / `directive_id` / `signal_id`.
+- High-risk side effects remain directive-gated and policy-checked:
+  - e.g., “hide post”, “ban user”, “send email”, “post to Mattermost” should be a `Directive` (auditable, retry-safe), not an implicit model action.
+- “Human override” is a feature:
+  - humans must be able to correct/annotate agent output, and that feedback should be capturable as a signal.
+
+#### Forum as a first-party signal surface (proposed)
+A forum is a high-signal environment for agents because it produces dense, durable events (threads, replies, reactions, flags). Treat forum activity as a canonical event stream, not special-cased logic.
+
+**Recommended forum signal taxonomy (v1)**
+- `forum.thread.created`
+- `forum.thread.viewed`
+- `forum.post.created`
+- `forum.post.edited`
+- `forum.post.reacted`
+- `forum.post.flagged`
+- `forum.thread.solved`
+- `forum.thread.locked`
+
+**Agent interaction signals (v1)**
+- `forum.agent.mentioned`
+- `forum.agent.responded`
+- `forum.agent.escalated` (agent chose to defer to humans)
+- `forum.agent.summary.generated`
+- `forum.agent.feedback.recorded` (helpful/not helpful, corrections)
+
+**Directive examples (v1)**
+- `forum.post.create` (agent response, summary, moderation note)
+- `forum.post.flag` / `forum.post.hide` (if/when moderation automation is allowed)
+- `forum.thread.summarize`
+- `forum.thread.notify_experts` (routing/escalation)
+- `forum.user.warn` / `forum.user.suspend` (only with strict policy + approval gating)
+
+**Core stance:** the forum is where FleetPrompt can *prove* the primitives:
+- inbound forum actions → signals,
+- signals trigger executions/workflows,
+- executions propose or perform work via directives,
+- resulting forum changes are auditable, replayable, and attributable.
 
 ---
 

@@ -46,6 +46,7 @@ The Jido research highlights platform primitives we need (signals, skills, direc
 4. `fleetprompt.com/project_plan/phase_3_chat_interface.md` (Inertia + Svelte + SSE)
 5. `fleetprompt.com/project_plan/phase_4_agent_execution.md`
 6. `fleetprompt.com/project_plan/phase_5_api_sdk_cli.md`
+7. `fleetprompt.com/project_plan/phase_6_agent_native_forum.md` (optional flagship)
 
 ### Non-canonical / historical (do not implement as-is)
 - `fleetprompt.com/project_plan/CHAT_LIVEVIEW_IMPLEMENTATION.md`
@@ -82,6 +83,10 @@ We prioritize the smallest path to:
 4) **Add an integration package as the wedge**
 
 That means: **Phase 2 → Phase 4 (thin slice) → Phase 3 (UX) → Phase 5 (distribution)**, with “Platform Hardening” woven in.
+
+**Optional flagship (“killer app”) track (guardrailed): Agent-native Forum**
+- This is a potential distribution + validation wedge, but it must **not** preempt the platform primitives.
+- Rule: only start the forum milestone once **Signals + Directives (A2)** and **Execution thin-slice (B)** are stable enough to power agent participation with auditability and idempotency.
 
 ---
 
@@ -311,6 +316,48 @@ Website chat is **not** the business pivot. It is a **channel adapter package** 
 
 ---
 
+### Milestone H — Agent-Native Forum (optional flagship) — “Agents are first-class participants”
+**Goal:** build (and dogfood) a modern forum where **humans and agents collaborate natively**, using FleetPrompt primitives as the engine and audit layer.
+
+**Why this milestone exists**
+This can be FleetPrompt’s “killer app” if it:
+- provides a concrete, always-on environment where agents prove value (answering, summarizing, routing, moderating),
+- generates organic distribution (community/network effects),
+- validates the Signals/Directives/Execution model under real load and messy real-world content.
+
+**Dependencies (non-negotiable)**
+- Milestone A2 (Signals + Directives MVP) — agent actions must be auditable and replayable
+- Milestone B (Execution Thin Slice) — agents must be able to run and log work reliably
+- Security posture for secrets + safety controls (no secrets in signals/logs; explicit side effects via directives)
+
+**Deliverables (MVP)**
+- Core forum resources and UI:
+  - categories/tags, threads, posts, basic moderation primitives (flag/lock)
+  - in-tenant identity/roles mapped to existing org membership (owner/admin/member)
+- Forum emits signals for key events (examples):
+  - `forum.thread.created`, `forum.post.created`, `forum.post.flagged`, `forum.thread.solved`
+- Agent participation surfaces:
+  - users can @mention an agent (creates a signal)
+  - agents can reply with an attributed post (directive-backed, logged as an execution)
+  - confidence + “needs human review” affordances (trust-building)
+- At least 2 first-party “forum agents” as installable packages (curated):
+  - `forum_faq_agent` (duplicate detection + suggested links)
+  - `forum_summary_agent` (thread TL;DR + weekly digest)
+
+**Exit criteria**
+- A new thread can trigger a safe agent response path:
+  - signal persisted → directive created → execution runs → post created → signals/logs visible
+- Admin can replay/inspect agent actions for a thread (debuggable “why did it post this?”)
+
+**Guardrails (focus protection)**
+- The forum is a client of FleetPrompt’s primitives, not a reason to invent parallel systems.
+- Start without full realtime complexity; add realtime later only if it improves outcomes.
+
+**Source doc**
+- `fleetprompt.com/project_plan/phase_6_agent_native_forum.md`
+
+---
+
 ## 6) Platform Hardening Track (Jido-inspired, aligned to our stack)
 
 These are not “extra nice-to-haves”; they are what makes packages safe, operable, and composable.
@@ -469,6 +516,7 @@ The plan supports “packages as product,” which is compatible with multiple v
 | E | First integration package | A + A3 + B (and ideally D) | research + new spec to be written |
 | F | Edge Connector (Proton Mail Bridge + local systems) | A2 + (ideally B) | (spec to be added; see Proton Bridge notes in plan) |
 | G | Website Chat Adapter Package (Charla) | A2 + (ideally B) | `project_research/fleetprompt_vs_charla_strategic_analysis.md` + (spec to be added) |
+| H (optional) | Agent-native Forum (flagship app) | A2 + B (and security posture) | `fleetprompt.com/project_plan/phase_6_agent_native_forum.md` |
 | Hardening 1–5 | Signals/skills/directives/telemetry/versioning | woven throughout | Jido research docs |
 
 ---
