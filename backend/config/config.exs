@@ -16,6 +16,7 @@ config :fleet_prompt,
     FleetPrompt.Skills,
     FleetPrompt.Workflows,
     FleetPrompt.Packages,
+    FleetPrompt.Forums,
     FleetPrompt.Signals,
     FleetPrompt.Directives
   ]

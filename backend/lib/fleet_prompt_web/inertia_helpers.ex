@@ -57,7 +57,12 @@ defmodule FleetPromptWeb.InertiaHelpers do
     current_org =
       Map.get(conn.assigns, :current_organization) || Map.get(conn.assigns, :current_org)
 
-    serialized_user = serialize_user(current_user)
+    current_role = Map.get(conn.assigns, :current_role)
+
+    serialized_user =
+      current_user
+      |> serialize_user()
+      |> put_membership_role_into_user(current_role)
 
     tenant_schema = Map.get(conn.assigns, :ash_tenant)
     tenant_slug = tenant_to_slug(tenant_schema)
@@ -130,6 +135,14 @@ defmodule FleetPromptWeb.InertiaHelpers do
       role: Map.get(user, :role) || Map.get(user, "role")
     }
     |> drop_nils()
+  end
+
+  defp put_membership_role_into_user(nil, _role), do: nil
+
+  defp put_membership_role_into_user(user, nil) when is_map(user), do: user
+
+  defp put_membership_role_into_user(user, role) when is_map(user) do
+    Map.put(user, :role, to_string(role))
   end
 
   defp serialize_org(nil), do: nil

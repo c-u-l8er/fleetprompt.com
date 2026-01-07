@@ -57,9 +57,19 @@
     } | null = null;
 
     // -------------------------
+    // Tenant data (from backend; Phase 2C wiring)
+    // -------------------------
+    export let categories: Array<{
+        id: string;
+        slug: string;
+        name: string;
+        description?: string | null;
+        status?: string | null;
+    }> = [];
+    // -------------------------
     // Mock data (temporary)
     // -------------------------
-    const categories: ForumCategory[] = [
+    const mockCategories: ForumCategory[] = [
         {
             key: "announcements",
             name: "Announcements",
@@ -189,7 +199,7 @@
     };
 
     const categoryByKey = (key: string) =>
-        categories.find((c) => c.key === key) ?? null;
+        mockCategories.find((c) => c.key === key) ?? null;
 
     const filteredThreads = () => {
         const q = normalize(query);
@@ -227,8 +237,18 @@
 
     const canCreateThread = () => {
         // For now, just require a signed-in user AND a tenant context.
-        // Phase 6 will enforce org membership + roles + policies server-side.
+        // Server must enforce org membership + policies.
         return !!user?.id && !!tenant_schema;
+    };
+
+    const canManageCategories = () => {
+        // Categories are admin-managed. This is a UX gate; server must enforce.
+        const role = (user?.role ?? "").toString();
+        return (
+            !!user?.id &&
+            !!tenant_schema &&
+            (role === "owner" || role === "admin")
+        );
     };
 
     function selectTab(key: TabKey) {
@@ -267,6 +287,21 @@
              border border-border bg-background hover:bg-muted h-9 px-3"
         >
             Marketplace
+        </a>
+
+        <a
+            use:inertia
+            href={canManageCategories() ? "/forums/categories/new" : "/forums"}
+            class={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+             border border-border bg-background hover:bg-muted h-9 px-3 ${
+                 canManageCategories() ? "" : "opacity-60 pointer-events-none"
+             }`}
+            aria-disabled={!canManageCategories()}
+            title={canManageCategories()
+                ? "Create a new category (Phase 2C)"
+                : "Only org admins can create categories. Make sure you’ve selected an org/tenant."}
+        >
+            New category
         </a>
 
         <a
@@ -360,6 +395,89 @@
                 </div>
             {/if}
         </div>
+    </section>
+
+    <!-- Tenant categories (Phase 2C) -->
+    <section
+        class="mt-6 rounded-2xl border border-border bg-card text-card-foreground p-4 sm:p-6"
+    >
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h2 class="text-lg font-semibold tracking-tight">Categories</h2>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Tenant-scoped categories (real data when configured).
+                </p>
+            </div>
+
+            <a
+                use:inertia
+                href={canManageCategories()
+                    ? "/forums/categories/new"
+                    : "/forums"}
+                class={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                 border border-border bg-background hover:bg-muted h-9 px-3 ${
+                     canManageCategories()
+                         ? ""
+                         : "opacity-60 pointer-events-none"
+                 }`}
+                aria-disabled={!canManageCategories()}
+                title={canManageCategories()
+                    ? "Create a new category"
+                    : "Only org admins can create categories."}
+            >
+                New category
+            </a>
+        </div>
+
+        {#if categories && categories.length > 0}
+            <div
+                class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+            >
+                {#each categories as cat (cat.id)}
+                    <a
+                        use:inertia
+                        href={"/forums/c/" + cat.slug}
+                        class="rounded-xl border border-border bg-background p-4 hover:bg-muted/20 transition-colors"
+                    >
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <div class="font-medium truncate">
+                                    {cat.name}
+                                </div>
+                                {#if cat.description}
+                                    <div
+                                        class="mt-1 text-sm text-muted-foreground line-clamp-2"
+                                    >
+                                        {cat.description}
+                                    </div>
+                                {:else}
+                                    <div
+                                        class="mt-1 text-sm text-muted-foreground"
+                                    >
+                                        No description
+                                    </div>
+                                {/if}
+                            </div>
+
+                            {#if cat.status && cat.status !== "active"}
+                                <span
+                                    class="inline-flex items-center rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
+                                >
+                                    {cat.status}
+                                </span>
+                            {/if}
+                        </div>
+                    </a>
+                {/each}
+            </div>
+        {:else}
+            <div class="mt-4 rounded-xl border border-border bg-muted/10 p-5">
+                <div class="text-sm font-medium">No categories yet</div>
+                <div class="mt-1 text-sm text-muted-foreground">
+                    Create your first category to organize threads.
+                </div>
+            </div>
+        {/if}
     </section>
 
     <!-- Tabs + search -->

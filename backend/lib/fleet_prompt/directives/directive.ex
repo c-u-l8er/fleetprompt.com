@@ -140,10 +140,11 @@ defmodule FleetPrompt.Directives.Directive do
 
   identities do
     # Enforce idempotency when an idempotency key is present.
-    # IMPORTANT: avoid uniqueness conflicts on NULL keys.
-    identity :unique_idempotency_key, [:idempotency_key] do
-      where(expr(not is_nil(idempotency_key)))
-    end
+    #
+    # Postgres unique indexes allow multiple NULL values, so we do not need a
+    # partial unique index here. Keeping this as a plain identity avoids
+    # requiring `postgres.identity_wheres_to_sql` mapping during migration generation.
+    identity(:unique_idempotency_key, [:idempotency_key])
   end
 
   actions do

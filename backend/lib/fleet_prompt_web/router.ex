@@ -106,6 +106,10 @@ defmodule FleetPromptWeb.Router do
     # - Phase 6 will replace the backing data with real Ash resources + Signals/Directives
     get("/forums", ForumsController, :index)
     get("/forums/new", ForumsController, :new)
+    get("/forums/categories/new", ForumsController, :new_category)
+    post("/forums/categories", ForumsController, :create_category)
+    post("/forums/threads", ForumsController, :create_thread)
+    post("/forums/t/:id/replies", ForumsController, :create_reply)
     get("/forums/c/:slug", ForumsController, :category)
     get("/forums/t/:id", ForumsController, :thread)
 
