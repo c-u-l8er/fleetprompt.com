@@ -1,33 +1,58 @@
-# FleetPrompt - Phase 3: Chat Interface with Streaming
+# FleetPrompt - Phase 3: Chat Interface with Streaming (Package-First + Signal-Driven)
 
 ## Overview
-This phase implements the chat-based homepage and interaction system using Inertia.js + Svelte with real-time streaming responses. Users can interact with FleetPrompt through natural language to deploy agents, browse packages, and manage their fleet.
+This phase implements FleetPrompt’s chat experience as a **package-first concierge** and **signal-driven command surface**.
+
+The primary outcome of chat is NOT “a chatbot UI”, but a reliable way to:
+- help users **discover** and **install** packages (the core product),
+- translate natural language into **typed actions** (install, configure, deploy, run),
+- emit **signals** that drive the rest of the platform (packages, agents, workflows, and future integrations),
+- stream an assistant response while preserving a structured, auditable action trail.
+
+Chat should feel like “talking to the Marketplace + Fleet control plane”, with the assistant generating **action buttons** that map to real backend commands (rather than free-form “do anything” tool execution).
 
 ## Prerequisites
 - ✅ Phase 0 completed (Inertia + Svelte)
-- ✅ Phase 1 completed (Core resources)
-- ✅ Phase 2 completed (Package marketplace)
+- ✅ Phase 1 completed (Core resources + org/tenant context)
+- ◻️ Phase 2 in-progress or completed (Marketplace + installation primitives are strongly recommended before shipping Chat as the main CTA)
 
-## Phase 3 Goals
+## Phase 3 Goals (Realigned)
 
-1. ✅ Create chat interface with streaming responses
-2. ✅ Implement intent classification system
-3. ✅ Build AI response handlers
-4. ✅ Add interactive action buttons
-5. ✅ Create conversation persistence
-6. ✅ Implement SSE (Server-Sent Events) for streaming
-7. ✅ Build package recommendation engine
-8. ✅ Add code block rendering with syntax highlighting
+1. ✅ Ship a chat UI with **streaming SSE** responses (fast feedback loop)
+2. ✅ Persist conversations/messages with a stable **message + action** schema
+3. ✅ Implement “package-first” intent routing:
+   - package discovery, comparison, and install flow are the default “happy path”
+4. ✅ Standardize **signal-driven actions**:
+   - assistant proposes typed actions
+   - backend validates, executes, and emits signals for downstream systems
+5. ✅ Make actions composable and auditable:
+   - every action has an id, type, payload, status, and resulting domain ids
+6. ✅ Add safe “assistant as guide” behavior:
+   - never silently mutate state; always surface an explicit action for installs/deploys/runs
+7. ✅ Provide a clean migration path to Phase 4 (execution/workflows) without rewriting Chat:
+   - Chat emits signals/commands; execution engines subscribe
 
-## Architecture Overview
+## Architecture Overview (Signal-Driven)
 
 ```
-User Input → Phoenix Controller → Intent Classifier → Response Handler
-                                                            ↓
-                                                    Stream via SSE
-                                                            ↓
-                                                      Svelte UI
+User Input
+  → Phoenix Controller (SSE)
+    → Intent Router (package-first)
+      → Plan (assistant response + typed actions)
+        → (optional) Execute Action (explicit user click)
+          → Domain Command (Packages/Agents/Workflows)
+            → Signal Emission (audit + integrations)
+  → Stream assistant text via SSE
+  → Render actions (buttons) in Svelte UI
 ```
+
+### Core Principle: Chat produces signals, not side effects
+- The assistant can propose actions, but side effects happen only via explicit, validated commands.
+- Every meaningful operation emits a signal that can later be consumed by:
+  - observability/telemetry,
+  - package lifecycle management,
+  - workflow automation,
+  - external integrations.
 
 ## Backend Implementation
 

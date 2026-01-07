@@ -1,27 +1,57 @@
 # FleetPrompt - Phase 4: Agent Execution & Workflows
 
 ## Overview
-This phase implements the core agent execution system and workflow orchestration. Agents can execute tasks, call tools, and participate in multi-agent workflows.
+This phase should be treated as the **platform core**: a **signal-driven execution and workflow system** with first-class **observability**. Instead of “run an agent” as an isolated job, everything becomes:
+
+- **Signals** (immutable events) flowing through
+- **Runs** (stateful executions) that consume/emit signals
+- **Workflows** as orchestrated signal chains
+- **Telemetry** as a mandatory output of every run step
+
+This aligns with the Jido-style architecture you’ve researched: predictable event flow, composability, and debuggability (replay/time-travel) rather than ad-hoc background jobs.
+
+### Architecture (Phase 4, realigned)
+
+```
+User/API/Integration
+      ↓ emits
+   Signal (immutable, persisted, replayable)
+      ↓ routed by
+   Signal Bus (middleware, auth, rate-limit, fanout)
+      ↓ starts/advances
+   Run (Execution) + Step Logs (append-only)
+      ↓ emits
+   More Signals (next steps, side-effects, webhooks)
+      ↓ observed by
+   Telemetry + Tracing (correlation IDs everywhere)
+```
 
 ## Prerequisites
-- ✅ Phase 0-3 completed
-- ✅ Agents resource created
-- ✅ Chat system working
+- ✅ Phase 0-1 completed (Inertia + Svelte; core multi-tenancy + auth/org context)
+- ⚠️ Phase 2-3 can be incremental, but Phase 4 should NOT assume chat is the primary driver
+  - Chat is just one signal source; integrations + API are equal first-class inputs.
 
-## Phase 4 Goals
+## Phase 4 Goals (Realigned)
 
-1. ✅ Create Execution resource for tracking runs
-2. ✅ Build LLM integration (Claude/GPT)
-3. ✅ Implement tool system
-4. ✅ Create workflow engine
-5. ✅ Build execution UI
-6. ✅ Add real-time execution monitoring
-7. ✅ Implement error handling and retries
-8. ✅ Create execution logs and metrics
+1. Define a **Signal** envelope and persistence/replay strategy (debugging + supportability).
+2. Make **Execution = Run** the canonical state machine that consumes signals and produces signals.
+3. Implement **step-level logging** (append-only) + structured errors + compensation hooks (saga-style).
+4. Add **correlation + causation identifiers** to everything (traceability across integrations).
+5. Add **telemetry events** for run lifecycle, step lifecycle, tool calls, costs, and failures.
+6. Provide a minimal **Run inspection UI** (even if basic) to make debugging possible in prod.
+7. Keep the LLM client and tool system, but treat them as **effects invoked by steps**, not the architecture.
 
 ## Backend Implementation
 
-### Step 1: Create Execution Resource
+### Step 1: Create Run (Execution) Resource — Signal-driven + Traceable
+
+Create `lib/fleet_prompt/agents/execution.ex` as the **Run** record (still named “Execution” if you prefer), but it must be able to answer:
+
+- *What signal started this?* (causation)
+- *What other work is this related to?* (correlation)
+- *How do I trace it across systems?* (trace/span)
+- *Can I safely retry?* (idempotency + attempts)
+- *What happened step-by-step?* (logs/events)
 
 Create `lib/fleet_prompt/agents/execution.ex`:
 
@@ -43,76 +73,123 @@ defmodule FleetPrompt.Agents.Execution do
   
   attributes do
     uuid_primary_key :id
-    
+
+    # --- Traceability / event lineage (non-negotiable for integrations) ---
+    # correlation_id: groups related work across systems (email thread, webhook chain, etc.)
+    # causation_id: points to the specific triggering event/signal/run step
+    attribute :correlation_id, :string do
+      public? true
+    end
+
+    attribute :causation_id, :string do
+      public? true
+    end
+
+    # Optional W3C-ish tracing fields (keep as strings for portability)
+    attribute :trace_id, :string do
+      public? true
+    end
+
+    attribute :span_id, :string do
+      public? true
+    end
+
+    attribute :parent_span_id, :string do
+      public? true
+    end
+
+    # The triggering signal (if/when you add a signals table, this becomes a FK/uuid)
+    attribute :signal_id, :uuid do
+      public? true
+    end
+
+    # Idempotency + retries (required for webhooks + background jobs)
+    attribute :idempotency_key, :string do
+      public? true
+    end
+
+    attribute :attempt, :integer do
+      default 0
+      public? true
+    end
+
+    # --- Run lifecycle ---
     attribute :status, :atom do
       constraints one_of: [:queued, :running, :completed, :failed, :cancelled]
       default :queued
       public? true
     end
-    
+
+    # Keep inputs/outputs, but treat them as structured “step context”
     attribute :input, :map do
       allow_nil? false
       public? true
     end
-    
+
     attribute :output, :map do
       public? true
     end
-    
+
     attribute :error_message, :string do
       public? true
     end
-    
-    # Token usage
-    attribute :input_tokens, :integer do
-      default 0
+
+    attribute :error_kind, :string do
       public? true
     end
-    
-    attribute :output_tokens, :integer do
-      default 0
+
+    attribute :error_details, :map do
+      default %{}
       public? true
     end
-    
-    attribute :total_tokens, :integer do
-      default 0
-      public? true
-    end
-    
-    # Performance metrics
-    attribute :latency_ms, :integer do
-      public? true
-    end
-    
-    attribute :cost_usd, :decimal do
-      public? true
-    end
-    
-    # Model used
+
+    # --- Usage + cost + effects (observability-friendly) ---
     attribute :model, :string do
       public? true
     end
-    
-    # Tool calls made
+
     attribute :tool_calls, {:array, :map} do
       default []
       public? true
     end
-    
-    # Execution context
+
+    attribute :input_tokens, :integer do
+      default 0
+      public? true
+    end
+
+    attribute :output_tokens, :integer do
+      default 0
+      public? true
+    end
+
+    attribute :total_tokens, :integer do
+      default 0
+      public? true
+    end
+
+    attribute :latency_ms, :integer do
+      public? true
+    end
+
+    attribute :cost_usd, :decimal do
+      public? true
+    end
+
+    # Execution context should carry tenant/org + step routing hints (but never secrets)
     attribute :context, :map do
       default %{}
       public? true
     end
-    
+
     attribute :started_at, :utc_datetime_usec do
       public? true
     end
-    
+
     attribute :completed_at, :utc_datetime_usec do
       public? true
     end
-    
+
     timestamps()
   end
   

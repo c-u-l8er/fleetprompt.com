@@ -1,7 +1,16 @@
 # FleetPrompt - Phase 2: Package System & Marketplace
 
 ## Overview
-This phase implements the package marketplace - the core differentiator of FleetPrompt. Users can browse, install, and publish packages containing pre-built agent systems.
+This phase implements the **Package System** as a first-class platform primitive (not just a marketplace UI): packages are versioned, composable units that can install **skills**, **agents**, and **workflows**, and communicate via a standardized **signal/event architecture**.
+
+**Canonical Phase 2B spec:** persisted, replayable Signals + auditable Directives are specified in:
+- `fleetprompt.com/project_plan/phase_2b_signals_and_directives.md`
+
+The marketplace UX (browse/search/install/reviews) is still delivered here, but Phase 2 is re-scoped to ensure the underlying primitives exist so that packages are:
+- **Composable** (skills + signals, not just “a bundle of code”)
+- **Upgradeable** (versioning + schema evolution)
+- **Operable** (install lifecycle + telemetry hooks)
+- **Multi-tenant safe** (global registry; tenant-scoped installations and runtime state)
 
 ## Prerequisites
 - ✅ Phase 0 completed (Inertia + Svelte setup)
@@ -9,14 +18,22 @@ This phase implements the package marketplace - the core differentiator of Fleet
 
 ## Phase 2 Goals
 
-1. ✅ Create Package resource with registry
-2. ✅ Create Installation resource
-3. ✅ Build package installer background job
-4. ✅ Create marketplace UI (Svelte + shadcn)
-5. ✅ Implement package search and filtering
-6. ✅ Build package detail pages
-7. ✅ Create package installation flow
-8. ✅ Add package reviews and ratings
+### A) Platform primitives (must-have to make packages “real”)
+1. ✅ **Package Registry (global)**: `Package` resource with versioning metadata and compatibility fields (platform + schema).
+2. ✅ **Package Installation (tenant-scoped)**: `Installation` resource that tracks install status, installed version, and runtime configuration per org/tenant.
+3. ✅ **Signals (event system) baseline**: define the minimal signal envelope and a publish/subscribe contract that packages can rely on (**persisted + replayable Signals + auditable Directives are specified in** `fleetprompt.com/project_plan/phase_2b_signals_and_directives.md`).
+4. ✅ **Skills as the unit of composition**: packages install skills (and optionally agents/workflows) rather than only “agents”, enabling reuse across verticals.
+5. ✅ **Versioning + schema evolution hooks**: establish package version semantics and a migration/compatibility strategy for installed packages.
+
+### B) Delivery mechanics (how installs happen)
+6. ✅ **Installer job**: background job that applies package install steps deterministically (idempotent, retry-safe).
+7. ✅ **Install lifecycle**: install/upgrade/uninstall states and audit trail (who installed, when, what changed).
+
+### C) Marketplace experience (how customers discover and trust packages)
+8. ✅ Marketplace UI (browse/search/filter)
+9. ✅ Package detail pages
+10. ✅ Installation flow (with clear “what will be installed” preview)
+11. ✅ Reviews & ratings
 
 ## Backend Implementation
 
@@ -36,7 +53,13 @@ defmodule FleetPrompt.Packages.Package do
     repo FleetPrompt.Repo
   end
 
-  # Packages are global (not multi-tenant)
+  # Packages are global (not multi-tenant): this is the canonical registry/metadata.
+  # Tenant-specific adoption happens via `Installation` in the tenant context.
+  #
+  # IMPORTANT (Phase 2 realignment):
+  # - Packages must be versioned and upgradeable (schema evolution + compatibility)
+  # - Packages should install composable primitives (skills/signals/workflows/agents)
+  # - Runtime communication between installed components should use the signal/event system
   
   attributes do
     uuid_primary_key :id

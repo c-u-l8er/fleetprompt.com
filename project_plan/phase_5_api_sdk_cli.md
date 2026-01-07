@@ -1,31 +1,38 @@
-# FleetPrompt - Phase 5: API, SDK & Developer Tools
+# FleetPrompt - Phase 5: API, Webhooks, SDK & Developer Experience (Multi-Tenant)
 
 ## Overview
-This phase implements the developer-facing API, SDKs, CLI tools, and documentation needed to make FleetPrompt a fully functional platform that developers can integrate into their applications.
+This phase turns FleetPrompt into a **developer-consumable platform**: a versioned API surface, durable outbound webhooks, and first-class DX (SDK/CLI/docs). The critical constraint is **multi-tenancy**: every API call must resolve to an Organization and its tenant schema, without allowing callers to spoof tenant context.
+
+Phase 5 is intentionally framed as three deliverables that can ship independently:
+
+- **Phase 5A — API Authentication + Tenant Enforcement (required first)**
+- **Phase 5B — Webhooks + Event Model (platform glue)**
+- **Phase 5C — SDK/CLI + Docs (developer adoption)**
 
 ## Prerequisites
-- ✅ Phases 0-4 completed
-- ✅ All core resources functional
-- ✅ Executions working
+- ✅ Phase 1 completed (session auth, organizations, org membership, tenant selection)
+- ✅ Core resources exist (at minimum: `Organization`, `User`, `OrganizationMembership`, plus any resources you want to expose via API)
+- ⛔ If “execute” endpoints are included, you must have the backing execution pipeline implemented (from Phase 4 or an MVP subset)
 
-## Phase 5 Goals
+## Phase 5 Goals (realigned)
 
-1. ✅ Create REST API with AshJsonApi
-2. ✅ Build GraphQL API (optional)
-3. ✅ Create TypeScript SDK
-4. ✅ Build CLI tool
-5. ✅ Implement API authentication
-6. ✅ Create webhooks system
-7. ✅ Build API documentation
-8. ✅ Add rate limiting
+1. ✅ Ship **API Key auth** bound to Organization (no caller-provided tenant)
+2. ✅ Enforce **multi-tenant context** for every request (derived from API key → org → tenant schema)
+3. ✅ Provide a **versioned JSON:API** surface (start with `/api/v1`) using AshJsonApi
+4. ✅ Add **scopes**, **key rotation**, and **audit fields** (created_by, last_used_at, expires_at)
+5. ✅ Add **rate limiting** keyed by org + api key (and route), with safe defaults
+6. ✅ Define an **event model** and deliver **signed webhooks** with retries + idempotency
+7. ✅ Publish **OpenAPI** and an “API Keys” UI page for org admins (optional but strongly recommended)
+8. ✅ Deliver a **TypeScript SDK** + **CLI** optimized for “integration-first” workflows
 
 ## Backend Implementation
 
-### Step 1: Configure AshJsonApi
+### Step 1: Configure AshJsonApi + API Versioning (and don’t leak tenant control)
 
 Update `config/config.exs`:
 
 ```elixir
+# Ensure Ash domains are registered (used by AshJsonApi.Router)
 config :fleet_prompt, :ash_domains,
   [
     FleetPrompt.Accounts,
@@ -35,12 +42,21 @@ config :fleet_prompt, :ash_domains,
     FleetPrompt.Packages
   ]
 
+# JSON:API content type
 config :mime, :types, %{
   "application/vnd.api+json" => ["json"]
 }
+
+# API versioning convention (implementation lives in the Router)
+# - Prefer /api/v1 for all AshJsonApi routes
+# - Keep OpenAPI under /api/open_api (or /api/v1/open_api) consistently
+#
+# Multi-tenancy rule:
+# - Never accept tenant identifiers from the client (headers, query params, body)
+# - Tenant must be derived server-side from the API key → organization → tenant schema
 ```
 
-### Step 2: Add JSON API to Resources
+### Step 2: Add JSON:API to Resources (tenant-scoped resources must be context-enforced)
 
 Update `lib/fleet_prompt/agents/agent.ex`:
 
@@ -51,31 +67,41 @@ defmodule FleetPrompt.Agents.Agent do
     data_layer: AshPostgres.DataLayer,
     extensions: [AshStateMachine, AshJsonApi.Resource]  # Add this
 
+  # IMPORTANT (multi-tenancy):
+  # - If this resource is tenant-scoped (multitenancy :context),
+  #   API requests MUST run with Ash tenant set by the ApiAuth plug.
+  # - Do not expose any endpoint that allows callers to select a tenant.
+
   # ... existing code ...
 
   json_api do
     type "agent"
-    
+
     routes do
+      # Prefer mounting the router at /api/v1, then using resource-local bases like /agents
       base "/agents"
-      
+
       get :read
       index :read
       post :create
       patch :update
       delete :destroy
-      
-      # Custom routes
+
+      # Custom routes (only include if Phase 4 execution/deploy semantics exist)
       post :deploy, route: "/:id/deploy"
       post :execute, route: "/:id/execute"
     end
   end
-  
+
   # ... rest of resource ...
 end
 ```
 
-Update other resources similarly (Package, Execution, Workflow, etc.)
+Update other resources similarly (Package, Installation, Execution, Workflow, Webhook, etc.). As you add each resource, validate:
+
+- Is it **global** (public schema) or **tenant-scoped** (org schema)?
+- Are policies preventing cross-org access even if a bug sets the wrong tenant?
+- Are “write” endpoints correctly restricted by **api key scopes** and org role (if applicable)?
 
 ### Step 3: Create API Router
 

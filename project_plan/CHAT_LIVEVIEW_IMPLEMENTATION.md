@@ -1,6 +1,13 @@
-# FleetPrompt Chat Homepage - LiveView Implementation
+# FleetPrompt Chat Homepage - LiveView Implementation (DEPRECATED)
 
-This document shows how to implement the chat-based homepage using Phoenix LiveView with Streams.
+**Deprecated:** FleetPrompt’s current UI architecture is **Inertia + Svelte** (not LiveView-first). This document is kept only as historical reference and should **not** be used as the implementation plan.
+
+## Use this instead (canonical)
+- `fleetprompt.com/project_plan/phase_3_chat_interface.md` — **Inertia + Svelte chat** with **SSE streaming**, conversation persistence, intent routing, and action buttons.
+
+## Notes
+- If LiveView is reintroduced later, it should be for narrow operational UIs (e.g., admin/operator consoles), not the primary chat UX.
+- Do not implement this plan unless you intentionally decide to shift the primary chat UX back to LiveView.
 
 ## File: lib/fleet_prompt_web/live/chat_live.ex
 
