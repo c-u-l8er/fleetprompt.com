@@ -19,7 +19,7 @@ defmodule FleetPromptWeb.AdminTenantController do
 
   import Ash.Expr, only: [expr: 1]
 
-  alias FleetPrompt.Accounts.{Organization, OrganizationMembership}
+  alias FleetPrompt.Accounts.OrganizationMembership
 
   require Ash.Query
 

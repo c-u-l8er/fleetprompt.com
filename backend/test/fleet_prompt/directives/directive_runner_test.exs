@@ -73,7 +73,7 @@ defmodule FleetPrompt.Directives.DirectiveRunnerTest do
     end
   end
 
-  defp create_installation!(org_or_tenant, user, pkg, overrides \\ %{}) do
+  defp create_installation!(org_or_tenant, user, pkg, overrides) do
     uniq = System.unique_integer([:positive])
 
     base = %{

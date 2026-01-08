@@ -64,64 +64,7 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
                 job
               )
 
-            case load_package(installing) do
-              {:ok, %Package{} = package} ->
-                case install_agents(package, tenant) do
-                  {:ok, _} ->
-                    case install_workflows(package, tenant) do
-                      {:ok, _} ->
-                        case install_skills(package, tenant) do
-                          {:ok, _} ->
-                            case mark_installed(installing, tenant) do
-                              {:ok, %Installation{} = installed} ->
-                                bump_package_stats(package)
-
-                                _ =
-                                  maybe_mark_directive_succeeded(installed, tenant, package)
-
-                                _ =
-                                  emit_install_signal(
-                                    tenant,
-                                    "package.installation.installed",
-                                    %{
-                                      "installation_id" => installed.id,
-                                      "package" => %{
-                                        "slug" => package.slug,
-                                        "version" => package.version
-                                      },
-                                      "status" => to_string(installed.status),
-                                      "installed_at" => installed.installed_at
-                                    },
-                                    "package_installation_installed:#{tenant}:#{installed.id}",
-                                    job
-                                  )
-
-                                :ok
-
-                              {:error, reason} ->
-                                fail_install(installing, installation_id, tenant, reason)
-                            end
-
-                          {:error, reason} ->
-                            fail_install(installing, installation_id, tenant, reason)
-                        end
-
-                      {:error, reason} ->
-                        fail_install(installing, installation_id, tenant, reason)
-                    end
-
-                  {:error, reason} ->
-                    fail_install(installing, installation_id, tenant, reason)
-                end
-
-              {:error, reason} ->
-                # Critical: ensure we record the failure even though the installation is already :installing
-                fail_install(installing, installation_id, tenant, reason)
-
-              {:discard, reason} ->
-                Logger.warning("[PackageInstaller] discarding install", reason: inspect(reason))
-                :ok
-            end
+            run_install(installing, installation_id, tenant, job)
 
           {:error, reason} ->
             fail_install(installation, installation_id, tenant, reason)
@@ -165,6 +108,47 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
   def perform(%Oban.Job{args: args}) do
     Logger.warning("[PackageInstaller] missing required args", args: inspect(args))
     {:discard, "missing required args: installation_id and tenant"}
+  end
+
+  defp run_install(%Installation{} = installing, installation_id, tenant, %Oban.Job{} = job)
+       when is_binary(installation_id) and is_binary(tenant) do
+    with {:ok, %Package{} = package} <- load_package(installing),
+         {:ok, _} <- install_agents(package, tenant),
+         {:ok, _} <- install_workflows(package, tenant),
+         {:ok, _} <- install_skills(package, tenant),
+         {:ok, %Installation{} = installed} <- mark_installed(installing, tenant) do
+      bump_package_stats(package)
+
+      _ =
+        maybe_mark_directive_succeeded(installed, tenant, package)
+
+      _ =
+        emit_install_signal(
+          tenant,
+          "package.installation.installed",
+          %{
+            "installation_id" => installed.id,
+            "package" => %{
+              "slug" => package.slug,
+              "version" => package.version
+            },
+            "status" => to_string(installed.status),
+            "installed_at" => installed.installed_at
+          },
+          "package_installation_installed:#{tenant}:#{installed.id}",
+          job
+        )
+
+      :ok
+    else
+      {:error, reason} ->
+        # Critical: ensure we record the failure even though the installation is already :installing
+        fail_install(installing, installation_id, tenant, reason)
+
+      {:discard, reason} ->
+        Logger.warning("[PackageInstaller] discarding install", reason: inspect(reason))
+        :ok
+    end
   end
 
   # -----------------------
@@ -446,11 +430,6 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
     )
   end
 
-  defp emit_install_signal(tenant, name, payload, dedupe_key)
-       when is_binary(tenant) and is_binary(name) and is_map(payload) and is_binary(dedupe_key) do
-    emit_install_signal(tenant, name, payload, dedupe_key, %{})
-  end
-
   defp emit_install_signal(tenant, name, payload, dedupe_key, metadata)
        when is_binary(tenant) and is_binary(name) and is_map(payload) and is_binary(dedupe_key) and
               is_map(metadata) do
@@ -477,6 +456,11 @@ defmodule FleetPrompt.Jobs.PackageInstaller do
           _ -> :noop
         end
     end
+  end
+
+  defp emit_install_signal(tenant, name, payload, dedupe_key)
+       when is_binary(tenant) and is_binary(name) and is_map(payload) and is_binary(dedupe_key) do
+    emit_install_signal(tenant, name, payload, dedupe_key, %{})
   end
 
   defp maybe_mark_directive_succeeded(

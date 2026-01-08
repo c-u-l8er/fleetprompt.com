@@ -15,7 +15,6 @@ defmodule FleetPromptWeb.MarketplaceController do
   use FleetPromptWeb, :controller
   require Logger
 
-  alias FleetPrompt.Agents.Agent
   alias FleetPrompt.Packages.{Installation, Package}
   alias FleetPrompt.Directives.Directive
   alias FleetPrompt.Jobs.DirectiveRunner
@@ -532,59 +531,9 @@ defmodule FleetPromptWeb.MarketplaceController do
     end
   end
 
-  defp load_installation_by_slug(tenant, slug) when is_binary(tenant) and is_binary(slug) do
-    query =
-      Installation
-      |> Ash.Query.for_read(:by_slug, %{package_slug: slug})
+  # NOTE: Removed unused helper `load_installation_by_slug/2`.
 
-    Ash.read_one(query, tenant: tenant)
-  end
-
-  defp purge_package_agents_by_slug(tenant, slug) when is_binary(tenant) and is_binary(slug) do
-    # Best-effort: only purge agents that match the package includes signature (name+system_prompt).
-    # If the package cannot be loaded, or agents cannot be read, do nothing.
-    case load_package_by_slug(slug) do
-      %Package{} = pkg ->
-        includes = Map.get(pkg, :includes) || %{}
-        agent_specs = Map.get(includes, "agents") || Map.get(includes, :agents) || []
-
-        signatures =
-          agent_specs
-          |> List.wrap()
-          |> Enum.filter(&is_map/1)
-          |> Enum.map(fn spec ->
-            name = Map.get(spec, "name") || Map.get(spec, :name)
-            system_prompt = Map.get(spec, "system_prompt") || Map.get(spec, :system_prompt)
-
-            if is_binary(name) and is_binary(system_prompt) do
-              {String.trim(name), String.trim(system_prompt)}
-            else
-              nil
-            end
-          end)
-          |> Enum.reject(&is_nil/1)
-
-        case Ash.read(Agent, tenant: tenant) do
-          {:ok, agents} when is_list(agents) ->
-            agents
-            |> Enum.filter(fn a ->
-              Enum.any?(signatures, fn {n, sp} -> a.name == n and a.system_prompt == sp end)
-            end)
-            |> Enum.reduce(0, fn agent, acc ->
-              case Ash.destroy(agent, tenant: tenant) do
-                {:ok, _} -> acc + 1
-                {:error, _} -> acc
-              end
-            end)
-
-          _ ->
-            0
-        end
-
-      _ ->
-        0
-    end
-  end
+  # NOTE: Removed unused helper `purge_package_agents_by_slug/2`.
 
   defp emit_uninstall_signal(tenant, name, payload) when is_map(payload) do
     cond do
@@ -803,7 +752,7 @@ defmodule FleetPromptWeb.MarketplaceController do
     end
   end
 
-  defp enqueue_directive_job(directive_id, tenant, opts \\ []) do
+  defp enqueue_directive_job(directive_id, tenant, opts) do
     args =
       %{
         "directive_id" => directive_id,

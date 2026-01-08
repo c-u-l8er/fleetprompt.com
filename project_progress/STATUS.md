@@ -4,7 +4,7 @@ Last updated: 2026-01-08
 
 ## Executive summary
 
-You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** end-to-end **session auth + org membership + org/tenant selection** — **plus** Phase 2A package installs — **plus** Phase 2B platform primitives — and you have begun Phase 2C (Forums lighthouse) wiring:
+You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** end-to-end **session auth + org membership + org/tenant selection** — **plus** Phase 2A package installs — **plus** Phase 2B platform primitives — and you have begun Phase 2C (Forums lighthouse) wiring. Recent maintenance also reduced compile-time warnings, and tenant context is now defaulted more safely from the signed-in user’s org when no tenant is already selected:
 
 - **Signals** (tenant-scoped persisted events) + a minimal Signal fanout/replay mechanism
 - **Directives** (tenant-scoped persisted commands) + a Directive runner (Oban) to execute side effects audibly
@@ -62,6 +62,8 @@ Most importantly, the Marketplace install path has been realigned so installs ar
   - `GET /register`, `POST /register` (creates org + owner user + membership; logs user in)
 - Membership-gated org selection:
   - `POST /org/select` switches current org/tenant for the signed-in user.
+- Tenant defaulting:
+  - when a signed-in user has an org context and no tenant is already present (cookie/session/assign), the request tenant now defaults to `org_<slug>` to reduce “missing tenant schema” edge cases.
 - Authorization model:
   - org membership roles: `:owner | :admin | :member`
   - admin UI surfaces (`/admin`, `/admin/ui`) restricted to org roles `:owner/:admin`

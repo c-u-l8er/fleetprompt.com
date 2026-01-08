@@ -45,7 +45,7 @@ defmodule FleetPromptWeb.Plugs.FetchCurrentUser do
     |> Keyword.put_new(:org_assign_key, :current_organization)
     |> Keyword.put_new(:tenant_cookie, "tenant")
     |> Keyword.put_new(:tenant_session_key, "tenant")
-    |> Keyword.put_new(:set_tenant_from_user_org?, false)
+    |> Keyword.put_new(:set_tenant_from_user_org?, true)
   end
 
   @impl Plug
@@ -86,7 +86,7 @@ defmodule FleetPromptWeb.Plugs.FetchCurrentUser do
           |> assign(assign_key, sanitize_user(user))
           |> assign(org_assign_key, org)
 
-        conn
+        maybe_set_tenant_from_user_org(conn, org, opts)
 
       {:error, reason} ->
         Logger.debug("[FetchCurrentUser] clearing session (user not found/invalid)",

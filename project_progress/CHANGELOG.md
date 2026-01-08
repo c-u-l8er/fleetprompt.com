@@ -152,6 +152,13 @@ This project is early-stage and is being built iteratively from the phase docs i
   - made tenant migration safer by using schema-qualified UUID defaults (`public.gen_random_uuid()`), and making tenant table creation idempotent.
   - improved registration error logging and responses to surface tenant/migration issues.
   - added orphaned-tenant-schema cleanup logic during registration to prevent `schema_migrations_pkey` conflicts when `org_<slug>` exists without a matching `organizations` row.
+  - default tenant selection now derives from the signed-in user’s current organization when no tenant cookie/session is present (so tenant-scoped reads/writes have an explicit context by default).
+
+- Dev/runtime warning cleanups:
+  - removed unused Marketplace controller helpers/aliases and updated the directive enqueue helper signature to avoid unused-default warnings.
+  - refactored `PackageInstaller` install flow to reduce nested `case` statements and grouped `emit_install_signal` clauses.
+  - updated release migration/rollback helpers to match the `Ecto.Migrator.with_repo/2` return shape.
+  - updated AuthController flash access to use `fetch_flash` + `Phoenix.Flash.get/2`, and replaced deprecated exception checks with `Kernel.is_exception/1`.
 
 ### Notes / Operational
 - Development environment may warn about missing `inotify-tools` (optional; impacts live reload only).

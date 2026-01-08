@@ -26,9 +26,6 @@ defmodule FleetPrompt.Release do
         end)
 
       case result do
-        {:ok, _result} ->
-          :ok
-
         {:ok, _result, _log} ->
           :ok
 
@@ -60,9 +57,6 @@ defmodule FleetPrompt.Release do
         end)
 
       case result do
-        {:ok, _result} ->
-          :ok
-
         {:ok, _result, _log} ->
           :ok
 

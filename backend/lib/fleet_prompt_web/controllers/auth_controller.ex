@@ -91,7 +91,6 @@ defmodule FleetPromptWeb.AuthController do
   # Only drop tenant schema on failure if it did not exist before this registration attempt.
   # This prevents accidentally deleting an existing tenant when a registration fails.
   defp maybe_cleanup_tenant_schema(_schema, true), do: :ok
-  defp maybe_cleanup_tenant_schema(nil, _existed), do: :ok
 
   defp maybe_cleanup_tenant_schema(schema, false) when is_binary(schema) do
     # Use CASCADE to remove partially-created objects (e.g. tables) if they were created.
@@ -101,6 +100,8 @@ defmodule FleetPromptWeb.AuthController do
     _ -> :ok
   end
 
+  defp maybe_cleanup_tenant_schema(_schema, _existed), do: :ok
+
   # GET /login
   #
   # Renders the Inertia `Login` page.
@@ -108,9 +109,11 @@ defmodule FleetPromptWeb.AuthController do
     if conn.assigns[:current_user] do
       redirect(conn, to: "/dashboard")
     else
+      conn = Phoenix.Controller.fetch_flash(conn)
+
       FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Login", %{
         title: "Sign in",
-        error: Phoenix.Controller.get_flash(conn, :error)
+        error: Phoenix.Flash.get(conn.assigns.flash, :error)
       })
     end
   end
@@ -122,10 +125,13 @@ defmodule FleetPromptWeb.AuthController do
     if conn.assigns[:current_user] do
       redirect(conn, to: "/dashboard")
     else
+      conn = Phoenix.Controller.fetch_flash(conn)
+
       FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Register", %{
         title: "Create your organization",
         error:
-          Phoenix.Controller.get_flash(conn, :error) || Phoenix.Controller.get_flash(conn, :info)
+          Phoenix.Flash.get(conn.assigns.flash, :error) ||
+            Phoenix.Flash.get(conn.assigns.flash, :info)
       })
     end
   end
@@ -290,7 +296,7 @@ defmodule FleetPromptWeb.AuthController do
         else
           {:error, {step, reason}} ->
             msg =
-              if Exception.exception?(reason) do
+              if Kernel.is_exception(reason) do
                 Exception.message(reason)
               else
                 inspect(reason)
@@ -300,7 +306,7 @@ defmodule FleetPromptWeb.AuthController do
               case reason do
                 %Ash.Error.Invalid{errors: errors} when is_list(errors) ->
                   Enum.map(errors, fn e ->
-                    if Exception.exception?(e), do: Exception.message(e), else: inspect(e)
+                    if Kernel.is_exception(e), do: Exception.message(e), else: inspect(e)
                   end)
 
                 _ ->
@@ -319,7 +325,7 @@ defmodule FleetPromptWeb.AuthController do
 
           {:error, reason} ->
             msg =
-              if Exception.exception?(reason) do
+              if Kernel.is_exception(reason) do
                 Exception.message(reason)
               else
                 inspect(reason)
@@ -329,7 +335,7 @@ defmodule FleetPromptWeb.AuthController do
               case reason do
                 %Ash.Error.Invalid{errors: errors} when is_list(errors) ->
                   Enum.map(errors, fn e ->
-                    if Exception.exception?(e), do: Exception.message(e), else: inspect(e)
+                    if Kernel.is_exception(e), do: Exception.message(e), else: inspect(e)
                   end)
 
                 _ ->
