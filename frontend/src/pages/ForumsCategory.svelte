@@ -48,7 +48,9 @@
         stats: {
             threads: 12,
             posts: 84,
-            last_activity_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+            last_activity_at: new Date(
+                Date.now() - 1000 * 60 * 12,
+            ).toISOString(),
         },
     };
 
@@ -61,7 +63,9 @@
             is_pinned: true,
             is_locked: false,
             tags: ["announcement", "meta"],
-            created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+            created_at: new Date(
+                Date.now() - 1000 * 60 * 60 * 24 * 7,
+            ).toISOString(),
             updated_at: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
             author: { id: "usr_mock_admin", name: "FleetPrompt Team" },
             stats: { replies: 4, views: 128, reactions: 9 },
@@ -74,7 +78,9 @@
             is_pinned: false,
             is_locked: false,
             tags: ["agents", "design"],
-            created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+            created_at: new Date(
+                Date.now() - 1000 * 60 * 60 * 24 * 3,
+            ).toISOString(),
             updated_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
             author: { id: "usr_mock_001", name: "You" },
             stats: { replies: 12, views: 412, reactions: 21 },
@@ -87,8 +93,12 @@
             is_pinned: false,
             is_locked: true,
             tags: ["signals", "directives", "ux"],
-            created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-            updated_at: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
+            created_at: new Date(
+                Date.now() - 1000 * 60 * 60 * 24 * 2,
+            ).toISOString(),
+            updated_at: new Date(
+                Date.now() - 1000 * 60 * 60 * 30,
+            ).toISOString(),
             author: { id: "usr_mock_002", name: "Operator" },
             stats: { replies: 2, views: 97, reactions: 3 },
         },
@@ -127,23 +137,39 @@
         return d.toLocaleString();
     };
 
-    const safeNum = (n: number | null | undefined) => (typeof n === "number" ? n : 0);
+    const safeNum = (n: number | null | undefined) =>
+        typeof n === "number" ? n : 0;
 
     const filteredThreads = () => {
         const q = query.trim().toLowerCase();
         if (!q) return threads;
 
         return threads.filter((t) => {
-            const hay = `${t.title ?? ""}\n${t.excerpt ?? ""}\n${(t.tags ?? []).join(" ")}`.toLowerCase();
+            const hay =
+                `${t.title ?? ""}\n${t.excerpt ?? ""}\n${(t.tags ?? []).join(" ")}`.toLowerCase();
             return hay.includes(q);
         });
     };
 
     const categoryTitle = () => `${category?.name ?? "Category"} • Forums`;
 
-    const threadHref = (threadId: string) => `/forums/t/${encodeURIComponent(threadId)}`;
+    const threadHref = (threadId: string) =>
+        `/forums/t/${encodeURIComponent(threadId)}`;
 
-    const categoryHref = (slug: string) => `/forums/c/${encodeURIComponent(slug)}`;
+    const categoryHref = (slug: string) =>
+        `/forums/c/${encodeURIComponent(slug)}`;
+
+    const canCreateThread = () => {
+        // UX gating only; server must enforce auth + tenant scoping + permissions.
+        return !!user?.id && !!tenant_schema && !(category?.is_locked ?? false);
+    };
+
+    const newThreadHref = () => {
+        const cid = category?.id ?? "";
+        return cid
+            ? `/forums/new?category_id=${encodeURIComponent(cid)}`
+            : "/forums/new";
+    };
 </script>
 
 <svelte:head>
@@ -192,25 +218,41 @@
 
     <!-- Phase note / mocked UI callout -->
     <section class="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div
+            class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
+        >
             <div class="min-w-0">
                 <div class="text-sm font-medium">Forums UI scaffold (mock)</div>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    This page is intentionally backend-light. It locks down the UX/UI structure
-                    so Phase 6 can plug in real Ash resources, signals, directives, and agent participation.
+                    This page is intentionally backend-light. It locks down the
+                    UX/UI structure so Phase 6 can plug in real Ash resources,
+                    signals, directives, and agent participation.
                 </p>
             </div>
 
             <div class="flex items-center gap-2">
-                <button
-                    type="button"
-                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
-                         bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3 disabled:opacity-60 disabled:pointer-events-none"
-                    disabled={true}
-                    title="New thread will be enabled when forum resources + permissions land."
+                <a
+                    use:inertia
+                    href={canCreateThread() ? newThreadHref() : "/forums"}
+                    class={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                         bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3 ${
+                             canCreateThread()
+                                 ? ""
+                                 : "opacity-60 pointer-events-none"
+                         }`}
+                    aria-disabled={!canCreateThread()}
+                    title={canCreateThread()
+                        ? "Create a new thread"
+                        : !user?.id
+                          ? "Sign in to create threads."
+                          : !tenant_schema
+                            ? "Select an org/tenant to create threads."
+                            : category?.is_locked
+                              ? "This category is locked."
+                              : "Cannot create thread."}
                 >
-                    New thread (soon)
-                </button>
+                    New thread
+                </a>
                 <a
                     href="/admin/tenant"
                     class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
@@ -224,7 +266,11 @@
 
     <!-- Breadcrumbs -->
     <nav class="mt-6 text-sm text-muted-foreground">
-        <a use:inertia href="/forums" class="hover:text-foreground transition-colors">Forums</a>
+        <a
+            use:inertia
+            href="/forums"
+            class="hover:text-foreground transition-colors">Forums</a
+        >
         <span class="mx-2">/</span>
         <a
             use:inertia
@@ -237,32 +283,44 @@
 
     <!-- Category header / stats -->
     <section class="mt-4 rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div
+            class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+        >
             <div class="min-w-0">
                 <h2 class="text-lg font-semibold tracking-tight truncate">
                     {category?.name ?? "Category"}
                     {#if category?.is_locked}
-                        <span class="ml-2 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+                        <span
+                            class="ml-2 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground"
+                        >
                             Locked
                         </span>
                     {/if}
                 </h2>
                 {#if category?.description}
-                    <p class="mt-1 text-sm text-muted-foreground">{category.description}</p>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        {category.description}
+                    </p>
                 {/if}
             </div>
 
             <div class="grid grid-cols-3 gap-3 text-sm">
                 <div class="rounded-xl border border-border bg-background p-3">
                     <div class="text-xs text-muted-foreground">Threads</div>
-                    <div class="mt-1 font-semibold tabular-nums">{safeNum(category?.stats?.threads)}</div>
+                    <div class="mt-1 font-semibold tabular-nums">
+                        {safeNum(category?.stats?.threads)}
+                    </div>
                 </div>
                 <div class="rounded-xl border border-border bg-background p-3">
                     <div class="text-xs text-muted-foreground">Posts</div>
-                    <div class="mt-1 font-semibold tabular-nums">{safeNum(category?.stats?.posts)}</div>
+                    <div class="mt-1 font-semibold tabular-nums">
+                        {safeNum(category?.stats?.posts)}
+                    </div>
                 </div>
                 <div class="rounded-xl border border-border bg-background p-3">
-                    <div class="text-xs text-muted-foreground">Last activity</div>
+                    <div class="text-xs text-muted-foreground">
+                        Last activity
+                    </div>
                     <div class="mt-1 text-xs text-muted-foreground">
                         {formatIso(category?.stats?.last_activity_at) ?? "—"}
                     </div>
@@ -273,11 +331,14 @@
 
     <!-- Search / filters -->
     <section class="mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
             <div class="min-w-0">
                 <div class="text-sm font-medium">Threads</div>
                 <div class="mt-1 text-xs text-muted-foreground">
-                    Search is client-side for now; Phase 6 will replace with server-side filters.
+                    Search is client-side for now; Phase 6 will replace with
+                    server-side filters.
                 </div>
             </div>
 
@@ -304,7 +365,9 @@
     <section class="mt-4">
         <div class="grid gap-3">
             {#if filteredThreads().length === 0}
-                <div class="rounded-2xl border border-border bg-card p-8 text-center">
+                <div
+                    class="rounded-2xl border border-border bg-card p-8 text-center"
+                >
                     <div class="text-sm font-medium">No threads found</div>
                     <p class="mt-2 text-sm text-muted-foreground">
                         Try a different search term.
@@ -312,23 +375,33 @@
                 </div>
             {:else}
                 {#each filteredThreads() as t (t.id)}
-                    <article class="rounded-2xl border border-border bg-card p-5 sm:p-6 hover:bg-muted/20 transition-colors">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <article
+                        class="rounded-2xl border border-border bg-card p-5 sm:p-6 hover:bg-muted/20 transition-colors"
+                    >
+                        <div
+                            class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                        >
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     {#if t.is_pinned}
-                                        <span class="rounded-full border border-border bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                                        <span
+                                            class="rounded-full border border-border bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                                        >
                                             Pinned
                                         </span>
                                     {/if}
                                     {#if t.is_locked}
-                                        <span class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+                                        <span
+                                            class="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground"
+                                        >
                                             Locked
                                         </span>
                                     {/if}
                                 </div>
 
-                                <h3 class="mt-2 text-base sm:text-lg font-semibold tracking-tight">
+                                <h3
+                                    class="mt-2 text-base sm:text-lg font-semibold tracking-tight"
+                                >
                                     <a
                                         use:inertia
                                         href={threadHref(t.id)}
@@ -340,15 +413,21 @@
                                 </h3>
 
                                 {#if t.excerpt}
-                                    <p class="mt-1 text-sm text-muted-foreground">
+                                    <p
+                                        class="mt-1 text-sm text-muted-foreground"
+                                    >
                                         {t.excerpt}
                                     </p>
                                 {/if}
 
                                 {#if t.tags && t.tags.length > 0}
-                                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                                    <div
+                                        class="mt-3 flex flex-wrap items-center gap-2"
+                                    >
                                         {#each t.tags as tag (tag)}
-                                            <span class="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                                            <span
+                                                class="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground"
+                                            >
                                                 #{tag}
                                             </span>
                                         {/each}
@@ -357,25 +436,57 @@
 
                                 <div class="mt-3 text-xs text-muted-foreground">
                                     {#if t.author?.name}
-                                        <span class="font-medium text-foreground">{t.author.name}</span>
+                                        <span
+                                            class="font-medium text-foreground"
+                                            >{t.author.name}</span
+                                        >
                                         <span class="mx-2">•</span>
                                     {/if}
-                                    <span>Updated {formatIso(t.updated_at) ?? "—"}</span>
+                                    <span
+                                        >Updated {formatIso(t.updated_at) ??
+                                            "—"}</span
+                                    >
                                 </div>
                             </div>
 
-                            <div class="shrink-0 grid grid-cols-3 gap-3 text-sm">
-                                <div class="rounded-xl border border-border bg-background p-3 text-center">
-                                    <div class="text-xs text-muted-foreground">Replies</div>
-                                    <div class="mt-1 font-semibold tabular-nums">{safeNum(t.stats?.replies)}</div>
+                            <div
+                                class="shrink-0 grid grid-cols-3 gap-3 text-sm"
+                            >
+                                <div
+                                    class="rounded-xl border border-border bg-background p-3 text-center"
+                                >
+                                    <div class="text-xs text-muted-foreground">
+                                        Replies
+                                    </div>
+                                    <div
+                                        class="mt-1 font-semibold tabular-nums"
+                                    >
+                                        {safeNum(t.stats?.replies)}
+                                    </div>
                                 </div>
-                                <div class="rounded-xl border border-border bg-background p-3 text-center">
-                                    <div class="text-xs text-muted-foreground">Views</div>
-                                    <div class="mt-1 font-semibold tabular-nums">{safeNum(t.stats?.views)}</div>
+                                <div
+                                    class="rounded-xl border border-border bg-background p-3 text-center"
+                                >
+                                    <div class="text-xs text-muted-foreground">
+                                        Views
+                                    </div>
+                                    <div
+                                        class="mt-1 font-semibold tabular-nums"
+                                    >
+                                        {safeNum(t.stats?.views)}
+                                    </div>
                                 </div>
-                                <div class="rounded-xl border border-border bg-background p-3 text-center">
-                                    <div class="text-xs text-muted-foreground">Reacts</div>
-                                    <div class="mt-1 font-semibold tabular-nums">{safeNum(t.stats?.reactions)}</div>
+                                <div
+                                    class="rounded-xl border border-border bg-background p-3 text-center"
+                                >
+                                    <div class="text-xs text-muted-foreground">
+                                        Reacts
+                                    </div>
+                                    <div
+                                        class="mt-1 font-semibold tabular-nums"
+                                    >
+                                        {safeNum(t.stats?.reactions)}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -386,11 +497,19 @@
     </section>
 
     <!-- Footer hint -->
-    <section class="mt-10 rounded-2xl border border-border bg-muted/20 p-5 sm:p-6">
+    <section
+        class="mt-10 rounded-2xl border border-border bg-muted/20 p-5 sm:p-6"
+    >
         <div class="text-sm font-medium">Planned (Phase 6)</div>
         <ul class="mt-2 space-y-1 text-sm text-muted-foreground list-disc pl-5">
-            <li>Category + thread + post resources (Ash), tenant-scoped where needed.</li>
-            <li>Agent participation as first-class (with directive-backed actions).</li>
+            <li>
+                Category + thread + post resources (Ash), tenant-scoped where
+                needed.
+            </li>
+            <li>
+                Agent participation as first-class (with directive-backed
+                actions).
+            </li>
             <li>Signals + directives audit trail surfaces on every thread.</li>
             <li>Moderation queue + anti-abuse basics.</li>
         </ul>

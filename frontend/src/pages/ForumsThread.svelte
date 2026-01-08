@@ -68,6 +68,168 @@
     export let can_reply: boolean = false;
     export let can_moderate: boolean = false;
 
+    // -------------------------
+    // Audit trail (Phase 2C: user-visible proof of Signals + Directives)
+    // -------------------------
+    type AuditEvent = {
+        // Stable id if available (signal id / directive id)
+        id?: string | null;
+
+        // "signal" | "directive" | other future kinds
+        kind: "signal" | "directive" | string;
+
+        // canonical taxonomy name, e.g. "forum.post.created" / "directive.succeeded"
+        name: string;
+
+        // ISO timestamp string
+        occurred_at?: string | null;
+
+        // Optional friendly summary to show in the UI
+        summary?: string | null;
+
+        actor?: {
+            type?: string | null;
+            id?: string | null;
+            role?: string | null;
+        } | null;
+        subject?: { type?: string | null; id?: string | null } | null;
+
+        // Optional raw payload for future "details" expanders
+        payload?: any;
+        metadata?: any;
+    };
+
+    // Backend should pass these once the thread view is wired to Signals/Directives reads.
+    // For now, this renders a helpful placeholder.
+    export let audit_events: AuditEvent[] | null = null;
+
+    const safeArray = <T,>(v: any): T[] => (Array.isArray(v) ? (v as T[]) : []);
+
+    const sortedAuditEvents = () => {
+        const events = safeArray<AuditEvent>(audit_events);
+
+        // Sort ascending by occurred_at; unknown timestamps go last.
+        return [...events].sort((a, b) => {
+            const at = a?.occurred_at
+                ? new Date(a.occurred_at).getTime()
+                : Infinity;
+            const bt = b?.occurred_at
+                ? new Date(b.occurred_at).getTime()
+                : Infinity;
+            return at - bt;
+        });
+    };
+
+    const auditBadgeClass = (kind: string) => {
+        const k = (kind ?? "").toString().toLowerCase();
+        if (k === "signal")
+            return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+        if (k === "directive")
+            return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+        return "border-border bg-muted/30 text-muted-foreground";
+    };
+
+    const auditActorLabel = (ev: AuditEvent) => {
+        const t = (ev.actor?.type ?? "").toString().trim();
+        const id = (ev.actor?.id ?? "").toString().trim();
+        if (t && id) return `${t}:${id}`;
+        if (t) return t;
+        if (id) return id;
+        return null;
+    };
+
+    // Reply composer state (Phase 2C wiring)
+    let replyBody = "";
+    let replyError: string | null = null;
+    let isPostingReply = false;
+    let replyTextarea: HTMLTextAreaElement | null = null;
+
+    const getCsrfToken = () =>
+        document
+            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.getAttribute("content") ?? "";
+
+    const canPostReply = () =>
+        !!user?.id &&
+        !!tenant_schema &&
+        !!can_reply &&
+        !isPostingReply &&
+        replyBody.trim().length > 0;
+
+    async function submitReply() {
+        replyError = null;
+
+        if (!can_reply) {
+            replyError = "Replies are disabled for this thread.";
+            return;
+        }
+
+        if (!user?.id) {
+            replyError = "You must be signed in to reply.";
+            return;
+        }
+
+        const body = replyBody.trim();
+        if (!body) {
+            replyError = "Write a reply first.";
+            return;
+        }
+
+        isPostingReply = true;
+
+        try {
+            const csrf = getCsrfToken();
+            const threadId = effectiveThread().id;
+
+            const res = await fetch(
+                `/forums/t/${encodeURIComponent(threadId)}/replies`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+                    },
+                    body: JSON.stringify({ body }),
+                },
+            );
+
+            if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                replyError =
+                    text?.trim() || `Failed to post reply (${res.status}).`;
+                return;
+            }
+
+            const data = await res.json().catch(() => null);
+            const created = (data as any)?.post;
+
+            if (!created?.id) {
+                replyError =
+                    "Reply posted, but the server response was unexpected.";
+                return;
+            }
+
+            // Append to the rendered posts. If this page was mocked, this will switch it to real mode.
+            posts = (posts ?? []).concat([created]);
+
+            replyBody = "";
+        } catch (err: any) {
+            replyError = err?.message ?? "Failed to post reply.";
+        } finally {
+            isPostingReply = false;
+        }
+    }
+
+    function scrollToReply() {
+        if (replyTextarea) {
+            replyTextarea.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            });
+            replyTextarea.focus();
+        }
+    }
+
     const nowIso = () => new Date().toISOString();
 
     const fallbackThread: Thread = {
@@ -424,7 +586,7 @@
                 {/each}
             </div>
 
-            <!-- Reply composer (disabled for now) -->
+            <!-- Reply composer -->
             <div
                 class="rounded-2xl border border-border bg-card text-card-foreground p-6"
             >
@@ -432,8 +594,8 @@
                     <div class="min-w-0">
                         <div class="font-semibold">Reply</div>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            Replies will be enabled when forum resources and
-                            permissions are implemented.
+                            Post a reply to this thread. Replies are
+                            tenant-scoped and audited via Signals.
                         </p>
                     </div>
 
@@ -441,25 +603,44 @@
                         type="button"
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
                          bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 disabled:opacity-60 disabled:pointer-events-none"
-                        disabled={!can_reply}
-                        title={can_reply
+                        disabled={!canPostReply()}
+                        title={canPostReply()
                             ? "Post reply"
-                            : "Reply is not enabled yet."}
+                            : !can_reply
+                              ? "Replies are disabled for this thread."
+                              : "Write a reply to enable posting."}
+                        on:click={submitReply}
                     >
-                        Post reply
+                        {#if isPostingReply}
+                            Posting…
+                        {:else}
+                            Post reply
+                        {/if}
                     </button>
                 </div>
+
+                {#if replyError}
+                    <div
+                        class="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
+                        {replyError}
+                    </div>
+                {/if}
 
                 <div class="mt-4">
                     <textarea
                         class="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60"
                         rows={5}
-                        placeholder="Write a reply…"
-                        disabled={!can_reply}
+                        placeholder={can_reply
+                            ? "Write a reply…"
+                            : "Replies are disabled for this thread."}
+                        disabled={!can_reply || isPostingReply}
+                        bind:value={replyBody}
+                        bind:this={replyTextarea}
                     ></textarea>
                     <div class="mt-2 text-xs text-muted-foreground">
-                        Drafted agent replies will appear as suggestions in
-                        Phase 6 (no side effects without directives).
+                        Phase 6 will add agent-drafted suggestions and
+                        directive-gated actions.
                     </div>
                 </div>
             </div>
@@ -478,7 +659,10 @@
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
                          bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 disabled:opacity-60 disabled:pointer-events-none"
                         disabled={!can_reply}
-                        title="Reply will be enabled later."
+                        title={can_reply
+                            ? "Jump to reply composer"
+                            : "Replies are disabled for this thread."}
+                        on:click={scrollToReply}
                     >
                         Reply
                     </button>
@@ -503,6 +687,118 @@
                         Moderate
                     </button>
                 </div>
+            </div>
+
+            <!-- Audit trail (Signals + Directives) -->
+            <div
+                class="rounded-2xl border border-border bg-card text-card-foreground p-6"
+            >
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="font-semibold">Audit trail</div>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            User-visible timeline of Signals + Directives for
+                            this thread (Phase 2B/2C proof).
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors
+                         border border-border bg-background hover:bg-muted h-8 px-3 disabled:opacity-60 disabled:pointer-events-none"
+                        disabled={true}
+                        title="Replay UI will be added when signal replay + directive rerun is exposed in the product."
+                    >
+                        Replay (soon)
+                    </button>
+                </div>
+
+                {#if sortedAuditEvents().length === 0}
+                    <div
+                        class="mt-4 rounded-xl border border-border bg-muted/10 p-4 text-sm text-muted-foreground"
+                    >
+                        No audit events are attached to this thread yet. Once
+                        wired, creating posts and running actions will append
+                        Signals/Directives here.
+                    </div>
+                {:else}
+                    <ol class="mt-4 space-y-3">
+                        {#each sortedAuditEvents() as ev (ev.id ?? `${(ev.kind ?? "event").toString()}:${(ev.name ?? "unknown").toString()}:${(ev.occurred_at ?? "").toString()}`)}
+                            <li
+                                class="rounded-xl border border-border bg-background p-4"
+                            >
+                                <div
+                                    class="flex items-start justify-between gap-3"
+                                >
+                                    <div class="min-w-0">
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <span
+                                                class={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] ${auditBadgeClass(
+                                                    ev.kind,
+                                                )}`}
+                                                title="Event kind"
+                                            >
+                                                {(
+                                                    ev.kind ?? "event"
+                                                ).toString()}
+                                            </span>
+
+                                            <span class="text-sm font-medium">
+                                                {ev.name}
+                                            </span>
+                                        </div>
+
+                                        {#if ev.summary}
+                                            <div
+                                                class="mt-1 text-sm text-muted-foreground whitespace-pre-wrap"
+                                            >
+                                                {ev.summary}
+                                            </div>
+                                        {/if}
+
+                                        {#if auditActorLabel(ev)}
+                                            <div
+                                                class="mt-2 text-xs text-muted-foreground"
+                                            >
+                                                Actor: <span class="font-mono"
+                                                    >{auditActorLabel(ev)}</span
+                                                >
+                                            </div>
+                                        {/if}
+
+                                        {#if ev.subject?.type || ev.subject?.id}
+                                            <div
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                Subject:
+                                                <span class="font-mono">
+                                                    {(
+                                                        ev.subject?.type ??
+                                                        "subject"
+                                                    ).toString()}:{(
+                                                        ev.subject?.id ?? "—"
+                                                    ).toString()}
+                                                </span>
+                                            </div>
+                                        {/if}
+                                    </div>
+
+                                    <div class="shrink-0 text-right">
+                                        <div
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {formatDateTime(
+                                                ev.occurred_at ?? null,
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                        {/each}
+                    </ol>
+                {/if}
             </div>
 
             <!-- Agent-native UX note -->

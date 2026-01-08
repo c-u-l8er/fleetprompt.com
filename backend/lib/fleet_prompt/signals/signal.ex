@@ -137,8 +137,11 @@ defmodule FleetPrompt.Signals.Signal do
     read :recent do
       argument(:limit, :integer, allow_nil?: true, default: 50)
 
-      prepare(fn query, ctx ->
-        limit = (ctx.arguments[:limit] || 50) |> min(500) |> max(1)
+      prepare(fn query, _ctx ->
+        limit =
+          (Ash.Query.get_argument(query, :limit) || 50)
+          |> min(500)
+          |> max(1)
 
         query
         |> Ash.Query.sort(inserted_at: :desc)

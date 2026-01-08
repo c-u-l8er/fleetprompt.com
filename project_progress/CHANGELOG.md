@@ -68,6 +68,32 @@ This project is early-stage and is being built iteratively from the phase docs i
     - Added `FleetPromptWeb.ForumsController` to render forum Inertia pages with mocked props.
     - Added Inertia pages: `Forums`, `ForumsNew`, `ForumsCategory`, `ForumsThread`.
     - Added a “Forums” link in the primary app navigation (after Dashboard, before Marketplace).
+  - Phase 2C (Forums lighthouse) — tenant-real forums wiring (in progress, but usable):
+    - Added Forums domain + resources (tenant-scoped via `multitenancy :context`):
+      - `FleetPrompt.Forums` domain added and registered in `:ash_domains`.
+      - Resources: `FleetPrompt.Forums.Category`, `FleetPrompt.Forums.Thread`, `FleetPrompt.Forums.Post`.
+    - Added tenant migration to create forum tables in each tenant schema:
+      - `forum_categories`, `forum_threads`, `forum_posts` (schema-per-tenant, no cross-schema FKs).
+    - Added real forums routes + writes (protected):
+      - `GET /forums/categories/new`
+      - `POST /forums/categories` (creates category; emits `forum.category.created`)
+      - `POST /forums/threads` (creates thread + first post; emits `forum.thread.created` + `forum.post.created`)
+      - `POST /forums/t/:id/replies` (creates reply post; emits `forum.post.created`)
+    - Updated forums reads to use real tenant data:
+      - `/forums` now lists tenant categories.
+      - `/forums/c/:slug` now loads category + threads (with basic computed stats).
+      - `/forums/t/:id` now loads thread + posts.
+    - Added a minimal audit trail surface on thread view:
+      - thread page shows a timeline sourced from tenant `signals` relevant to the thread (best-effort).
+    - Frontend wiring for the lighthouse slice:
+      - Added `ForumsCategoryNew.svelte` and wired it to `POST /forums/categories`.
+      - Wired `ForumsNew.svelte` to `POST /forums/threads` and support preselecting category via `?category_id=...`.
+      - Wired replies on `ForumsThread.svelte` to `POST /forums/t/:id/replies`.
+    - Svelte form/reactivity fixes (Svelte 5 + Inertia):
+      - Converted the category and thread create pages to Svelte 5 runes APIs (`$props()`, `$state`, `$derived`) to fix cases where inputs appeared filled but validation/submit remained disabled.
+      - Added `?fp_debug=1` debug panels on create forms to expose live state (`tenant_schema`, current values, validation errors, canSubmit) when troubleshooting.
+      - Standardized event handling syntax on forms to avoid mixed handler mode issues.
+    - Inertia shared props now include membership role in `user.role` (derived from current org membership) for consistent UI gating.
 - Authentication + org context (multi-org):
   - Added session-based auth endpoints and Inertia pages:
     - routes: `GET /login`, `POST /login`, `DELETE /logout`

@@ -1,43 +1,30 @@
+<svelte:options runes={true} />
+
 <script lang="ts">
     import { inertia } from "@inertiajs/svelte";
     import AppShell from "../lib/components/AppShell.svelte";
 
-    // Shared props (provided globally by the backend via Inertia shared props)
-    export let user: {
+    type UserProp = {
         id?: string | null;
         name?: string | null;
         email?: string | null;
         role?: string | null;
-    } | null = null;
+    };
 
-    export let tenant: string | null = null;
-    export let tenant_schema: string | null = null;
-
-    export let organizations: Array<{
+    type OrgProp = {
         id: string;
         name: string;
         slug: string;
-    }> | null = null;
+    };
 
-    export let current_organization: {
-        id: string;
-        name: string;
-        slug: string;
-    } | null = null;
-
-    // Page chrome
-    export let title: string = "New thread";
-    export let subtitle: string =
-        "Start a discussion. (Forums are mocked for now — wiring will land in Phase 6.)";
-
-    // Mocked data (Phase 6 will come from Ash resources: Forum.Category, etc.)
     type Category = {
         id: string;
         slug: string;
         name: string;
         description?: string;
     };
-    const categories: Category[] = [
+
+    const fallbackCategories: Category[] = [
         {
             id: "cat_getting_started",
             slug: "getting-started",
@@ -65,6 +52,26 @@
         },
     ];
 
+    let {
+        user = null,
+        tenant = null,
+        tenant_schema = null,
+        organizations = null,
+        current_organization = null,
+        title = "New thread",
+        subtitle = "Start a discussion (Phase 2C lighthouse).",
+        categories = fallbackCategories,
+    } = $props<{
+        user?: UserProp | null;
+        tenant?: string | null;
+        tenant_schema?: string | null;
+        organizations?: OrgProp[] | null;
+        current_organization?: OrgProp | null;
+        title?: string;
+        subtitle?: string;
+        categories?: Category[];
+    }>();
+
     // Form state
     type ThreadType = "discussion" | "question" | "showcase";
     const threadTypes: Array<{
@@ -89,21 +96,74 @@
         },
     ];
 
-    let categoryId: string = categories[0]?.id ?? "";
-    let threadType: ThreadType = "discussion";
+    let categoryId = $state("");
+    let threadType = $state<ThreadType>("discussion");
 
-    let subject = "";
-    let body = "";
-    let tags = ""; // comma-separated for now
-    let subscribeToReplies = true;
-    let allowAgentAssist = true;
+    // Initialize category selection (runes-safe):
+    // - Prefer `?category_id=...` if it matches a provided category
+    // - Otherwise default to the first category
+    // - If categories change and the current selection becomes invalid, fall back to the first category
+    let didInitCategoryId = $state(false);
 
-    let isSubmitting = false;
-    let mode: "edit" | "preview" = "edit";
-    let banner: { kind: "info" | "error" | "success"; message: string } | null =
-        null;
+    $effect(() => {
+        const cats = Array.isArray(categories) ? categories : [];
+        if (cats.length === 0) return;
+
+        // One-time init: respect URL preselect if valid.
+        if (!didInitCategoryId) {
+            let preselected: string | null = null;
+
+            try {
+                preselected = new URLSearchParams(window.location.search).get(
+                    "category_id",
+                );
+            } catch {
+                preselected = null;
+            }
+
+            const validPreselected =
+                !!preselected && cats.some((c) => c.id === preselected)
+                    ? preselected
+                    : null;
+
+            categoryId = validPreselected ?? cats[0]!.id;
+            didInitCategoryId = true;
+            return;
+        }
+
+        // Keep selection valid if categories update.
+        if (!cats.some((c) => c.id === categoryId)) {
+            categoryId = cats[0]!.id;
+        }
+    });
+
+    let subject = $state("");
+    let body = $state("");
+    let tags = $state(""); // comma-separated for now
+    let subscribeToReplies = $state(true);
+    let allowAgentAssist = $state(true);
+
+    let isSubmitting = $state(false);
+    let mode = $state<"edit" | "preview">("edit");
+    let banner = $state<{
+        kind: "info" | "error" | "success";
+        message: string;
+    } | null>(null);
+
+    // Debug helper: append ?fp_debug=1 to the URL to show live form state.
+    let showDebug = $state(false);
+    try {
+        showDebug = new URLSearchParams(window.location.search).has("fp_debug");
+    } catch {
+        showDebug = false;
+    }
 
     const trim = (s: string) => (s ?? "").trim();
+
+    const getCsrfToken = () =>
+        document
+            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.getAttribute("content") ?? "";
 
     const selectedCategory = () =>
         categories.find((c) => c.id === categoryId) ?? null;
@@ -115,7 +175,7 @@
             .filter(Boolean)
             .slice(0, 8);
 
-    const validationErrors = () => {
+    const validationErrors = $derived.by(() => {
         const errs: string[] = [];
 
         if (!trim(subject)) errs.push("Title is required.");
@@ -127,31 +187,27 @@
         if (!categoryId) errs.push("Category is required.");
 
         return errs;
-    };
+    });
 
-    const canSubmit = () =>
-        !!user && !isSubmitting && validationErrors().length === 0;
+    const categoriesReady = $derived.by(() => {
+        return Array.isArray(categories) && categories.length > 0;
+    });
 
-    function mockSubmit() {
-        // This page is intentionally mocked: the real flow will:
-        // - POST a directive (or create a thread resource) with idempotency keys
-        // - emit signals like forum.thread.created / forum.post.created
-        // - redirect to /forums/thread/:id
-        //
-        // For now: show the payload you'd send.
-        banner = {
-            kind: "info",
-            message:
-                "Forums are not wired yet. This is a mocked submit showing what would be sent to the backend.",
-        };
-    }
+    const canSubmit = $derived.by(() => {
+        // Require a signed-in user, a selected tenant, and real categories (Phase 2C tenant-scoped writes)
+        if (!user?.id) return false;
+        if (!tenant_schema) return false;
+        if (!categoriesReady) return false;
+
+        return !isSubmitting && validationErrors.length === 0;
+    });
 
     async function onSubmit(e: Event) {
         e.preventDefault();
 
         banner = null;
 
-        if (!user) {
+        if (!user?.id) {
             banner = {
                 kind: "error",
                 message: "You must be signed in to create a thread.",
@@ -159,24 +215,33 @@
             return;
         }
 
-        const errs = validationErrors();
-        if (errs.length > 0) {
-            banner = { kind: "error", message: errs[0] };
+        if (!tenant_schema) {
+            banner = {
+                kind: "error",
+                message:
+                    "Tenant context is missing. Select an org/tenant first.",
+            };
+            return;
+        }
+
+        if (validationErrors.length > 0) {
+            banner = { kind: "error", message: validationErrors[0] };
             return;
         }
 
         isSubmitting = true;
         try {
-            // Placeholder: when wired, replace with `fetch("/forums/threads", { ... })`
-            // or an Inertia form helper (depending on how you prefer the UX).
-            mockSubmit();
+            const csrf = getCsrfToken();
 
-            // Provide a realistic-looking payload preview for debugging/design.
             const payload = {
                 category_id: categoryId,
-                thread_type: threadType,
-                subject: trim(subject),
+                title: trim(subject),
                 body: trim(body),
+            };
+
+            console.info("[ForumsNew] create thread payload", {
+                ...payload,
+                thread_type: threadType,
                 tags: parsedTags(),
                 preferences: {
                     subscribe_to_replies: !!subscribeToReplies,
@@ -184,10 +249,57 @@
                 },
                 tenant: tenant ?? tenant_schema ?? null,
                 organization_id: current_organization?.id ?? null,
+            });
+
+            const res = await fetch("/forums/threads", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                banner = {
+                    kind: "error",
+                    message:
+                        text?.trim() ||
+                        `Failed to create thread (${res.status}).`,
+                };
+                return;
+            }
+
+            let redirectTo: string | null = null;
+            try {
+                const data = await res.json().catch(() => null);
+                const candidate = (data as any)?.redirect_to;
+                const threadId = (data as any)?.thread?.id;
+
+                if (typeof candidate === "string" && candidate.trim() !== "") {
+                    redirectTo = candidate;
+                } else if (
+                    typeof threadId === "string" &&
+                    threadId.trim() !== ""
+                ) {
+                    redirectTo = `/forums/t/${encodeURIComponent(threadId)}`;
+                }
+            } catch {
+                // Non-JSON response: fall back below.
+            }
+
+            banner = {
+                kind: "success",
+                message: "Thread created. Redirecting…",
             };
 
-            // Keep this log for design iteration; remove once backend is wired.
-            console.info("[ForumsNew] mock submit payload", payload);
+            window.location.href = redirectTo ?? "/forums";
+        } catch (err: any) {
+            banner = {
+                kind: "error",
+                message: err?.message ?? "Failed to create thread.",
+            };
         } finally {
             isSubmitting = false;
         }
@@ -273,7 +385,7 @@
         <section class="lg:col-span-8">
             <form
                 class="rounded-2xl border border-border bg-card text-card-foreground p-6 sm:p-8"
-                on:submit={onSubmit}
+                onsubmit={onSubmit}
             >
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
@@ -295,7 +407,7 @@
                                         ? "border-primary/40 bg-primary/10 text-foreground"
                                         : "border-border bg-background hover:bg-muted"
                                 }`}
-                            on:click={() => (mode = "edit")}
+                            onclick={() => (mode = "edit")}
                         >
                             Edit
                         </button>
@@ -307,7 +419,7 @@
                                         ? "border-primary/40 bg-primary/10 text-foreground"
                                         : "border-border bg-background hover:bg-muted"
                                 }`}
-                            on:click={() => (mode = "preview")}
+                            onclick={() => (mode = "preview")}
                         >
                             Preview
                         </button>
@@ -463,6 +575,87 @@
                     </div>
 
                     <div class="sm:col-span-12">
+                        {#if validationErrors.length > 0}
+                            <div
+                                class="mb-3 rounded-xl border border-border bg-muted/20 p-4"
+                            >
+                                <div class="text-sm font-medium">
+                                    Needs attention
+                                </div>
+                                <ul
+                                    class="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1"
+                                >
+                                    {#each validationErrors as err (err)}
+                                        <li>{err}</li>
+                                    {/each}
+                                </ul>
+                            </div>
+                        {/if}
+
+                        {#if showDebug}
+                            <div
+                                class="mb-3 rounded-xl border border-border bg-muted/10 p-4"
+                            >
+                                <div class="text-sm font-medium">
+                                    Debug (fp_debug)
+                                </div>
+                                <div
+                                    class="mt-2 text-xs text-muted-foreground space-y-1"
+                                >
+                                    <div>
+                                        tenant_schema = <span
+                                            class="font-mono text-foreground"
+                                            >{JSON.stringify(
+                                                tenant_schema,
+                                            )}</span
+                                        >
+                                    </div>
+                                    <div>
+                                        categoriesReady = <span
+                                            class="font-mono text-foreground"
+                                            >{JSON.stringify(
+                                                categoriesReady,
+                                            )}</span
+                                        >
+                                    </div>
+                                    <div>
+                                        categoryId = <span
+                                            class="font-mono text-foreground"
+                                            >{JSON.stringify(categoryId)}</span
+                                        >
+                                    </div>
+                                    <div>
+                                        subject = <span
+                                            class="font-mono text-foreground"
+                                            >{JSON.stringify(subject)}</span
+                                        >
+                                    </div>
+                                    <div>
+                                        body.len = <span
+                                            class="font-mono text-foreground"
+                                            >{JSON.stringify(
+                                                trim(body).length,
+                                            )}</span
+                                        >
+                                    </div>
+                                    <div>
+                                        validationErrors = <span
+                                            class="font-mono text-foreground"
+                                            >{JSON.stringify(
+                                                validationErrors,
+                                            )}</span
+                                        >
+                                    </div>
+                                    <div>
+                                        canSubmit = <span
+                                            class="font-mono text-foreground"
+                                            >{JSON.stringify(canSubmit)}</span
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
+
                         <div
                             class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between"
                         >
@@ -487,16 +680,20 @@
                                 type="submit"
                                 class={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
                                     h-10 px-4 ${
-                                        canSubmit()
+                                        canSubmit
                                             ? "bg-primary text-primary-foreground hover:bg-primary/90"
                                             : "bg-muted text-muted-foreground cursor-not-allowed"
                                     }`}
-                                disabled={!canSubmit()}
-                                title={!user
+                                disabled={!canSubmit}
+                                title={!user?.id
                                     ? "Sign in to create a thread"
-                                    : validationErrors().length > 0
-                                      ? validationErrors()[0]
-                                      : "Create thread (mocked)"}
+                                    : !tenant_schema
+                                      ? "Select an org/tenant first"
+                                      : !categoriesReady
+                                        ? "No categories are available for this tenant"
+                                        : validationErrors.length > 0
+                                          ? validationErrors[0]
+                                          : "Create thread"}
                             >
                                 {#if isSubmitting}
                                     Creating…

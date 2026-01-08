@@ -97,6 +97,16 @@ defmodule FleetPrompt.Forums.Category do
       end)
     end
 
+    read :by_id do
+      get?(true)
+
+      argument :id, :uuid do
+        allow_nil?(false)
+      end
+
+      filter(expr(id == ^arg(:id)))
+    end
+
     read :by_slug do
       argument :slug, :string do
         allow_nil?(false)

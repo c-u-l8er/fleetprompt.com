@@ -1,45 +1,60 @@
+<svelte:options runes={true} />
+
 <script lang="ts">
     import { inertia } from "@inertiajs/svelte";
     import AppShell from "../lib/components/AppShell.svelte";
 
     // Shared props (provided globally by the backend via Inertia shared props)
-    export let user: {
+    type UserProp = {
         id?: string | null;
         name?: string | null;
         email?: string | null;
         role?: string | null;
-    } | null = null;
+    };
 
-    export let tenant: string | null = null;
-    export let tenant_schema: string | null = null;
-
-    export let organizations: Array<{
+    type OrgProp = {
         id: string;
         name: string;
         slug: string;
-    }> | null = null;
+    };
 
-    export let current_organization: {
-        id: string;
-        name: string;
-        slug: string;
-    } | null = null;
-
-    // Page chrome
-    export let title: string = "New category";
-    export let subtitle: string =
-        "Create a forum category for your organization (Phase 2C wiring).";
+    let {
+        user = null,
+        tenant = null,
+        tenant_schema = null,
+        organizations = null,
+        current_organization = null,
+        title = "New category",
+        subtitle = "Create a forum category for your organization (Phase 2C wiring).",
+    } = $props<{
+        user?: UserProp | null;
+        tenant?: string | null;
+        tenant_schema?: string | null;
+        organizations?: OrgProp[] | null;
+        current_organization?: OrgProp | null;
+        title?: string;
+        subtitle?: string;
+    }>();
 
     type Banner = { kind: "info" | "error" | "success"; message: string };
 
-    // Form state
-    let name = "";
-    let slug = "";
-    let description = "";
-    let status: "active" | "archived" = "active";
+    // Form state (Svelte 5 runes)
+    // NOTE: Avoid using `name`/`slug` as local identifiers (they can collide with global `window.name`-style bindings).
+    let categoryName = $state("");
+    let categorySlug = $state("");
+    let description = $state("");
+    let status = $state<"active" | "archived">("active");
 
-    let isSubmitting = false;
-    let banner: Banner | null = null;
+    let isSubmitting = $state(false);
+    let banner = $state<Banner | null>(null);
+
+    // Debug helper: append ?fp_debug=1 to the URL to show live form state.
+    let showDebug = $state(false);
+    try {
+        showDebug = new URLSearchParams(window.location.search).has("fp_debug");
+    } catch {
+        showDebug = false;
+    }
 
     const trim = (s: string) => (s ?? "").trim();
 
@@ -51,10 +66,9 @@
             .replace(/(^-|-$)/g, "");
 
     function maybeAutofillSlug() {
-        // If the slug is empty, or if it still matches a slugified version of the previous name,
-        // keep it in sync.
-        if (!trim(slug)) {
-            slug = slugify(name);
+        // If the slug is empty, keep it in sync with the name.
+        if (!trim(categorySlug)) {
+            categorySlug = slugify(categoryName);
         }
     }
 
@@ -74,11 +88,11 @@
         );
     };
 
-    const validationErrors = () => {
+    const validationErrors = $derived.by(() => {
         const errs: string[] = [];
 
-        const n = trim(name);
-        const s = trim(slug);
+        const n = trim(categoryName);
+        const s = trim(categorySlug);
         const d = trim(description);
 
         if (!n) errs.push("Name is required.");
@@ -99,12 +113,15 @@
             errs.push("Tenant context is missing. Select an org/tenant first.");
 
         return errs;
-    };
+    });
 
-    const canSubmit = () =>
-        canCreateCategoryClientSide() &&
-        !isSubmitting &&
-        validationErrors().length === 0;
+    const canSubmit = $derived.by(() => {
+        return (
+            canCreateCategoryClientSide() &&
+            !isSubmitting &&
+            validationErrors.length === 0
+        );
+    });
 
     async function onSubmit(e: Event) {
         e.preventDefault();
@@ -128,7 +145,7 @@
             return;
         }
 
-        const errs = validationErrors();
+        const errs = validationErrors;
         if (errs.length > 0) {
             banner = { kind: "error", message: errs[0] };
             return;
@@ -150,8 +167,8 @@
             // - { ok: true, category: { slug: "..." } }
             // - 204/empty body (fallback redirect)
             const payload = {
-                name: trim(name),
-                slug: trim(slug),
+                name: trim(categoryName),
+                slug: trim(categorySlug),
                 description: trim(description) || null,
                 status,
             };
@@ -320,7 +337,7 @@
                            ring-offset-background placeholder:text-muted-foreground
                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     placeholder="Support"
-                    bind:value={name}
+                    bind:value={categoryName}
                     oninput={maybeAutofillSlug}
                     disabled={isSubmitting}
                     required
@@ -342,7 +359,7 @@
                            ring-offset-background placeholder:text-muted-foreground
                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     placeholder="support"
-                    bind:value={slug}
+                    bind:value={categorySlug}
                     disabled={isSubmitting}
                     required
                 />
@@ -392,16 +409,61 @@
                 </div>
             </div>
 
-            {#if validationErrors().length > 0}
+            {#if validationErrors.length > 0}
                 <div class="rounded-xl border border-border bg-muted/20 p-4">
                     <div class="text-sm font-medium">Needs attention</div>
                     <ul
                         class="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1"
                     >
-                        {#each validationErrors() as err (err)}
+                        {#each validationErrors as err (err)}
                             <li>{err}</li>
                         {/each}
                     </ul>
+                </div>
+            {/if}
+
+            {#if showDebug}
+                <div class="rounded-xl border border-border bg-muted/10 p-4">
+                    <div class="text-sm font-medium">Debug (fp_debug)</div>
+                    <div class="mt-2 text-xs text-muted-foreground space-y-1">
+                        <div>
+                            name = <span class="font-mono text-foreground"
+                                >{JSON.stringify(categoryName)}</span
+                            >
+                        </div>
+                        <div>
+                            slug = <span class="font-mono text-foreground"
+                                >{JSON.stringify(categorySlug)}</span
+                            >
+                        </div>
+                        <div>
+                            tenant_schema = <span
+                                class="font-mono text-foreground"
+                                >{JSON.stringify(tenant_schema)}</span
+                            >
+                        </div>
+                        <div>
+                            user.id = <span class="font-mono text-foreground"
+                                >{JSON.stringify(user?.id ?? null)}</span
+                            >
+                        </div>
+                        <div>
+                            user.role = <span class="font-mono text-foreground"
+                                >{JSON.stringify(user?.role ?? null)}</span
+                            >
+                        </div>
+                        <div>
+                            validationErrors = <span
+                                class="font-mono text-foreground"
+                                >{JSON.stringify(validationErrors)}</span
+                            >
+                        </div>
+                        <div>
+                            canSubmit = <span class="font-mono text-foreground"
+                                >{JSON.stringify(canSubmit)}</span
+                            >
+                        </div>
+                    </div>
                 </div>
             {/if}
 
@@ -422,11 +484,11 @@
                     class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
                            bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4
                            disabled:opacity-60 disabled:pointer-events-none"
-                    disabled={!canSubmit()}
+                    disabled={!canSubmit}
                     title={!canCreateCategoryClientSide()
                         ? "Sign in and select a tenant first."
-                        : validationErrors().length > 0
-                          ? validationErrors()[0]
+                        : validationErrors.length > 0
+                          ? validationErrors[0]
                           : "Create category"}
                 >
                     {#if isSubmitting}

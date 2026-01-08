@@ -7,7 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [
+    svelte({
+      compilerOptions: {
+        runes: false,
+      },
+    }),
+  ],
   resolve: {
     alias: {
       $lib: path.resolve(__dirname, "./src/lib"),

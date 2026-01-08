@@ -1,13 +1,26 @@
 # FleetPrompt — Current Status
 
-Last updated: 2026-01-07
+Last updated: 2026-01-08
 
 ## Executive summary
 
-You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** end-to-end **session auth + org membership + org/tenant selection** — **plus** Phase 2A package installs — and you’ve started Phase 2B platform primitives:
+You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite frontend), and Phase 1 backend foundations are in place — **plus** end-to-end **session auth + org membership + org/tenant selection** — **plus** Phase 2A package installs — **plus** Phase 2B platform primitives — and you have begun Phase 2C (Forums lighthouse) wiring:
 
 - **Signals** (tenant-scoped persisted events) + a minimal Signal fanout/replay mechanism
 - **Directives** (tenant-scoped persisted commands) + a Directive runner (Oban) to execute side effects audibly
+- **Forums (Phase 2C thin slice, in progress but usable):**
+  - tenant-scoped Ash resources: Categories/Threads/Posts
+  - tenant migration adds `forum_categories`, `forum_threads`, `forum_posts`
+  - routes and UI now support creating categories, threads, and replies
+  - forum writes emit Signals (`forum.category.created`, `forum.thread.created`, `forum.post.created`)
+  - thread view includes a minimal **audit trail** UI sourced from tenant Signals (best-effort)
+  - create flows have explicit prerequisites (enforced server-side; UX gated client-side):
+    - must be signed in
+    - must have a selected tenant (`tenant_schema` is required for writes)
+    - categories must exist for the tenant to create a thread
+    - archived categories should not accept new threads
+  - forum create pages include an optional debug panel (append `?fp_debug=1`) to show live state:
+    - `tenant_schema`, current input values, `validationErrors`, `canSubmit`
 
 Most importantly, the Marketplace install path has been realigned so installs are requested via **Directives** (auditable intent), and executed by the **DirectiveRunner**, which then enqueues the existing `PackageInstaller`.
 
@@ -28,7 +41,7 @@ Most importantly, the Marketplace install path has been realigned so installs ar
   - `FleetPrompt.Directives.Directive` (tenant-scoped persisted commands / controlled intent)
   - `FleetPrompt.Signals.SignalBus` (idempotent-ish signal emission by `dedupe_key`)
   - `FleetPrompt.Jobs.SignalFanout` (durable fanout to configured handlers)
-  - `FleetPrompt.Signals.Replay` (re-enqueue fanout jobs for existing signals)
+  - `FleetPrompt.Signals.Replay` (re-enqueue fanout jobs for persisted signals)
   - `FleetPrompt.Jobs.DirectiveRunner` (executes directives; v1 supports `package.install`)
 - Package marketplace (Phase 2A thin-slice, now Phase 2B-aligned):
   - `FleetPrompt.Packages.Package` + `FleetPrompt.Packages.Review` (public schema)
@@ -40,7 +53,8 @@ Most importantly, the Marketplace install path has been realigned so installs ar
   - `FleetPrompt.Jobs.PackageInstaller` now emits best-effort install lifecycle signals and attempts to mark the matching directive succeeded/failed (see “Known gaps” below).
 - Tenant migrations exist for tenant-scoped resources (`org_<slug>` schemas). Agents tenant migrations are hardened for UUID default resolution/idempotency, and tenant migrations exist for:
   - `package_installations`
-  - `signals` + `directives` (new)
+  - `signals` + `directives`
+  - `forum_categories` + `forum_threads` + `forum_posts` (Forums lighthouse)
 
 **Auth + org access control (new):**
 - Session-based auth endpoints:
@@ -60,12 +74,16 @@ Most importantly, the Marketplace install path has been realigned so installs ar
   - organization dropdown (when user belongs to multiple orgs)
   - tenant badge (derived from selected org)
 - Primary nav now includes: `Dashboard` → `Forums` → `Marketplace` → `Chat`
-- Inertia pages: `Home`, `Dashboard`, `Forums`, `ForumsNew`, `ForumsCategory`, `ForumsThread`, `Marketplace`, `Chat`, `Login`, `Register`
+- Inertia pages: `Home`, `Dashboard`, `Forums`, `ForumsNew`, `ForumsCategory`, `ForumsThread`, `Marketplace`, `Chat`, `Login`, `Register`, `ForumsCategoryNew`
 - Navigation UX fix:
   - `AppShell` active-link styling stays in sync after Inertia client-side navigation.
 - Seeds updated to ensure demo admin has an owner membership in the demo org.
 
-**Frontend note:** the Inertia client mounting code has been updated to mount using Inertia’s provided element (`setup({ el, ... })`) and to support both constructor-based and `mount(...)` based component styles. You still need to validate DOM rendering in the browser.
+**Frontend note:** the frontend is in the middle of a Svelte 5 migration; Pages are being converted to runes mode to avoid form validation/reactivity issues under Inertia.
+
+For the Forums create flows specifically (`/forums/categories/new`, `/forums/new`):
+- If submit appears stuck/disabled, ensure you’re loading the latest built assets (hard refresh; restart the dev watcher if needed).
+- Use `?fp_debug=1` on those pages to confirm `tenant_schema`, field values, `validationErrors`, and `canSubmit` match what you expect.
 
 ## Code map (backend `lib/` and frontend `src/`)
 
@@ -103,7 +121,11 @@ Most importantly, the Marketplace install path has been realigned so installs ar
     - `admin_tenant_controller.ex` + `admin_tenant_html/index.html.heex` — org/tenant selector UI (restricted to org-admin memberships)
     - `page_controller.ex` — Inertia entry pages (`/`, `/dashboard`)
     - `marketplace_controller.ex`, `chat_controller.ex` — scaffold routes (render via shared inertia helper)
-    - `forums_controller.ex` — forum UX scaffold routes (`/forums`, `/forums/new`, `/forums/c/:slug`, `/forums/t/:id`) with mocked props (Phase 6 foundation)
+    - `forums_controller.ex` — Forums lighthouse (Phase 2C) controller with real tenant wiring:
+      - reads: `/forums`, `/forums/c/:slug`, `/forums/t/:id`
+      - creates: `POST /forums/categories`, `POST /forums/threads`, `POST /forums/t/:id/replies`
+      - emits Signals for creates (`forum.category.created`, `forum.thread.created`, `forum.post.created`)
+      - thread view includes a minimal audit trail prop (`audit_events`) sourced from tenant Signals
   - `components/layouts/`
     - `root.html.heex` — root HTML shell + asset tags + inertia head/title
     - `admin.html.heex` — AshAdmin chrome (admin header + context banner)
