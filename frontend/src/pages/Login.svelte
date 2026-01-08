@@ -99,16 +99,14 @@
                 <a
                     use:inertia
                     href="/"
-                    class="flex items-center gap-2 font-semibold tracking-tight"
+                    class="flex h-14 items-center gap-2 font-semibold tracking-tight"
                     aria-label="FleetPrompt Home"
                 >
-                    <span
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-                        aria-hidden="true"
-                    >
-                        FP
-                    </span>
-                    <span>FleetPrompt</span>
+                    <img
+                        src="/images/logo-with-text.png"
+                        alt="FleetPrompt"
+                        class="h-full w-auto object-contain block"
+                    />
                 </a>
 
                 <a

@@ -67,7 +67,8 @@
         }
 
         if (!password) return "Password is required.";
-        if (password.length < 8) return "Password must be at least 8 characters.";
+        if (password.length < 8)
+            return "Password must be at least 8 characters.";
         if (password !== passwordConfirm) return "Passwords do not match.";
 
         return null;
@@ -165,16 +166,14 @@
                 <a
                     use:inertia
                     href="/"
-                    class="flex items-center gap-2 font-semibold tracking-tight"
+                    class="flex h-14 items-center gap-2 font-semibold tracking-tight"
                     aria-label="FleetPrompt Home"
                 >
-                    <span
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-                        aria-hidden="true"
-                    >
-                        FP
-                    </span>
-                    <span>FleetPrompt</span>
+                    <img
+                        src="/images/logo-with-text.png"
+                        alt="FleetPrompt"
+                        class="h-full w-auto object-contain block"
+                    />
                 </a>
 
                 <a
@@ -326,8 +325,7 @@
                         <div class="space-y-2">
                             <label
                                 class="text-sm font-medium"
-                                for="passwordConfirm"
-                                >Confirm</label
+                                for="passwordConfirm">Confirm</label
                             >
                             <input
                                 id="passwordConfirm"
@@ -379,8 +377,10 @@
         </div>
 
         <p class="mt-6 text-center text-xs text-muted-foreground">
-            Registration creates both an organization and a user. The backend must
-            implement <code class="rounded bg-muted px-1 py-0.5">POST /register</code>.
+            Registration creates both an organization and a user. The backend
+            must implement <code class="rounded bg-muted px-1 py-0.5"
+                >POST /register</code
+            >.
         </p>
     </main>
 </div>
