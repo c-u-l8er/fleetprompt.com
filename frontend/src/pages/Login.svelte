@@ -6,6 +6,8 @@
     export let title: string = "Sign in";
     export let email: string = "";
     export let error: string | null = null;
+    // Optional override (e.g. provided via Inertia props). If omitted, we fall back to digested static URL from meta tags.
+    export let logo_url: string = "";
 
     let formEmail = email ?? "";
     let password = "";
@@ -16,6 +18,40 @@
         document
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
             ?.getAttribute("content") ?? "";
+
+    const getLogoUrlFromMeta = () => {
+        if (typeof document === "undefined") return "";
+
+        // Prefer Phoenix-provided digested paths from the root layout.
+        // Current canonical meta name:
+        //   <meta name="fp-logo-with-text" content={~p"/images/logo-with-text.png"} />
+        //
+        // Back-compat / alternative meta name:
+        //   <meta name="fp-logo-with-text-url" ... />
+        return (
+            document
+                .querySelector<HTMLMetaElement>(
+                    'meta[name="fp-logo-with-text"]',
+                )
+                ?.getAttribute("content") ??
+            document
+                .querySelector<HTMLMetaElement>(
+                    'meta[name="fp-logo-with-text-url"]',
+                )
+                ?.getAttribute("content") ??
+            ""
+        );
+    };
+
+    const resolveLogoUrl = () => {
+        const fromProp = (logo_url ?? "").trim();
+        if (fromProp) return fromProp;
+
+        const fromMeta = getLogoUrlFromMeta().trim();
+        if (fromMeta) return fromMeta;
+
+        return "/images/logo-with-text.png";
+    };
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
@@ -103,7 +139,7 @@
                     aria-label="FleetPrompt Home"
                 >
                     <img
-                        src="/images/logo-with-text.png"
+                        src={resolveLogoUrl()}
                         alt="FleetPrompt"
                         class="h-full w-auto object-contain block"
                     />

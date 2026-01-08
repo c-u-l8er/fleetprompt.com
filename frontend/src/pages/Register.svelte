@@ -4,6 +4,9 @@
     export let title: string = "Create your organization";
     export let error: string | null = null;
 
+    // Prefer a server-provided (digested) logo URL when available (e.g. via Inertia props or a meta tag).
+    export let logo_with_text_url: string | null = null;
+
     let orgName = "";
     let orgSlug = "";
 
@@ -18,6 +21,28 @@
         document
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
             ?.getAttribute("content") ?? "";
+
+    const getLogoWithTextUrlFromMeta = () => {
+        if (typeof document === "undefined") return "";
+
+        return (
+            document
+                .querySelector<HTMLMetaElement>(
+                    'meta[name="fp-logo-with-text"]',
+                )
+                ?.getAttribute("content") ?? ""
+        );
+    };
+
+    const resolveLogoWithTextUrl = () => {
+        const fromProp = (logo_with_text_url ?? "").trim();
+        if (fromProp) return fromProp;
+
+        const fromMeta = getLogoWithTextUrlFromMeta().trim();
+        if (fromMeta) return fromMeta;
+
+        return "/images/logo-with-text.png";
+    };
 
     const slugify = (input: string) => {
         const raw = (input ?? "").trim().toLowerCase();
@@ -170,7 +195,7 @@
                     aria-label="FleetPrompt Home"
                 >
                     <img
-                        src="/images/logo-with-text.png"
+                        src={resolveLogoWithTextUrl()}
                         alt="FleetPrompt"
                         class="h-full w-auto object-contain block"
                     />

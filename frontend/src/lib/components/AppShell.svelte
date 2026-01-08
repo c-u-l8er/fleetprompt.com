@@ -5,6 +5,33 @@
     export let title: string = "FleetPrompt";
     export let subtitle: string | null = null;
 
+    // Prefer a digested static URL from the server via:
+    // - `logo_with_text_url` prop (e.g. shared Inertia prop), or
+    // - root layout meta tag: <meta name="fp-logo-with-text" content="...">
+    export let logo_with_text_url: string | null = null;
+
+    const getLogoWithTextUrlFromMeta = () => {
+        if (typeof document === "undefined") return "";
+
+        return (
+            document
+                .querySelector<HTMLMetaElement>(
+                    'meta[name="fp-logo-with-text"]',
+                )
+                ?.getAttribute("content") ?? ""
+        );
+    };
+
+    const resolveLogoWithTextUrl = () => {
+        const fromProp = (logo_with_text_url ?? "").trim();
+        if (fromProp) return fromProp;
+
+        const fromMeta = getLogoWithTextUrlFromMeta().trim();
+        if (fromMeta) return fromMeta;
+
+        return "/images/logo-with-text.png";
+    };
+
     // Optional: show an admin entry point (AshAdmin is not Inertia, but it’s a useful affordance)
     export let showAdminLink: boolean = true;
 
@@ -263,7 +290,7 @@
                         aria-label="FleetPrompt Home"
                     >
                         <img
-                            src="/images/logo-with-text.png"
+                            src={resolveLogoWithTextUrl()}
                             alt="FleetPrompt"
                             class="h-full w-auto object-contain block"
                             loading="eager"

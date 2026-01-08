@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
+    <meta name="fp-logo-with-text" content={~p"/images/logo-with-text.png"} />
+    <meta name="fp-logo" content={~p"/images/logo.svg"} />
 
     <%= if assigns[:inertia_head] do %>
       <.inertia_title>
