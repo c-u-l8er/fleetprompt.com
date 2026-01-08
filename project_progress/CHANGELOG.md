@@ -85,6 +85,19 @@ This project is early-stage and is being built iteratively from the phase docs i
       - `/forums/t/:id` now loads thread + posts.
     - Added a minimal audit trail surface on thread view:
       - thread page shows a timeline sourced from tenant `signals` relevant to the thread (best-effort).
+      - thread page now also includes relevant tenant `directives` (best-effort), so operators can see intent + execution alongside facts.
+    - Added directive-backed forum moderation endpoints (Phase 2C lighthouse):
+      - routes: `/forums/t/:id/lock`, `/forums/t/:id/unlock`, `/forums/posts/:id/hide`, `/forums/posts/:id/unhide`, `/forums/posts/:id/delete`
+      - controller records auditable intent via tenant Directives and enqueues `DirectiveRunner`
+      - `DirectiveRunner` now supports:
+        - `forum.thread.lock` / `forum.thread.unlock`
+        - `forum.post.hide` / `forum.post.unhide` / `forum.post.delete`
+      - runner emits domain signals for moderation outcomes:
+        - `forum.thread.locked` / `forum.thread.unlocked`
+        - `forum.post.hidden` / `forum.post.unhidden` / `forum.post.deleted`
+      - lifecycle signals (`directive.started` / `directive.succeeded` / `directive.failed`) now include actor/subject context when available (derived from directive payload/metadata).
+      - thread page UI: sidebar now wires lock/unlock controls (directive-backed) and optimistically updates thread status + audit timeline.
+    - Added `DirectiveRunner` tests for forums moderation directives (lock thread, hide post).
     - Frontend wiring for the lighthouse slice:
       - Added `ForumsCategoryNew.svelte` and wired it to `POST /forums/categories`.
       - Wired `ForumsNew.svelte` to `POST /forums/threads` and support preselecting category via `?category_id=...`.

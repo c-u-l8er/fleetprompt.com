@@ -110,6 +110,14 @@ defmodule FleetPromptWeb.Router do
     post("/forums/categories", ForumsController, :create_category)
     post("/forums/threads", ForumsController, :create_thread)
     post("/forums/t/:id/replies", ForumsController, :create_reply)
+
+    # Forums moderation (Phase 2C lighthouse): directive-backed operations
+    post("/forums/t/:id/lock", ForumsController, :lock_thread)
+    post("/forums/t/:id/unlock", ForumsController, :unlock_thread)
+    post("/forums/posts/:id/hide", ForumsController, :hide_post)
+    post("/forums/posts/:id/unhide", ForumsController, :unhide_post)
+    post("/forums/posts/:id/delete", ForumsController, :delete_post)
+
     get("/forums/c/:slug", ForumsController, :category)
     get("/forums/t/:id", ForumsController, :thread)
 

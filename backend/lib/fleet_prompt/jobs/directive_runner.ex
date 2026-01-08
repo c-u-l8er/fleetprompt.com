@@ -29,6 +29,7 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
 
   alias FleetPrompt.Agents.Agent
   alias FleetPrompt.Directives.Directive
+  alias FleetPrompt.Forums.{Post, Thread}
   alias FleetPrompt.Packages.{Installation, Package}
   alias FleetPrompt.Jobs.PackageInstaller
 
@@ -173,12 +174,17 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
            bumped
            |> Ash.Changeset.for_update(:mark_running, %{})
            |> Ash.update(tenant: tenant) do
-      emit_signal_maybe(tenant, "directive.started", %{
-        "directive_id" => running.id,
-        "directive_name" => running.name,
-        "attempt" => running.attempt,
-        "oban_job_id" => job.id
-      })
+      emit_lifecycle_signal_maybe(
+        tenant,
+        "directive.started",
+        %{
+          "directive_id" => running.id,
+          "directive_name" => running.name,
+          "attempt" => running.attempt,
+          "oban_job_id" => job.id
+        },
+        running
+      )
 
       {:ok, running}
     end
@@ -197,6 +203,22 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
 
       "package.uninstall" ->
         execute_package_uninstall(directive, tenant)
+
+      # Forums (Phase 2C lighthouse): moderation directives (must be directive-backed)
+      "forum.thread.lock" ->
+        execute_forum_thread_lock(directive, tenant)
+
+      "forum.thread.unlock" ->
+        execute_forum_thread_unlock(directive, tenant)
+
+      "forum.post.hide" ->
+        execute_forum_post_hide(directive, tenant)
+
+      "forum.post.unhide" ->
+        execute_forum_post_unhide(directive, tenant)
+
+      "forum.post.delete" ->
+        execute_forum_post_delete(directive, tenant)
 
       other when is_binary(other) and other != "" ->
         {:error, "unsupported directive: #{other}"}
@@ -249,16 +271,23 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
              {:ok, %Installation{} = installation, installation_marker} <-
                get_or_create_installation(pkg, tenant, directive, config),
              {:ok, enqueue_marker} <- maybe_enqueue_package_installer(installation, tenant) do
-          emit_signal_maybe(tenant, "package.install.processed", %{
-            "directive_id" => directive.id,
-            "package" => %{"slug" => pkg.slug, "version" => pkg.version},
-            "installation" => %{
-              "id" => installation.id,
-              "status" => installation.status,
-              "created" => installation_marker == :created
+          emit_domain_signal_maybe(
+            tenant,
+            "package.install.processed",
+            %{
+              "directive_id" => directive.id,
+              "package" => %{"slug" => pkg.slug, "version" => pkg.version},
+              "installation" => %{
+                "id" => installation.id,
+                "status" => installation.status,
+                "created" => installation_marker == :created
+              },
+              "enqueued" => enqueue_marker == :enqueued
             },
-            "enqueued" => enqueue_marker == :enqueued
-          })
+            directive,
+            %{type: "package.installation", id: to_string(installation.id)},
+            "package.install.processed:#{tenant}:#{installation.id}:#{directive.id}"
+          )
           |> ignore()
 
           {:ok,
@@ -343,15 +372,22 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
               |> Ash.destroy(tenant: tenant)
               |> case do
                 :ok ->
-                  emit_signal_maybe(tenant, "package.uninstall.processed", %{
-                    "directive_id" => directive.id,
-                    "package" => %{
-                      "slug" => slug,
-                      "version" => installation.package_version
+                  emit_domain_signal_maybe(
+                    tenant,
+                    "package.uninstall.processed",
+                    %{
+                      "directive_id" => directive.id,
+                      "package" => %{
+                        "slug" => slug,
+                        "version" => installation.package_version
+                      },
+                      "installation_removed" => true,
+                      "purged_agents" => purged_agents
                     },
-                    "installation_removed" => true,
-                    "purged_agents" => purged_agents
-                  })
+                    directive,
+                    %{type: "package.installation", id: to_string(installation.id)},
+                    "package.uninstall.processed:#{tenant}:#{installation.id}:#{directive.id}"
+                  )
                   |> ignore()
 
                   {:ok,
@@ -364,15 +400,22 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
                    }}
 
                 {:ok, _} ->
-                  emit_signal_maybe(tenant, "package.uninstall.processed", %{
-                    "directive_id" => directive.id,
-                    "package" => %{
-                      "slug" => slug,
-                      "version" => installation.package_version
+                  emit_domain_signal_maybe(
+                    tenant,
+                    "package.uninstall.processed",
+                    %{
+                      "directive_id" => directive.id,
+                      "package" => %{
+                        "slug" => slug,
+                        "version" => installation.package_version
+                      },
+                      "installation_removed" => true,
+                      "purged_agents" => purged_agents
                     },
-                    "installation_removed" => true,
-                    "purged_agents" => purged_agents
-                  })
+                    directive,
+                    %{type: "package.installation", id: to_string(installation.id)},
+                    "package.uninstall.processed:#{tenant}:#{installation.id}:#{directive.id}"
+                  )
                   |> ignore()
 
                   {:ok,
@@ -557,16 +600,317 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
   end
 
   # -----------------------
+  # Forums moderation directives (Phase 2C lighthouse)
+  # -----------------------
+
+  defp execute_forum_thread_lock(%Directive{} = directive, tenant) do
+    payload = directive.payload || %{}
+
+    thread_id =
+      payload
+      |> Map.get("thread_id", Map.get(payload, :thread_id))
+      |> normalize_string()
+
+    cond do
+      is_nil(thread_id) ->
+        {:error, "forum.thread.lock requires payload.thread_id"}
+
+      not Code.ensure_loaded?(Thread) ->
+        {:error, "forums threads are not available"}
+
+      true ->
+        case load_forum_thread_by_id(thread_id, tenant) do
+          {:ok, nil} ->
+            {:error, "thread not found"}
+
+          {:ok, %Thread{} = thread} ->
+            case thread |> Ash.Changeset.for_update(:lock, %{}) |> Ash.update(tenant: tenant) do
+              {:ok, %Thread{} = updated} ->
+                _ =
+                  emit_domain_signal_maybe(
+                    tenant,
+                    "forum.thread.locked",
+                    %{
+                      "thread_id" => updated.id,
+                      "status" => to_string(updated.status)
+                    },
+                    directive,
+                    %{type: "forum.thread", id: to_string(updated.id)},
+                    "forum.thread.locked:#{tenant}:#{updated.id}:#{directive.id}"
+                  )
+
+                {:ok,
+                 %{
+                   "type" => "forum.thread.lock",
+                   "thread_id" => updated.id,
+                   "status" => to_string(updated.status),
+                   "tenant" => tenant
+                 }}
+
+              {:error, err} ->
+                {:error, err}
+            end
+
+          {:error, err} ->
+            {:error, err}
+        end
+    end
+  end
+
+  defp execute_forum_thread_unlock(%Directive{} = directive, tenant) do
+    payload = directive.payload || %{}
+
+    thread_id =
+      payload
+      |> Map.get("thread_id", Map.get(payload, :thread_id))
+      |> normalize_string()
+
+    cond do
+      is_nil(thread_id) ->
+        {:error, "forum.thread.unlock requires payload.thread_id"}
+
+      not Code.ensure_loaded?(Thread) ->
+        {:error, "forums threads are not available"}
+
+      true ->
+        case load_forum_thread_by_id(thread_id, tenant) do
+          {:ok, nil} ->
+            {:error, "thread not found"}
+
+          {:ok, %Thread{} = thread} ->
+            case thread |> Ash.Changeset.for_update(:unlock, %{}) |> Ash.update(tenant: tenant) do
+              {:ok, %Thread{} = updated} ->
+                _ =
+                  emit_domain_signal_maybe(
+                    tenant,
+                    "forum.thread.unlocked",
+                    %{
+                      "thread_id" => updated.id,
+                      "status" => to_string(updated.status)
+                    },
+                    directive,
+                    %{type: "forum.thread", id: to_string(updated.id)},
+                    "forum.thread.unlocked:#{tenant}:#{updated.id}:#{directive.id}"
+                  )
+
+                {:ok,
+                 %{
+                   "type" => "forum.thread.unlock",
+                   "thread_id" => updated.id,
+                   "status" => to_string(updated.status),
+                   "tenant" => tenant
+                 }}
+
+              {:error, err} ->
+                {:error, err}
+            end
+
+          {:error, err} ->
+            {:error, err}
+        end
+    end
+  end
+
+  defp execute_forum_post_hide(%Directive{} = directive, tenant) do
+    payload = directive.payload || %{}
+
+    post_id =
+      payload
+      |> Map.get("post_id", Map.get(payload, :post_id))
+      |> normalize_string()
+
+    cond do
+      is_nil(post_id) ->
+        {:error, "forum.post.hide requires payload.post_id"}
+
+      not Code.ensure_loaded?(Post) ->
+        {:error, "forums posts are not available"}
+
+      true ->
+        case load_forum_post_by_id(post_id, tenant) do
+          {:ok, nil} ->
+            {:error, "post not found"}
+
+          {:ok, %Post{} = post} ->
+            case post |> Ash.Changeset.for_update(:hide, %{}) |> Ash.update(tenant: tenant) do
+              {:ok, %Post{} = updated} ->
+                _ =
+                  emit_domain_signal_maybe(
+                    tenant,
+                    "forum.post.hidden",
+                    %{
+                      "post_id" => updated.id,
+                      "thread_id" => updated.thread_id,
+                      "status" => to_string(updated.status)
+                    },
+                    directive,
+                    %{type: "forum.post", id: to_string(updated.id)},
+                    "forum.post.hidden:#{tenant}:#{updated.id}:#{directive.id}"
+                  )
+
+                {:ok,
+                 %{
+                   "type" => "forum.post.hide",
+                   "post_id" => updated.id,
+                   "thread_id" => updated.thread_id,
+                   "status" => to_string(updated.status),
+                   "tenant" => tenant
+                 }}
+
+              {:error, err} ->
+                {:error, err}
+            end
+
+          {:error, err} ->
+            {:error, err}
+        end
+    end
+  end
+
+  defp execute_forum_post_unhide(%Directive{} = directive, tenant) do
+    payload = directive.payload || %{}
+
+    post_id =
+      payload
+      |> Map.get("post_id", Map.get(payload, :post_id))
+      |> normalize_string()
+
+    cond do
+      is_nil(post_id) ->
+        {:error, "forum.post.unhide requires payload.post_id"}
+
+      not Code.ensure_loaded?(Post) ->
+        {:error, "forums posts are not available"}
+
+      true ->
+        case load_forum_post_by_id(post_id, tenant) do
+          {:ok, nil} ->
+            {:error, "post not found"}
+
+          {:ok, %Post{} = post} ->
+            case post |> Ash.Changeset.for_update(:unhide, %{}) |> Ash.update(tenant: tenant) do
+              {:ok, %Post{} = updated} ->
+                _ =
+                  emit_domain_signal_maybe(
+                    tenant,
+                    "forum.post.unhidden",
+                    %{
+                      "post_id" => updated.id,
+                      "thread_id" => updated.thread_id,
+                      "status" => to_string(updated.status)
+                    },
+                    directive,
+                    %{type: "forum.post", id: to_string(updated.id)},
+                    "forum.post.unhidden:#{tenant}:#{updated.id}:#{directive.id}"
+                  )
+
+                {:ok,
+                 %{
+                   "type" => "forum.post.unhide",
+                   "post_id" => updated.id,
+                   "thread_id" => updated.thread_id,
+                   "status" => to_string(updated.status),
+                   "tenant" => tenant
+                 }}
+
+              {:error, err} ->
+                {:error, err}
+            end
+
+          {:error, err} ->
+            {:error, err}
+        end
+    end
+  end
+
+  defp execute_forum_post_delete(%Directive{} = directive, tenant) do
+    payload = directive.payload || %{}
+
+    post_id =
+      payload
+      |> Map.get("post_id", Map.get(payload, :post_id))
+      |> normalize_string()
+
+    cond do
+      is_nil(post_id) ->
+        {:error, "forum.post.delete requires payload.post_id"}
+
+      not Code.ensure_loaded?(Post) ->
+        {:error, "forums posts are not available"}
+
+      true ->
+        case load_forum_post_by_id(post_id, tenant) do
+          {:ok, nil} ->
+            {:error, "post not found"}
+
+          {:ok, %Post{} = post} ->
+            case post |> Ash.Changeset.for_update(:delete, %{}) |> Ash.update(tenant: tenant) do
+              {:ok, %Post{} = updated} ->
+                _ =
+                  emit_domain_signal_maybe(
+                    tenant,
+                    "forum.post.deleted",
+                    %{
+                      "post_id" => updated.id,
+                      "thread_id" => updated.thread_id,
+                      "status" => to_string(updated.status)
+                    },
+                    directive,
+                    %{type: "forum.post", id: to_string(updated.id)},
+                    "forum.post.deleted:#{tenant}:#{updated.id}:#{directive.id}"
+                  )
+
+                {:ok,
+                 %{
+                   "type" => "forum.post.delete",
+                   "post_id" => updated.id,
+                   "thread_id" => updated.thread_id,
+                   "status" => to_string(updated.status),
+                   "tenant" => tenant
+                 }}
+
+              {:error, err} ->
+                {:error, err}
+            end
+
+          {:error, err} ->
+            {:error, err}
+        end
+    end
+  end
+
+  defp load_forum_thread_by_id(thread_id, tenant) when is_binary(tenant) do
+    query =
+      Thread
+      |> Ash.Query.for_read(:by_id, %{id: thread_id})
+
+    Ash.read_one(query, tenant: tenant)
+  end
+
+  defp load_forum_post_by_id(post_id, tenant) when is_binary(tenant) do
+    query =
+      Post
+      |> Ash.Query.for_read(:by_id, %{id: post_id})
+
+    Ash.read_one(query, tenant: tenant)
+  end
+
+  # -----------------------
   # Finalization
   # -----------------------
 
   defp finalize(%Directive{} = directive, tenant, {:ok, %{} = result}, job) do
-    emit_signal_maybe(tenant, "directive.succeeded", %{
-      "directive_id" => directive.id,
-      "directive_name" => directive.name,
-      "attempt" => directive.attempt,
-      "oban_job_id" => job.id
-    })
+    emit_lifecycle_signal_maybe(
+      tenant,
+      "directive.succeeded",
+      %{
+        "directive_id" => directive.id,
+        "directive_name" => directive.name,
+        "attempt" => directive.attempt,
+        "oban_job_id" => job.id
+      },
+      directive
+    )
     |> ignore()
 
     directive
@@ -577,13 +921,18 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
   defp finalize(%Directive{} = directive, tenant, {:error, err}, job) do
     msg = normalize_error(err)
 
-    emit_signal_maybe(tenant, "directive.failed", %{
-      "directive_id" => directive.id,
-      "directive_name" => directive.name,
-      "attempt" => directive.attempt,
-      "oban_job_id" => job.id,
-      "error" => msg
-    })
+    emit_lifecycle_signal_maybe(
+      tenant,
+      "directive.failed",
+      %{
+        "directive_id" => directive.id,
+        "directive_name" => directive.name,
+        "attempt" => directive.attempt,
+        "oban_job_id" => job.id,
+        "error" => msg
+      },
+      directive
+    )
     |> ignore()
 
     directive
@@ -600,19 +949,23 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
   end
 
   # -----------------------
-  # Signals (optional)
+  # Lifecycle Signals (optional, but should include actor/subject context)
   # -----------------------
 
-  defp emit_signal_maybe(tenant, name, payload) when is_map(payload) do
+  defp emit_lifecycle_signal_maybe(tenant, name, payload, %Directive{} = directive)
+       when is_binary(tenant) and is_binary(name) and is_map(payload) do
     # Keep the runner resilient if signals aren't migrated/available yet.
     cond do
       not Code.ensure_loaded?(FleetPrompt.Signals.SignalBus) ->
         :noop
 
       true ->
+        actor = lifecycle_actor(directive)
+        subject = lifecycle_subject(directive)
+
         dedupe_key =
-          "directive_runner:#{tenant}:#{name}:#{payload["directive_id"] || payload[:directive_id] || "unknown"}:" <>
-            "#{payload["attempt"] || payload[:attempt] || "0"}"
+          "directive_runner:#{tenant}:#{name}:#{directive.id}:" <>
+            "#{directive.attempt || 0}"
 
         # Best-effort. If signals fail (e.g., missing tenant migration), don't fail the directive.
         try do
@@ -623,6 +976,8 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
               payload,
               %{},
               dedupe_key: dedupe_key,
+              actor: actor,
+              subject: subject,
               source: "directive_runner"
             )
 
@@ -633,7 +988,116 @@ defmodule FleetPrompt.Jobs.DirectiveRunner do
     end
   end
 
-  defp emit_signal_maybe(_tenant, _name, _payload), do: :noop
+  defp emit_lifecycle_signal_maybe(_tenant, _name, _payload, _directive), do: :noop
+
+  defp lifecycle_actor(%Directive{} = directive) do
+    case directive.requested_by_user_id do
+      nil -> nil
+      id -> %{type: "user", id: to_string(id)}
+    end
+  end
+
+  defp lifecycle_subject(%Directive{} = directive) do
+    payload = directive.payload || %{}
+
+    # Allow explicit subject override in payload
+    explicit = Map.get(payload, "subject") || Map.get(payload, :subject)
+
+    cond do
+      is_map(explicit) and is_binary(Map.get(explicit, "type")) and
+          is_binary(Map.get(explicit, "id")) ->
+        %{
+          type: Map.get(explicit, "type") |> normalize_optional_string(),
+          id: Map.get(explicit, "id") |> normalize_optional_string()
+        }
+
+      is_map(explicit) and is_binary(Map.get(explicit, :type)) and
+          not is_nil(Map.get(explicit, :id)) ->
+        %{
+          type: Map.get(explicit, :type) |> normalize_optional_string(),
+          id: Map.get(explicit, :id) |> to_string() |> normalize_optional_string()
+        }
+
+      true ->
+        thread_id =
+          Map.get(payload, "thread_id") ||
+            Map.get(payload, :thread_id) ||
+            Map.get(payload, "threadId") ||
+            Map.get(payload, :threadId)
+
+        post_id =
+          Map.get(payload, "post_id") ||
+            Map.get(payload, :post_id) ||
+            Map.get(payload, "postId") ||
+            Map.get(payload, :postId)
+
+        installation_id =
+          Map.get(payload, "installation_id") ||
+            Map.get(payload, :installation_id) ||
+            Map.get(payload, "installationId") ||
+            Map.get(payload, :installationId)
+
+        slug = Map.get(payload, "slug") || Map.get(payload, :slug)
+
+        cond do
+          is_binary(thread_id) and String.trim(thread_id) != "" ->
+            %{type: "forum.thread", id: String.trim(thread_id)}
+
+          is_binary(post_id) and String.trim(post_id) != "" ->
+            %{type: "forum.post", id: String.trim(post_id)}
+
+          is_binary(installation_id) and String.trim(installation_id) != "" ->
+            %{type: "package.installation", id: String.trim(installation_id)}
+
+          is_binary(slug) and String.trim(slug) != "" ->
+            %{type: "package", id: String.trim(slug)}
+
+          true ->
+            nil
+        end
+    end
+  end
+
+  defp lifecycle_subject(_), do: nil
+
+  defp emit_domain_signal_maybe(
+         tenant,
+         name,
+         payload,
+         %Directive{} = directive,
+         subject,
+         dedupe_key
+       )
+       when is_binary(tenant) and is_binary(name) and is_map(payload) and is_binary(dedupe_key) do
+    cond do
+      not Code.ensure_loaded?(FleetPrompt.Signals.SignalBus) ->
+        :noop
+
+      true ->
+        actor = lifecycle_actor(directive)
+
+        try do
+          _ =
+            FleetPrompt.Signals.SignalBus.emit(
+              tenant,
+              name,
+              payload,
+              %{},
+              dedupe_key: dedupe_key,
+              actor: actor,
+              subject: subject,
+              source: "directive_runner"
+            )
+
+          :ok
+        rescue
+          _ -> :noop
+        end
+    end
+  end
+
+  defp emit_domain_signal_maybe(_tenant, _name, _payload, _directive, _subject, _dedupe_key),
+    do: :noop
 
   # -----------------------
   # Helpers

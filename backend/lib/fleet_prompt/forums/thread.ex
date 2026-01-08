@@ -105,6 +105,26 @@ defmodule FleetPrompt.Forums.Thread do
       description("Update thread fields (Phase 2C; later enforce directive-backed moderation).")
       accept([:title, :status])
     end
+
+    update :lock do
+      description("Lock a thread (Phase 2C; should eventually be directive-backed).")
+      require_atomic?(false)
+      accept([])
+
+      change(fn changeset, _ctx ->
+        Ash.Changeset.force_change_attribute(changeset, :status, :locked)
+      end)
+    end
+
+    update :unlock do
+      description("Unlock a thread (Phase 2C; should eventually be directive-backed).")
+      require_atomic?(false)
+      accept([])
+
+      change(fn changeset, _ctx ->
+        Ash.Changeset.force_change_attribute(changeset, :status, :open)
+      end)
+    end
   end
 
   # NOTE: Policies/authorizers are intentionally omitted for now to avoid forcing a SAT solver.

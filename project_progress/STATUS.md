@@ -13,7 +13,11 @@ You now have a working split setup (Phoenix + Inertia backend, Svelte + Vite fro
   - tenant migration adds `forum_categories`, `forum_threads`, `forum_posts`
   - routes and UI now support creating categories, threads, and replies
   - forum writes emit Signals (`forum.category.created`, `forum.thread.created`, `forum.post.created`)
-  - thread view includes a minimal **audit trail** UI sourced from tenant Signals (best-effort)
+  - thread view includes a minimal **audit trail** UI sourced from tenant Signals + Directives (best-effort)
+  - moderation actions are now **directive-backed** (auditable intent) and executed by `DirectiveRunner`:
+    - lock/unlock thread
+    - hide/unhide/delete post
+  - moderation outcomes emit domain signals (e.g. `forum.thread.locked`, `forum.post.hidden`) alongside directive lifecycle signals (`directive.*`)
   - create flows have explicit prerequisites (enforced server-side; UX gated client-side):
     - must be signed in
     - must have a selected tenant (`tenant_schema` is required for writes)
@@ -127,7 +131,10 @@ For the Forums create flows specifically (`/forums/categories/new`, `/forums/new
       - reads: `/forums`, `/forums/c/:slug`, `/forums/t/:id`
       - creates: `POST /forums/categories`, `POST /forums/threads`, `POST /forums/t/:id/replies`
       - emits Signals for creates (`forum.category.created`, `forum.thread.created`, `forum.post.created`)
-      - thread view includes a minimal audit trail prop (`audit_events`) sourced from tenant Signals
+      - thread view includes a minimal audit trail prop (`audit_events`) sourced from tenant Signals + Directives (best-effort)
+      - moderation endpoints create tenant Directives and enqueue `FleetPrompt.Jobs.DirectiveRunner`:
+        - `forum.thread.lock` / `forum.thread.unlock`
+        - `forum.post.hide` / `forum.post.unhide` / `forum.post.delete`
   - `components/layouts/`
     - `root.html.heex` — root HTML shell + asset tags + inertia head/title
     - `admin.html.heex` — AshAdmin chrome (admin header + context banner)

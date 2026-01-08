@@ -20,7 +20,7 @@
         id: string;
         title: string;
         category?: string | null;
-        status?: "open" | "closed" | "archived" | string | null;
+        status?: "open" | "locked" | "closed" | "archived" | string | null;
         created_at?: string | null;
         updated_at?: string | null;
         author?: {
@@ -144,17 +144,29 @@
     let isPostingReply = false;
     let replyTextarea: HTMLTextAreaElement | null = null;
 
+    // Moderation state (Phase 2C wiring: directive-backed)
+    let lockError: string | null = null;
+    let isLocking = false;
+    let isUnlocking = false;
+
     const getCsrfToken = () =>
         document
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
             ?.getAttribute("content") ?? "";
 
-    const canPostReply = () =>
-        !!user?.id &&
-        !!tenant_schema &&
-        !!can_reply &&
-        !isPostingReply &&
-        replyBody.trim().length > 0;
+    let postReplyDisabledReason: string | null = null;
+    let canPostReply = false;
+
+    $: postReplyDisabledReason = (() => {
+        if (isPostingReply) return "Posting reply…";
+        if (!can_reply) return "Replies are disabled for this thread.";
+        if (!user?.id) return "You must be signed in to reply.";
+        if (replyBody.trim().length === 0)
+            return "Write a reply to enable posting.";
+        return null;
+    })();
+
+    $: canPostReply = postReplyDisabledReason === null;
 
     async function submitReply() {
         replyError = null;
@@ -227,6 +239,115 @@
                 block: "center",
             });
             replyTextarea.focus();
+        }
+    }
+
+    const threadIsReal = () => {
+        const id = thread?.id ?? null;
+        if (!id) return false;
+        if (id.startsWith("thread_demo_")) return false;
+        return true;
+    };
+
+    const canToggleLock = (lock: boolean) => {
+        const status = (effectiveThread().status ?? "")
+            .toString()
+            .toLowerCase();
+
+        if (!can_moderate) return false;
+        if (!user?.id) return false;
+        if (!tenant_schema) return false;
+        if (!threadIsReal()) return false;
+
+        if (isLocking || isUnlocking) return false;
+
+        // Only lock/unlock active threads
+        if (status === "archived") return false;
+
+        if (lock) {
+            // Lock only when not already locked
+            return status !== "locked";
+        }
+
+        // Unlock only when locked
+        return status === "locked";
+    };
+
+    async function requestThreadLock(lock: boolean) {
+        lockError = null;
+
+        if (!canToggleLock(lock)) {
+            lockError = "This action is not available right now.";
+            return;
+        }
+
+        const threadId = effectiveThread().id;
+        const csrf = getCsrfToken();
+
+        if (lock) isLocking = true;
+        else isUnlocking = true;
+
+        try {
+            const endpoint = lock
+                ? `/forums/t/${encodeURIComponent(threadId)}/lock`
+                : `/forums/t/${encodeURIComponent(threadId)}/unlock`;
+
+            const res = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+                },
+                body: JSON.stringify({}),
+            });
+
+            if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                lockError =
+                    text?.trim() ||
+                    `Failed to ${lock ? "lock" : "unlock"} thread (${res.status}).`;
+                return;
+            }
+
+            const data = await res.json().catch(() => ({}) as any);
+
+            // Optimistic UI update: the directive runner will make the durable change,
+            // but we can reflect the intended state immediately.
+            if (thread && threadIsReal()) {
+                thread = {
+                    ...thread,
+                    status: lock ? "locked" : "open",
+                    updated_at: nowIso(),
+                };
+            }
+
+            can_reply = lock ? false : true;
+
+            // Optimistically append an audit event so the user sees that a directive was requested.
+            // The real audit trail will include the persisted directive + signals on refresh.
+            const directiveId = (data as any)?.directive_id ?? null;
+
+            const optimisticAuditEvent: AuditEvent = {
+                id: directiveId,
+                kind: "directive",
+                name: "directive.requested",
+                occurred_at: nowIso(),
+                summary: lock
+                    ? "Requested thread lock (directive-backed)."
+                    : "Requested thread unlock (directive-backed).",
+                actor: { type: "user", id: (user?.id ?? "").toString() },
+                subject: { type: "forum.thread", id: threadId },
+                payload: data,
+                metadata: { source: "ui_optimistic" },
+            };
+
+            audit_events = [optimisticAuditEvent].concat(audit_events ?? []);
+        } catch (err: any) {
+            lockError =
+                err?.message ?? `Failed to ${lock ? "lock" : "unlock"} thread.`;
+        } finally {
+            isLocking = false;
+            isUnlocking = false;
         }
     }
 
@@ -603,12 +724,8 @@
                         type="button"
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
                          bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 disabled:opacity-60 disabled:pointer-events-none"
-                        disabled={!canPostReply()}
-                        title={canPostReply()
-                            ? "Post reply"
-                            : !can_reply
-                              ? "Replies are disabled for this thread."
-                              : "Write a reply to enable posting."}
+                        disabled={!canPostReply}
+                        title={postReplyDisabledReason ?? "Post reply"}
                         on:click={submitReply}
                     >
                         {#if isPostingReply}
@@ -681,11 +798,45 @@
                         type="button"
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
                          border border-border bg-background hover:bg-muted h-9 px-4 disabled:opacity-60 disabled:pointer-events-none"
-                        disabled={!can_moderate}
-                        title="Moderation requires permissions and directive-backed actions."
+                        disabled={!canToggleLock(true)}
+                        title="Lock this thread (directive-backed)."
+                        on:click={() => requestThreadLock(true)}
                     >
-                        Moderate
+                        {#if isLocking}
+                            Locking…
+                        {:else}
+                            Lock thread
+                        {/if}
                     </button>
+
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+                         border border-border bg-background hover:bg-muted h-9 px-4 disabled:opacity-60 disabled:pointer-events-none"
+                        disabled={!canToggleLock(false)}
+                        title="Unlock this thread (directive-backed)."
+                        on:click={() => requestThreadLock(false)}
+                    >
+                        {#if isUnlocking}
+                            Unlocking…
+                        {:else}
+                            Unlock thread
+                        {/if}
+                    </button>
+
+                    {#if lockError}
+                        <div
+                            class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+                        >
+                            {lockError}
+                        </div>
+                    {/if}
+
+                    <div class="text-xs text-muted-foreground">
+                        These actions create a tenant Directive and are executed
+                        by the Directive runner. Refresh to see the full audit
+                        trail.
+                    </div>
                 </div>
             </div>
 

@@ -22,7 +22,9 @@ defmodule FleetPromptWeb.ForumsController do
   require Logger
   require Ash.Query
 
+  alias FleetPrompt.Directives.Directive
   alias FleetPrompt.Forums.{Category, Post, Thread}
+  alias FleetPrompt.Jobs.DirectiveRunner
   alias FleetPrompt.Signals.{Signal, SignalBus}
 
   @doc false
@@ -607,7 +609,13 @@ defmodule FleetPromptWeb.ForumsController do
             can_reply = thr.status == :open
 
             audit_signals = load_thread_audit_signals(tenant, thr.id)
-            audit_events = Enum.map(audit_signals, &Map.put(&1, :kind, "signal"))
+            audit_directives = load_thread_audit_directives(tenant, thr.id)
+
+            audit_events =
+              Enum.concat([
+                Enum.map(audit_signals, &Map.put(&1, :kind, "signal")),
+                Enum.map(audit_directives, &Map.put(&1, :kind, "directive"))
+              ])
 
             render_page(conn, "ForumsThread", %{
               title: "Forums",
@@ -934,6 +942,488 @@ defmodule FleetPromptWeb.ForumsController do
   end
 
   # -----------------------
+  # Forums moderation (Phase 2C lighthouse)
+  # -----------------------
+  #
+  # These endpoints are intentionally directive-backed:
+  # - the controller records auditable intent (Directive + "directive.requested" signal)
+  # - the runner performs the mutation and emits lifecycle + domain signals
+  #
+  # NOTE: Authorization is enforced here (request-time). The DirectiveRunner does not authorize.
+  def lock_thread(conn, %{"id" => thread_id} = _params) do
+    tenant = conn.assigns[:ash_tenant]
+    user = conn.assigns[:current_user]
+    role = conn.assigns[:current_role]
+
+    cond do
+      is_nil(user) ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{ok: false, error: "authentication required"})
+
+      not is_binary(tenant) or String.trim(tenant) == "" ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{ok: false, error: "tenant context is missing"})
+
+      role not in [:owner, :admin] ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{ok: false, error: "insufficient permissions"})
+
+      not Code.ensure_loaded?(Directive) or not Code.ensure_loaded?(DirectiveRunner) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "directives are not implemented yet"})
+
+      true ->
+        case get_thread_by_id(tenant, thread_id) do
+          {:ok, nil} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{ok: false, error: "thread_not_found"})
+
+          {:ok, %Thread{} = thr} ->
+            idempotency_key = "forum.thread.lock:#{tenant}:#{thr.id}"
+
+            subject = %{type: "forum.thread", id: to_string(thr.id)}
+            actor = %{type: "user", id: to_string(user.id)}
+
+            request_id = request_id_from_logger_or_assigns(conn)
+
+            payload = %{
+              "thread_id" => to_string(thr.id),
+              "subject" => %{"type" => "forum.thread", "id" => to_string(thr.id)}
+            }
+
+            metadata =
+              %{
+                "request_id" => request_id,
+                "actor_role" => (role && to_string(role)) || nil,
+                "source" => "web"
+              }
+              |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+            with {:ok, %Directive{} = directive, directive_marker} <-
+                   get_or_create_directive(
+                     tenant,
+                     %{
+                       name: "forum.thread.lock",
+                       idempotency_key: idempotency_key,
+                       requested_by_user_id: user.id,
+                       payload: payload,
+                       metadata: metadata
+                     },
+                     idempotency_key
+                   ),
+                 :ok <-
+                   emit_directive_requested_signal(
+                     tenant,
+                     directive,
+                     actor,
+                     subject,
+                     %{
+                       "thread_id" => to_string(thr.id),
+                       "directive_created" => directive_marker == :created
+                     }
+                   ),
+                 {:ok, enqueued?} <- enqueue_directive_runner_job(directive, tenant) do
+              json(conn, %{
+                ok: true,
+                tenant: tenant,
+                directive_id: directive.id,
+                directive_status: directive.status,
+                directive_created: directive_marker == :created,
+                enqueued: enqueued?,
+                thread_id: thr.id
+              })
+            else
+              {:error, err} ->
+                conn
+                |> put_status(:unprocessable_entity)
+                |> json(%{ok: false, error: normalize_error(err)})
+
+              {:discard, reason} ->
+                conn
+                |> put_status(:unprocessable_entity)
+                |> json(%{ok: false, error: reason})
+            end
+
+          {:error, err} ->
+            conn
+            |> put_status(:internal_server_error)
+            |> json(%{ok: false, error: normalize_error(err)})
+        end
+    end
+  end
+
+  def unlock_thread(conn, %{"id" => thread_id} = _params) do
+    tenant = conn.assigns[:ash_tenant]
+    user = conn.assigns[:current_user]
+    role = conn.assigns[:current_role]
+
+    cond do
+      is_nil(user) ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{ok: false, error: "authentication required"})
+
+      not is_binary(tenant) or String.trim(tenant) == "" ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{ok: false, error: "tenant context is missing"})
+
+      role not in [:owner, :admin] ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{ok: false, error: "insufficient permissions"})
+
+      not Code.ensure_loaded?(Directive) or not Code.ensure_loaded?(DirectiveRunner) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "directives are not implemented yet"})
+
+      true ->
+        case get_thread_by_id(tenant, thread_id) do
+          {:ok, nil} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{ok: false, error: "thread_not_found"})
+
+          {:ok, %Thread{} = thr} ->
+            idempotency_key = "forum.thread.unlock:#{tenant}:#{thr.id}"
+
+            subject = %{type: "forum.thread", id: to_string(thr.id)}
+            actor = %{type: "user", id: to_string(user.id)}
+
+            request_id = request_id_from_logger_or_assigns(conn)
+
+            payload = %{
+              "thread_id" => to_string(thr.id),
+              "subject" => %{"type" => "forum.thread", "id" => to_string(thr.id)}
+            }
+
+            metadata =
+              %{
+                "request_id" => request_id,
+                "actor_role" => (role && to_string(role)) || nil,
+                "source" => "web"
+              }
+              |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+            with {:ok, %Directive{} = directive, directive_marker} <-
+                   get_or_create_directive(
+                     tenant,
+                     %{
+                       name: "forum.thread.unlock",
+                       idempotency_key: idempotency_key,
+                       requested_by_user_id: user.id,
+                       payload: payload,
+                       metadata: metadata
+                     },
+                     idempotency_key
+                   ),
+                 :ok <-
+                   emit_directive_requested_signal(
+                     tenant,
+                     directive,
+                     actor,
+                     subject,
+                     %{
+                       "thread_id" => to_string(thr.id),
+                       "directive_created" => directive_marker == :created
+                     }
+                   ),
+                 {:ok, enqueued?} <- enqueue_directive_runner_job(directive, tenant) do
+              json(conn, %{
+                ok: true,
+                tenant: tenant,
+                directive_id: directive.id,
+                directive_status: directive.status,
+                directive_created: directive_marker == :created,
+                enqueued: enqueued?,
+                thread_id: thr.id
+              })
+            else
+              {:error, err} ->
+                conn
+                |> put_status(:unprocessable_entity)
+                |> json(%{ok: false, error: normalize_error(err)})
+
+              {:discard, reason} ->
+                conn
+                |> put_status(:unprocessable_entity)
+                |> json(%{ok: false, error: reason})
+            end
+
+          {:error, err} ->
+            conn
+            |> put_status(:internal_server_error)
+            |> json(%{ok: false, error: normalize_error(err)})
+        end
+    end
+  end
+
+  def hide_post(conn, %{"id" => post_id} = _params) do
+    moderate_post(conn, post_id, %{
+      directive_name: "forum.post.hide",
+      idempotency_prefix: "forum.post.hide",
+      subject_signal_name: "forum.post.hide.requested"
+    })
+  end
+
+  def unhide_post(conn, %{"id" => post_id} = _params) do
+    moderate_post(conn, post_id, %{
+      directive_name: "forum.post.unhide",
+      idempotency_prefix: "forum.post.unhide",
+      subject_signal_name: "forum.post.unhide.requested"
+    })
+  end
+
+  def delete_post(conn, %{"id" => post_id} = _params) do
+    moderate_post(conn, post_id, %{
+      directive_name: "forum.post.delete",
+      idempotency_prefix: "forum.post.delete",
+      subject_signal_name: "forum.post.delete.requested"
+    })
+  end
+
+  defp moderate_post(conn, post_id, opts) when is_map(opts) do
+    tenant = conn.assigns[:ash_tenant]
+    user = conn.assigns[:current_user]
+    role = conn.assigns[:current_role]
+
+    cond do
+      is_nil(user) ->
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{ok: false, error: "authentication required"})
+
+      not is_binary(tenant) or String.trim(tenant) == "" ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{ok: false, error: "tenant context is missing"})
+
+      role not in [:owner, :admin] ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{ok: false, error: "insufficient permissions"})
+
+      not Code.ensure_loaded?(Directive) or not Code.ensure_loaded?(DirectiveRunner) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "directives are not implemented yet"})
+
+      not Code.ensure_loaded?(Post) ->
+        conn
+        |> put_status(:not_implemented)
+        |> json(%{ok: false, error: "forums posts are not implemented yet"})
+
+      true ->
+        case get_post_by_id(tenant, post_id) do
+          {:ok, nil} ->
+            conn
+            |> put_status(:not_found)
+            |> json(%{ok: false, error: "post_not_found"})
+
+          {:ok, %Post{} = post} ->
+            idempotency_key =
+              "#{Map.fetch!(opts, :idempotency_prefix)}:#{tenant}:#{to_string(post.id)}"
+
+            subject = %{type: "forum.post", id: to_string(post.id)}
+            actor = %{type: "user", id: to_string(user.id)}
+            request_id = request_id_from_logger_or_assigns(conn)
+
+            payload = %{
+              "post_id" => to_string(post.id),
+              "thread_id" => to_string(post.thread_id),
+              "subject" => %{"type" => "forum.post", "id" => to_string(post.id)}
+            }
+
+            metadata =
+              %{
+                "request_id" => request_id,
+                "actor_role" => (role && to_string(role)) || nil,
+                "source" => "web"
+              }
+              |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+            with {:ok, %Directive{} = directive, directive_marker} <-
+                   get_or_create_directive(
+                     tenant,
+                     %{
+                       name: Map.fetch!(opts, :directive_name),
+                       idempotency_key: idempotency_key,
+                       requested_by_user_id: user.id,
+                       payload: payload,
+                       metadata: metadata
+                     },
+                     idempotency_key
+                   ),
+                 :ok <-
+                   emit_directive_requested_signal(
+                     tenant,
+                     directive,
+                     actor,
+                     subject,
+                     %{
+                       "post_id" => to_string(post.id),
+                       "thread_id" => to_string(post.thread_id),
+                       "directive_created" => directive_marker == :created
+                     }
+                   ),
+                 {:ok, enqueued?} <- enqueue_directive_runner_job(directive, tenant) do
+              json(conn, %{
+                ok: true,
+                tenant: tenant,
+                directive_id: directive.id,
+                directive_status: directive.status,
+                directive_created: directive_marker == :created,
+                enqueued: enqueued?,
+                post_id: post.id,
+                thread_id: post.thread_id
+              })
+            else
+              {:error, err} ->
+                conn
+                |> put_status(:unprocessable_entity)
+                |> json(%{ok: false, error: normalize_error(err)})
+
+              {:discard, reason} ->
+                conn
+                |> put_status(:unprocessable_entity)
+                |> json(%{ok: false, error: reason})
+            end
+
+          {:error, err} ->
+            conn
+            |> put_status(:internal_server_error)
+            |> json(%{ok: false, error: normalize_error(err)})
+        end
+    end
+  end
+
+  defp get_post_by_id(tenant, post_id) when is_binary(tenant) and is_binary(post_id) do
+    query =
+      Post
+      |> Ash.Query.for_read(:by_id, %{id: post_id})
+
+    Ash.read_one(query, tenant: tenant)
+  end
+
+  defp get_post_by_id(_tenant, _post_id), do: {:ok, nil}
+
+  defp get_or_create_directive(tenant, attrs, idempotency_key)
+       when is_binary(tenant) and is_map(attrs) and is_binary(idempotency_key) do
+    cond do
+      not Code.ensure_loaded?(Directive) ->
+        {:discard, "directives are not implemented yet"}
+
+      true ->
+        query =
+          Directive
+          |> Ash.Query.for_read(:by_idempotency_key, %{idempotency_key: idempotency_key})
+
+        case Ash.read_one(query, tenant: tenant) do
+          {:ok, %Directive{} = existing} ->
+            {:ok, existing, :existing}
+
+          {:ok, nil} ->
+            changeset =
+              Directive
+              |> Ash.Changeset.for_create(:request, attrs)
+              |> Ash.Changeset.set_tenant(tenant)
+
+            case Ash.create(changeset) do
+              {:ok, %Directive{} = created} -> {:ok, created, :created}
+              {:error, err} -> {:error, err}
+            end
+
+          {:error, err} ->
+            {:error, err}
+        end
+    end
+  end
+
+  defp get_or_create_directive(_tenant, _attrs, _idempotency_key),
+    do: {:error, "invalid directive request"}
+
+  defp enqueue_directive_runner_job(%Directive{} = directive, tenant) when is_binary(tenant) do
+    cond do
+      not Code.ensure_loaded?(Oban) ->
+        {:ok, false}
+
+      not Code.ensure_loaded?(DirectiveRunner) ->
+        {:ok, false}
+
+      not function_exported?(DirectiveRunner, :new, 1) ->
+        {:ok, false}
+
+      true ->
+        job =
+          DirectiveRunner.new(%{
+            "directive_id" => directive.id,
+            "tenant" => tenant
+          })
+
+        case Oban.insert(job) do
+          {:ok, _job} -> {:ok, true}
+          {:error, err} -> {:error, err}
+        end
+    end
+  end
+
+  defp enqueue_directive_runner_job(_directive, _tenant), do: {:ok, false}
+
+  defp emit_directive_requested_signal(
+         tenant,
+         %Directive{} = directive,
+         actor,
+         subject,
+         extra_payload
+       )
+       when is_binary(tenant) and is_map(extra_payload) do
+    request_payload =
+      %{
+        "directive_id" => to_string(directive.id),
+        "directive_name" => to_string(directive.name),
+        "directive_status" => to_string(directive.status)
+      }
+      |> Map.merge(extra_payload)
+
+    request_id = Map.get(directive.metadata || %{}, "request_id")
+
+    metadata =
+      %{
+        request_id: request_id
+      }
+      |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+    dedupe_key = "directive.requested:#{tenant}:#{to_string(directive.id)}"
+
+    _ =
+      SignalBus.emit(
+        tenant,
+        "directive.requested",
+        request_payload,
+        metadata,
+        dedupe_key: dedupe_key,
+        actor: actor,
+        subject: subject,
+        source: "web"
+      )
+
+    :ok
+  end
+
+  defp emit_directive_requested_signal(_tenant, _directive, _actor, _subject, _extra_payload),
+    do: :ok
+
+  defp normalize_error(%{__exception__: true} = err), do: Exception.message(err)
+  defp normalize_error(err) when is_binary(err), do: err
+  defp normalize_error(err), do: inspect(err)
+
+  # -----------------------
   # Serialization / helpers
   # -----------------------
 
@@ -1067,6 +1557,102 @@ defmodule FleetPromptWeb.ForumsController do
   end
 
   defp load_thread_audit_signals(_tenant, _thread_id, _limit), do: []
+
+  defp load_thread_audit_directives(tenant, thread_id, limit \\ 200)
+
+  defp load_thread_audit_directives(tenant, thread_id, limit)
+       when is_binary(tenant) and is_binary(thread_id) and is_integer(limit) do
+    cond do
+      not Code.ensure_loaded?(Directive) ->
+        []
+
+      true ->
+        query =
+          Directive
+          |> Ash.Query.for_read(:recent, %{limit: min(max(limit, 1), 500)})
+
+        case Ash.read(query, tenant: tenant) do
+          {:ok, directives} when is_list(directives) ->
+            directives
+            |> Enum.filter(&directive_matches_thread?(&1, thread_id))
+            |> Enum.map(&serialize_directive/1)
+
+          _ ->
+            []
+        end
+    end
+  end
+
+  defp load_thread_audit_directives(_tenant, _thread_id, _limit), do: []
+
+  defp directive_matches_thread?(directive, thread_id)
+       when is_map(directive) and is_binary(thread_id) do
+    thread_id = String.trim(thread_id)
+
+    cond do
+      thread_id == "" ->
+        false
+
+      true ->
+        payload = Map.get(directive, :payload) || %{}
+
+        # Subject reference (preferred when present)
+        subject = Map.get(payload, "subject") || Map.get(payload, :subject) || %{}
+        subject_type = Map.get(subject, "type") || Map.get(subject, :type)
+        subject_id = Map.get(subject, "id") || Map.get(subject, :id)
+
+        payload_thread_id =
+          Map.get(payload, "thread_id") ||
+            Map.get(payload, :thread_id) ||
+            Map.get(payload, "threadId") ||
+            Map.get(payload, :threadId)
+
+        (to_string(subject_type || "") == "forum.thread" and
+           to_string(subject_id || "") == thread_id) or
+          to_string(payload_thread_id || "") == thread_id
+    end
+  end
+
+  defp directive_matches_thread?(_directive, _thread_id), do: false
+
+  defp serialize_directive(directive) when is_map(directive) do
+    payload = Map.get(directive, :payload) || Map.get(directive, "payload") || %{}
+    metadata = Map.get(directive, :metadata) || Map.get(directive, "metadata") || %{}
+
+    occurred_at =
+      iso_datetime(
+        Map.get(directive, :inserted_at) ||
+          Map.get(directive, "inserted_at") ||
+          Map.get(directive, :scheduled_at) ||
+          Map.get(directive, "scheduled_at")
+      )
+
+    %{
+      id: Map.get(directive, :id) || Map.get(directive, "id"),
+      name: Map.get(directive, :name) || Map.get(directive, "name"),
+      status: Map.get(directive, :status) || Map.get(directive, "status"),
+      occurred_at: occurred_at,
+      actor: %{
+        type: "user",
+        id:
+          (Map.get(directive, :requested_by_user_id) || Map.get(directive, "requested_by_user_id"))
+          |> case do
+            nil -> nil
+            v -> to_string(v)
+          end
+      },
+      subject:
+        case Map.get(payload, "subject") || Map.get(payload, :subject) do
+          %{"type" => t, "id" => i} -> %{type: t, id: i}
+          %{type: t, id: i} when not is_nil(t) and not is_nil(i) -> %{type: t, id: to_string(i)}
+          _ -> %{type: nil, id: nil}
+        end,
+      payload: payload,
+      metadata: metadata
+    }
+  end
+
+  defp serialize_directive(_), do: %{}
 
   defp signal_matches_thread?(signal, thread_id) when is_map(signal) and is_binary(thread_id) do
     thread_id = String.trim(thread_id)

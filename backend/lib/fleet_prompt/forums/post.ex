@@ -20,7 +20,7 @@ defmodule FleetPrompt.Forums.Post do
     data_layer: AshPostgres.DataLayer,
     extensions: [AshAdmin.Resource]
 
-  import Ash.Expr, only: [expr: 1]
+  import Ash.Expr, only: [expr: 1, arg: 1]
 
   postgres do
     table("forum_posts")
@@ -82,6 +82,16 @@ defmodule FleetPrompt.Forums.Post do
 
   actions do
     defaults([:read, :destroy])
+
+    read :by_id do
+      get?(true)
+
+      argument :id, :uuid do
+        allow_nil?(false)
+      end
+
+      filter(expr(id == ^arg(:id)))
+    end
 
     read :by_thread do
       argument :thread_id, :uuid do

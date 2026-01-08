@@ -304,4 +304,149 @@ defmodule FleetPrompt.Directives.DirectiveRunnerTest do
     # Ensure we didn't accidentally depend on the installation existing after uninstall
     refute is_nil(installation.id)
   end
+
+  test "DirectiveRunner executes forum.thread.lock and locks the thread",
+       %{user: user, tenant: tenant} do
+    uniq = System.unique_integer([:positive])
+
+    {:ok, category} =
+      FleetPrompt.Forums.Category
+      |> Ash.Changeset.for_create(:create, %{
+        slug: "general-#{uniq}",
+        name: "General #{uniq}",
+        status: :active
+      })
+      |> Ash.Changeset.set_tenant(tenant)
+      |> Ash.create()
+
+    {:ok, thread} =
+      FleetPrompt.Forums.Thread
+      |> Ash.Changeset.for_create(:create, %{
+        category_id: category.id,
+        title: "Thread #{uniq}",
+        status: :open,
+        created_by_user_id: user.id
+      })
+      |> Ash.Changeset.set_tenant(tenant)
+      |> Ash.create()
+
+    lock_key = "forum.thread.lock:#{tenant}:#{thread.id}"
+
+    directive =
+      create_directive!(
+        tenant,
+        user,
+        "forum.thread.lock",
+        lock_key,
+        %{
+          "thread_id" => to_string(thread.id),
+          "subject" => %{"type" => "forum.thread", "id" => to_string(thread.id)}
+        }
+      )
+
+    job = %Oban.Job{
+      id: 9001,
+      attempt: 1,
+      max_attempts: 10,
+      queue: "default",
+      args: %{
+        "directive_id" => directive.id,
+        "tenant" => tenant
+      }
+    }
+
+    assert :ok = DirectiveRunner.perform(job)
+
+    directive = reload_directive!(tenant, directive.id)
+    assert directive.status == :succeeded
+
+    type = Map.get(directive.result, "type") || Map.get(directive.result, :type)
+    assert type == "forum.thread.lock"
+
+    {:ok, thread_after} =
+      FleetPrompt.Forums.Thread
+      |> Ash.Query.for_read(:by_id, %{id: thread.id})
+      |> Ash.read_one(tenant: tenant)
+
+    assert thread_after.status == :locked
+  end
+
+  test "DirectiveRunner executes forum.post.hide and hides the post",
+       %{user: user, tenant: tenant} do
+    uniq = System.unique_integer([:positive])
+
+    {:ok, category} =
+      FleetPrompt.Forums.Category
+      |> Ash.Changeset.for_create(:create, %{
+        slug: "general-hide-#{uniq}",
+        name: "General Hide #{uniq}",
+        status: :active
+      })
+      |> Ash.Changeset.set_tenant(tenant)
+      |> Ash.create()
+
+    {:ok, thread} =
+      FleetPrompt.Forums.Thread
+      |> Ash.Changeset.for_create(:create, %{
+        category_id: category.id,
+        title: "Thread Hide #{uniq}",
+        status: :open,
+        created_by_user_id: user.id
+      })
+      |> Ash.Changeset.set_tenant(tenant)
+      |> Ash.create()
+
+    {:ok, post} =
+      FleetPrompt.Forums.Post
+      |> Ash.Changeset.for_create(:create, %{
+        thread_id: thread.id,
+        content: "Hello from test #{uniq}",
+        author_type: :human,
+        author_id: to_string(user.id),
+        metadata: %{"source" => "test"}
+      })
+      |> Ash.Changeset.set_tenant(tenant)
+      |> Ash.create()
+
+    hide_key = "forum.post.hide:#{tenant}:#{post.id}"
+
+    directive =
+      create_directive!(
+        tenant,
+        user,
+        "forum.post.hide",
+        hide_key,
+        %{
+          "post_id" => to_string(post.id),
+          "thread_id" => to_string(thread.id),
+          "subject" => %{"type" => "forum.post", "id" => to_string(post.id)}
+        }
+      )
+
+    job = %Oban.Job{
+      id: 9002,
+      attempt: 1,
+      max_attempts: 10,
+      queue: "default",
+      args: %{
+        "directive_id" => directive.id,
+        "tenant" => tenant
+      }
+    }
+
+    assert :ok = DirectiveRunner.perform(job)
+
+    directive = reload_directive!(tenant, directive.id)
+    assert directive.status == :succeeded
+
+    type = Map.get(directive.result, "type") || Map.get(directive.result, :type)
+    assert type == "forum.post.hide"
+
+    {:ok, post_after} =
+      FleetPrompt.Forums.Post
+      |> Ash.Query.for_read(:by_id, %{id: post.id})
+      |> Ash.read_one(tenant: tenant)
+
+    assert post_after.status == :hidden
+  end
 end
