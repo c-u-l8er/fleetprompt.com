@@ -46,6 +46,41 @@
 
     let currentPath = "";
 
+    // Header dropdown menus
+    let orgMenuOpen = false;
+    let userMenuOpen = false;
+
+    let orgButtonEl: HTMLElement | null = null;
+    let orgMenuEl: HTMLElement | null = null;
+
+    let userButtonEl: HTMLElement | null = null;
+    let userMenuEl: HTMLElement | null = null;
+
+    const closeOrgMenu = () => {
+        orgMenuOpen = false;
+    };
+
+    const closeUserMenu = () => {
+        userMenuOpen = false;
+    };
+
+    const closeAllMenus = () => {
+        orgMenuOpen = false;
+        userMenuOpen = false;
+    };
+
+    const toggleOrgMenu = () => {
+        orgMenuOpen = !orgMenuOpen;
+        if (orgMenuOpen) userMenuOpen = false;
+    };
+
+    const toggleUserMenu = () => {
+        userMenuOpen = !userMenuOpen;
+        if (userMenuOpen) orgMenuOpen = false;
+    };
+
+    $: currentOrgForLabel = current_organization ?? organizations?.[0] ?? null;
+
     const updateCurrentPath = () => {
         if (typeof window === "undefined") return;
         currentPath = window.location.pathname;
@@ -56,14 +91,47 @@
 
         // Keep nav highlighting in sync with Inertia client-side navigation.
         // Inertia dispatches DOM events; we listen for them instead of importing a router.
-        const handler = () => updateCurrentPath();
+        const handler = () => {
+            closeAllMenus();
+            updateCurrentPath();
+        };
+
+        const onDocumentClick = (e: MouseEvent) => {
+            const target = e.target as Node | null;
+            if (!target) return;
+
+            if (orgMenuOpen) {
+                const inOrg =
+                    (orgButtonEl && orgButtonEl.contains(target)) ||
+                    (orgMenuEl && orgMenuEl.contains(target));
+                if (!inOrg) orgMenuOpen = false;
+            }
+
+            if (userMenuOpen) {
+                const inUser =
+                    (userButtonEl && userButtonEl.contains(target)) ||
+                    (userMenuEl && userMenuEl.contains(target));
+                if (!inUser) userMenuOpen = false;
+            }
+        };
+
+        const onDocumentKeydown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") closeAllMenus();
+        };
 
         document.addEventListener("inertia:navigate", handler);
         document.addEventListener("inertia:finish", handler);
 
+        // Close dropdowns when clicking away / pressing Escape
+        document.addEventListener("click", onDocumentClick, true);
+        document.addEventListener("keydown", onDocumentKeydown);
+
         return () => {
             document.removeEventListener("inertia:navigate", handler);
             document.removeEventListener("inertia:finish", handler);
+
+            document.removeEventListener("click", onDocumentClick, true);
+            document.removeEventListener("keydown", onDocumentKeydown);
         };
     });
 
@@ -227,101 +295,256 @@
                         <a use:inertia href="/chat" class={linkClass("/chat")}>
                             Chat
                         </a>
-
-                        {#if showAdminLink}
-                            <!-- AshAdmin (LiveView) lives outside Inertia; use plain href -->
-                            <a
-                                href="/admin/tenant"
-                                class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                            >
-                                Admin
-                            </a>
-                        {/if}
                     </nav>
                 </div>
 
                 <div class="flex items-center gap-3">
                     <slot name="nav-right">
-                        {#if organizations && organizations.length > 1}
-                            <div class="hidden sm:flex items-center gap-2">
-                                <span class="text-xs text-muted-foreground">
-                                    Org
-                                </span>
-
-                                <select
-                                    class="h-9 rounded-md border border-border bg-background px-2.5 text-sm text-foreground
-                                           hover:bg-muted/40 transition-colors disabled:opacity-60"
-                                    bind:value={selectedOrgId}
-                                    on:change={(e) =>
-                                        switchOrganization(
-                                            (
-                                                e.currentTarget as HTMLSelectElement
-                                            ).value,
-                                        )}
-                                    disabled={isSwitchingOrg}
-                                    aria-label="Select organization"
-                                    title="Switch organization"
-                                >
-                                    {#each organizations as org (org.id)}
-                                        <option value={org.id}>
-                                            {orgLabel(org)}
-                                        </option>
-                                    {/each}
-                                </select>
-                            </div>
-                        {:else if current_organization}
-                            <span
-                                class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground"
-                                title="Current organization"
-                            >
-                                Org:
-                                <span class="ml-1 font-medium text-foreground">
-                                    {orgLabel(current_organization)}
-                                </span>
-                            </span>
-                        {/if}
-
-                        {#if tenantLabel()}
-                            <a
-                                href="/admin/tenant"
-                                class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                                title="Tenant context (schema-per-tenant)"
-                            >
-                                Tenant: <span
-                                    class="ml-1 font-medium text-foreground"
-                                    >{tenantLabel()}</span
-                                >
-                            </a>
-                        {/if}
-
                         {#if user}
-                            <div
-                                class="hidden sm:flex flex-col items-end leading-tight"
-                            >
-                                <span class="text-sm font-medium">
-                                    {user.name ?? user.email ?? "Signed in"}
-                                </span>
-                                {#if user.email && user.name}
-                                    <span class="text-xs text-muted-foreground"
-                                        >{user.email}</span
+                            <!-- Org/Tenant dropdown -->
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors
+                                           border border-border bg-background hover:bg-muted h-9 max-w-[18rem]"
+                                    aria-haspopup="menu"
+                                    aria-expanded={orgMenuOpen}
+                                    on:click={toggleOrgMenu}
+                                    bind:this={orgButtonEl}
+                                    title="Organization / tenant"
+                                >
+                                    <span class="truncate">
+                                        {orgLabel(currentOrgForLabel)}
+                                    </span>
+                                    {#if tenantLabel()}
+                                        <span
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {tenantLabel()}
+                                        </span>
+                                    {/if}
+                                    <svg
+                                        class="h-4 w-4 text-muted-foreground"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                        aria-hidden="true"
                                     >
+                                        <path
+                                            fill-rule="evenodd"
+                                            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z"
+                                            clip-rule="evenodd"
+                                        />
+                                    </svg>
+                                </button>
+
+                                {#if orgMenuOpen}
+                                    <div
+                                        class="absolute right-0 mt-2 w-80 rounded-md border border-border bg-background shadow-lg overflow-hidden z-50"
+                                        role="menu"
+                                        bind:this={orgMenuEl}
+                                    >
+                                        <div
+                                            class="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/20"
+                                        >
+                                            Organization / tenant
+                                        </div>
+
+                                        {#if organizations && organizations.length > 0}
+                                            <div class="py-1">
+                                                {#each organizations as org (org.id)}
+                                                    <button
+                                                        type="button"
+                                                        class="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors
+                                                               disabled:opacity-60 disabled:pointer-events-none"
+                                                        on:click={() => {
+                                                            closeOrgMenu();
+                                                            switchOrganization(
+                                                                org.id,
+                                                            );
+                                                        }}
+                                                        disabled={isSwitchingOrg}
+                                                        role="menuitem"
+                                                        title="Switch organization"
+                                                    >
+                                                        <span class="truncate">
+                                                            {orgLabel(org)}
+                                                        </span>
+                                                        {#if current_organization?.id === org.id}
+                                                            <span
+                                                                class="text-xs text-muted-foreground"
+                                                            >
+                                                                Current
+                                                            </span>
+                                                        {/if}
+                                                    </button>
+                                                {/each}
+                                            </div>
+                                        {/if}
+
+                                        <div class="h-px bg-border"></div>
+
+                                        <div class="px-3 py-2">
+                                            <div
+                                                class="text-xs font-medium text-muted-foreground"
+                                            >
+                                                Tenant
+                                            </div>
+                                            <div class="mt-1 text-sm">
+                                                {#if tenantLabel()}
+                                                    <span class="font-medium"
+                                                        >{tenantLabel()}</span
+                                                    >
+                                                {:else}
+                                                    <span
+                                                        class="text-muted-foreground"
+                                                        >public</span
+                                                    >
+                                                {/if}
+                                            </div>
+
+                                            <div
+                                                class="mt-3 flex flex-col gap-1"
+                                            >
+                                                <a
+                                                    href="/admin/tenant"
+                                                    class="inline-flex items-center rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                                                    role="menuitem"
+                                                    on:click={() =>
+                                                        closeOrgMenu()}
+                                                >
+                                                    Select tenant
+                                                </a>
+                                                <a
+                                                    href="/admin/portal"
+                                                    class="inline-flex items-center rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                                                    role="menuitem"
+                                                    on:click={() =>
+                                                        closeOrgMenu()}
+                                                >
+                                                    Admin portal
+                                                </a>
+                                                <a
+                                                    href="/admin"
+                                                    class="inline-flex items-center rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                                                    role="menuitem"
+                                                    on:click={() =>
+                                                        closeOrgMenu()}
+                                                >
+                                                    Open admin
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
                                 {/if}
                             </div>
 
-                            <button
-                                type="button"
-                                class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors
-                       border border-border bg-background hover:bg-muted h-9 disabled:opacity-60 disabled:pointer-events-none"
-                                on:click={logout}
-                                disabled={isLoggingOut}
-                                title="Sign out"
-                            >
-                                {#if isLoggingOut}
-                                    Signing out…
-                                {:else}
-                                    Sign out
+                            <!-- User dropdown -->
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors
+                                           border border-border bg-background hover:bg-muted h-9 max-w-[16rem]"
+                                    aria-haspopup="menu"
+                                    aria-expanded={userMenuOpen}
+                                    on:click={toggleUserMenu}
+                                    bind:this={userButtonEl}
+                                    title="User menu"
+                                >
+                                    <span class="truncate">
+                                        {user.name ?? user.email ?? "Account"}
+                                    </span>
+                                    <svg
+                                        class="h-4 w-4 text-muted-foreground"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            fill-rule="evenodd"
+                                            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z"
+                                            clip-rule="evenodd"
+                                        />
+                                    </svg>
+                                </button>
+
+                                {#if userMenuOpen}
+                                    <div
+                                        class="absolute right-0 mt-2 w-64 rounded-md border border-border bg-background shadow-lg overflow-hidden z-50"
+                                        role="menu"
+                                        bind:this={userMenuEl}
+                                    >
+                                        <div
+                                            class="px-3 py-2 bg-muted/20 border-b border-border"
+                                        >
+                                            <div class="text-sm font-medium">
+                                                {user.name ??
+                                                    user.email ??
+                                                    "Signed in"}
+                                            </div>
+                                            {#if user.email && user.name}
+                                                <div
+                                                    class="text-xs text-muted-foreground mt-0.5"
+                                                >
+                                                    {user.email}
+                                                </div>
+                                            {/if}
+                                        </div>
+
+                                        <div class="py-1">
+                                            <a
+                                                use:inertia
+                                                href="/profile"
+                                                class="flex items-center justify-between gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                                                role="menuitem"
+                                                on:click={() => {
+                                                    closeUserMenu();
+                                                }}
+                                                title="Profile"
+                                            >
+                                                <span>Profile</span>
+                                            </a>
+
+                                            <a
+                                                use:inertia
+                                                href="/settings"
+                                                class="flex items-center justify-between gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                                                role="menuitem"
+                                                on:click={() => {
+                                                    closeUserMenu();
+                                                }}
+                                                title="Settings"
+                                            >
+                                                <span>Settings</span>
+                                            </a>
+                                        </div>
+
+                                        <div class="h-px bg-border"></div>
+
+                                        <div class="py-1">
+                                            <button
+                                                type="button"
+                                                class="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors
+                                                       disabled:opacity-60 disabled:pointer-events-none"
+                                                on:click={() => {
+                                                    closeUserMenu();
+                                                    logout();
+                                                }}
+                                                disabled={isLoggingOut}
+                                                role="menuitem"
+                                                title="Sign out"
+                                            >
+                                                <span>
+                                                    {#if isLoggingOut}
+                                                        Signing out…
+                                                    {:else}
+                                                        Sign out
+                                                    {/if}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
                                 {/if}
-                            </button>
+                            </div>
                         {:else}
                             <a
                                 use:inertia

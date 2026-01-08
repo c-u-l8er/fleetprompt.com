@@ -74,4 +74,18 @@ defmodule FleetPromptWeb.PageController do
   def chat(conn, _params) do
     FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Chat", %{})
   end
+
+  def profile(conn, _params) do
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Profile", %{
+      title: "Profile",
+      subtitle: "Manage your account profile. (Coming soon.)"
+    })
+  end
+
+  def settings(conn, _params) do
+    FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Settings", %{
+      title: "Settings",
+      subtitle: "Account and application settings. (Coming soon.)"
+    })
+  end
 end

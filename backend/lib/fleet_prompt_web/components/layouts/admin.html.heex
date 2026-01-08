@@ -100,81 +100,162 @@
 
       <!-- Auth Section -->
       <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2">
           <%= if current_user do %>
-            <!-- Organization Selector -->
-            <%= if length(available_orgs) > 1 do %>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-muted-foreground">Org</span>
-                <form action="/org/select" method="post" class="inline">
-                  <input type="hidden" name="_csrf_token" value={csrf_token}>
-                  <input type="hidden" name="redirect_to" value={@conn.request_path}>
-                  <select
-                    name="organization_id"
-                    class="h-9 rounded-md border border-border bg-background px-2.5 text-sm text-foreground
-                           hover:bg-muted/40 transition-colors"
-                    onchange="this.form.submit()"
-                  >
-                    <%= for org <- available_orgs do %>
-                      <option value={Map.get(org, :id)} selected={current_org && Map.get(current_org, :id) == Map.get(org, :id)}>
-                        <%= cond do %>
-                          <% Map.get(org, :name) && Map.get(org, :name) != "" -> %>
-                            <%= Map.get(org, :name) %>
-                          <% Map.get(org, :slug) && Map.get(org, :slug) != "" -> %>
-                            <%= Map.get(org, :slug) %>
-                          <% true -> %>
-                            <%= Map.get(org, :id) %>
-                        <% end %>
-                      </option>
-                    <% end %>
-                  </select>
-                </form>
-              </div>
-            <% else %>
-              <%= if current_org do %>
-                <span
-                  class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground"
-                  title="Current organization"
-                >
-                  Org: <span class="ml-1 font-medium text-foreground"><%= org_label %></span>
+            <!-- Org/Tenant dropdown -->
+            <details class="relative hidden sm:block">
+              <summary
+                class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9 max-w-[22rem] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+                title="Organization / tenant"
+              >
+                <span class="truncate"><%= org_label %></span>
+                <span class="text-xs text-muted-foreground">
+                  (<%= tenant_label || "public" %>)
                 </span>
-              <% end %>
-            <% end %>
+              </summary>
 
-            <!-- Tenant Badge -->
-            <%= if tenant_label do %>
-              <a
-                href="/admin/tenant"
-                class="hidden sm:inline-flex items-center rounded-full border border-border bg-muted/30 px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                title="Tenant context (schema-per-tenant)"
+              <div class="absolute right-0 mt-2 w-80 rounded-md border border-border bg-background shadow-lg overflow-hidden z-50">
+                <div class="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/20">
+                  Organization / tenant
+                </div>
+
+                <%= if length(available_orgs) > 1 do %>
+                  <div class="py-1">
+                    <%= for org <- available_orgs do %>
+                      <form action="/org/select" method="post">
+                        <input type="hidden" name="_csrf_token" value={csrf_token}>
+                        <input type="hidden" name="redirect_to" value={@conn.request_path}>
+                        <input type="hidden" name="organization_id" value={Map.get(org, :id)}>
+                        <button
+                          type="submit"
+                          class="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                          title="Switch organization"
+                        >
+                          <span class="truncate">
+                            <%= cond do %>
+                              <% Map.get(org, :name) && Map.get(org, :name) != "" -> %>
+                                <%= Map.get(org, :name) %>
+                              <% Map.get(org, :slug) && Map.get(org, :slug) != "" -> %>
+                                <%= Map.get(org, :slug) %>
+                              <% true -> %>
+                                <%= Map.get(org, :id) %>
+                            <% end %>
+                          </span>
+
+                          <%= if current_org && Map.get(current_org, :id) == Map.get(org, :id) do %>
+                            <span class="text-xs text-muted-foreground">Current</span>
+                          <% end %>
+                        </button>
+                      </form>
+                    <% end %>
+                  </div>
+                <% end %>
+
+                <div class="h-px bg-border"></div>
+
+                <div class="px-3 py-2">
+                  <div class="text-xs font-medium text-muted-foreground">Tenant</div>
+                  <div class="mt-1 text-sm">
+                    <%= if tenant_label do %>
+                      <span class="font-medium text-foreground"><%= tenant_label %></span>
+                    <% else %>
+                      <span class="text-muted-foreground">public</span>
+                    <% end %>
+                  </div>
+
+                  <div class="mt-3 flex flex-col gap-1">
+                    <a
+                      href="/admin/tenant"
+                      class="inline-flex items-center rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                    >
+                      Select tenant
+                    </a>
+
+                    <a
+                      href="/admin/portal"
+                      class="inline-flex items-center rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                    >
+                      Admin portal
+                    </a>
+
+                    <a
+                      href="/admin"
+                      class="inline-flex items-center rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                    >
+                      Open AshAdmin
+                    </a>
+
+                    <a
+                      href="/dashboard"
+                      class="inline-flex items-center rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                    >
+                      Back to app
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <!-- User dropdown -->
+            <details class="relative">
+              <summary
+                class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors
+                       border border-border bg-background hover:bg-muted h-9 max-w-[18rem] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+                title="User menu"
               >
-                Tenant: <span class="ml-1 font-medium text-foreground"><%= tenant_label %></span>
-              </a>
-            <% end %>
+                <span class="truncate">
+                  <%= Map.get(current_user, :name) || Map.get(current_user, :email) || "Account" %>
+                </span>
+              </summary>
 
-            <!-- User Info -->
-            <div class="hidden sm:flex flex-col items-start leading-tight">
-              <span class="text-sm font-medium">
-                <%= Map.get(current_user, :name) || Map.get(current_user, :email) || "Signed in" %>
-              </span>
-              <%= if Map.get(current_user, :name) && Map.get(current_user, :email) do %>
-                <span class="text-xs text-muted-foreground"><%= Map.get(current_user, :email) %></span>
-              <% end %>
-            </div>
+              <div class="absolute right-0 mt-2 w-64 rounded-md border border-border bg-background shadow-lg overflow-hidden z-50">
+                <div class="px-3 py-2 bg-muted/20 border-b border-border">
+                  <div class="text-sm font-medium">
+                    <%= Map.get(current_user, :name) || Map.get(current_user, :email) || "Signed in" %>
+                  </div>
+                  <%= if Map.get(current_user, :name) && Map.get(current_user, :email) do %>
+                    <div class="text-xs text-muted-foreground mt-0.5">
+                      <%= Map.get(current_user, :email) %>
+                    </div>
+                  <% end %>
+                </div>
 
-            <!-- Sign Out -->
-            <form action="/logout" method="post" class="inline">
-              <input type="hidden" name="_csrf_token" value={csrf_token}>
-              <input type="hidden" name="_method" value="delete">
-              <button
-                type="submit"
-                class="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors
-                       border border-border bg-background hover:bg-muted h-9"
-                title="Sign out"
-              >
-                Sign out
-              </button>
-            </form>
+                <div class="py-1">
+                  <a
+                    href="/profile"
+                    class="flex items-center justify-between gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                    title="Profile"
+                  >
+                    <span>Profile</span>
+                  </a>
+
+                  <a
+                    href="/settings"
+                    class="flex items-center justify-between gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                    title="Settings"
+                  >
+                    <span>Settings</span>
+                  </a>
+                </div>
+
+                <div class="h-px bg-border"></div>
+
+                <div class="py-1">
+                  <form action="/logout" method="post" class="px-1">
+                    <input type="hidden" name="_csrf_token" value={csrf_token}>
+                    <input type="hidden" name="_method" value="delete">
+                    <button
+                      type="submit"
+                      class="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-sm text-foreground hover:bg-muted/60 transition-colors"
+                      title="Sign out"
+                    >
+                      <span>Sign out</span>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </details>
           <% else %>
             <a
               href="/login"

@@ -99,6 +99,10 @@ defmodule FleetPromptWeb.Router do
     # Protected app pages
     get("/dashboard", PageController, :dashboard)
 
+    # Account pages (Inertia)
+    get("/profile", PageController, :profile)
+    get("/settings", PageController, :settings)
+
     # Forums (Phase 6) — UX scaffold (Inertia) + placeholder routes.
     #
     # These routes are safe to ship early:
