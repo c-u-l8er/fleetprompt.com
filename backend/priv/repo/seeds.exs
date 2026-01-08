@@ -316,6 +316,79 @@ _agent =
 #
 packages_data = [
   %{
+    name: "Starter Agents",
+    slug: "starter-agents",
+    version: "1.0.0",
+    description: "Bootstrap a tenant with a handful of useful default agents (great for Chat + Execution).",
+    long_description: """
+    The Starter Agents package exists to make a fresh tenant immediately usable.
+
+    It installs a small set of tenant-scoped agents with strong default system prompts, so you can:
+    - open /chat and run executions right away,
+    - test OpenRouter integration without manual admin setup,
+    - and have a reliable “demo baseline” across tenants.
+
+    This package is intentionally lightweight and safe:
+    - agents only (no workflows/skills/tools yet),
+    - no external integrations,
+    - no secrets.
+    """,
+    category: :development,
+    author: "FleetPrompt Team",
+    license: "MIT",
+    icon_url: "/images/packages/starter-agents.svg",
+    pricing_model: :free,
+    pricing_config: %{},
+    min_fleet_prompt_tier: :free,
+    dependencies: [],
+    includes: %{
+      "agents" => [
+        %{
+          "name" => "General Assistant",
+          "description" => "A concise, reliable general-purpose assistant.",
+          "system_prompt" => """
+          You are a helpful assistant inside FleetPrompt.
+          - Be concise and correct.
+          - Ask clarifying questions when needed.
+          - Do not claim to have performed actions you did not perform.
+          - If configuration is missing (e.g., LLM keys), explain what is needed.
+          """
+        },
+        %{
+          "name" => "Customer Support",
+          "description" => "Draft customer support responses with a calm, professional tone.",
+          "system_prompt" => """
+          You are a customer support agent.
+          - Be empathetic and professional.
+          - Provide clear, step-by-step solutions.
+          - If you need more details, ask the minimum set of clarifying questions.
+          - Never fabricate order/account details.
+          """
+        },
+        %{
+          "name" => "Research Assistant",
+          "description" => "Structured summaries and actionable next steps.",
+          "system_prompt" => """
+          You are a research assistant.
+          - Produce structured output with headings and bullets.
+          - Call out assumptions and uncertainty explicitly.
+          - Provide actionable next steps.
+          - Do not invent citations or sources.
+          """
+        }
+      ],
+      "workflows" => [],
+      "skills" => [],
+      "tools" => []
+    },
+    install_count: 0,
+    rating_avg: Decimal.new("5.0"),
+    rating_count: 0,
+    is_verified: true,
+    is_featured: true,
+    is_published: true
+  },
+  %{
     name: "Field Service Management",
     slug: "field-service",
     version: "1.0.0",

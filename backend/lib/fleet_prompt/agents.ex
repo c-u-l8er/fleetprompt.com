@@ -14,5 +14,7 @@ defmodule FleetPrompt.Agents do
 
   resources do
     resource(FleetPrompt.Agents.Agent)
+    resource(FleetPrompt.Agents.Execution)
+    resource(FleetPrompt.Agents.ExecutionLog)
   end
 end

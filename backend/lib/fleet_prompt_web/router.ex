@@ -145,6 +145,10 @@ defmodule FleetPromptWeb.Router do
     pipe_through([:browser_json, :protected])
 
     get("/marketplace/installations/status", MarketplaceController, :installation_status)
+
+    # Execution create/status endpoints should be JSON-capable (polled from the UI).
+    post("/executions", ExecutionController, :create)
+    get("/executions/:id/status", ExecutionController, :status)
   end
 
   # Admin tenant selector is available to any authenticated member.

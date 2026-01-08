@@ -67,6 +67,21 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# OpenRouter (LLM) defaults
+#
+# Notes:
+# - API keys must NOT be committed; set `OPENROUTER_API_KEY` in the environment (runtime.exs can wire it).
+# - These are safe defaults for local/dev and can be overridden per environment.
+config :fleet_prompt, :llm,
+  provider: :openrouter,
+  openrouter: [
+    base_url: "https://openrouter.ai/api/v1",
+    default_model: "anthropic/claude-3.5-sonnet",
+    api_key: nil,
+    site_url: nil,
+    app_name: "FleetPrompt"
+  ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

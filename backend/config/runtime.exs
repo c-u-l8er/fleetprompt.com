@@ -23,6 +23,57 @@ end
 config :fleet_prompt, FleetPromptWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# OpenRouter (LLM provider) runtime configuration.
+#
+# Required (prod):
+# - OPENROUTER_API_KEY
+#
+# Optional:
+# - OPENROUTER_BASE_URL (default: https://openrouter.ai/api/v1)
+# - OPENROUTER_DEFAULT_MODEL (default: anthropic/claude-3.5-sonnet)
+# - OPENROUTER_SITE_URL (optional attribution header; should be your app URL)
+# - OPENROUTER_APP_NAME (optional attribution header; default: FleetPrompt)
+openrouter_api_key = System.get_env("OPENROUTER_API_KEY")
+openrouter_base_url = System.get_env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+openrouter_default_model = System.get_env("OPENROUTER_DEFAULT_MODEL", "anthropic/claude-3.5-sonnet")
+openrouter_site_url = System.get_env("OPENROUTER_SITE_URL")
+openrouter_app_name = System.get_env("OPENROUTER_APP_NAME", "FleetPrompt")
+
+# Merge into app defaults in config/config.exs (nested under :llm -> :openrouter)
+# without overwriting other :llm keys (e.g. :provider).
+existing_llm = Application.get_env(:fleet_prompt, :llm, [])
+
+openrouter_overrides = [
+  api_key: openrouter_api_key,
+  base_url: openrouter_base_url,
+  default_model: openrouter_default_model,
+  site_url: openrouter_site_url,
+  app_name: openrouter_app_name
+]
+
+merged_llm =
+  existing_llm
+  |> Keyword.update(:openrouter, openrouter_overrides, fn existing_openrouter ->
+    Keyword.merge(existing_openrouter, openrouter_overrides, fn _k, _old, new -> new end)
+  end)
+
+config :fleet_prompt, :llm, merged_llm
+
+# Also set flattened keys used by the LLM client (kept for backward compatibility).
+config :fleet_prompt, :openrouter_api_key, openrouter_api_key
+config :fleet_prompt, :openrouter_base_url, openrouter_base_url
+config :fleet_prompt, :openrouter_referer, openrouter_site_url
+config :fleet_prompt, :openrouter_title, openrouter_app_name
+
+openrouter_api_key_present? =
+  is_binary(openrouter_api_key) and String.trim(openrouter_api_key) != ""
+
+if config_env() == :prod and not openrouter_api_key_present? do
+  raise """
+  environment variable OPENROUTER_API_KEY is missing.
+  """
+end
+
 if config_env() == :prod do
   # Fly runs releases from a read-only filesystem; tzdata's autoupdater
   # attempts to write under the app dir unless configured otherwise.
