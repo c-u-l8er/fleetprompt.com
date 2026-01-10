@@ -303,24 +303,24 @@
                             href="/dashboard"
                             class={linkClass("/dashboard")}
                         >
-                            Dashboard
+                            Main Brain
                         </a>
                         <a
                             use:inertia
                             href="/forums"
                             class={linkClass("/forums")}
                         >
-                            Forums
+                            Fleet Forums
                         </a>
                         <a
                             use:inertia
                             href="/marketplace"
                             class={linkClass("/marketplace")}
                         >
-                            Marketplace
+                            Agentic Marketplace
                         </a>
                         <a use:inertia href="/chat" class={linkClass("/chat")}>
-                            Chat
+                            Super Prompt
                         </a>
                     </nav>
                 </div>

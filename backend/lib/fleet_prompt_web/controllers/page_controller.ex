@@ -11,7 +11,7 @@ defmodule FleetPromptWeb.PageController do
 
   def home(conn, _params) do
     FleetPromptWeb.InertiaHelpers.render_inertia(conn, "Home", %{
-      message: "Deploy AI agent fleets in minutes"
+      message: "Deploy fleets of AI agents in minutes"
     })
   end
 
