@@ -75,6 +75,13 @@ config :mime, :types, %{
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Chat settings
+config :fleet_prompt, :chat,
+  # How many assistant<->tool "round trips" we allow before failing the request.
+  # Realistic flows often need 4 rounds:
+  # list categories -> create thread -> create post -> final assistant response.
+  tool_loop_max_rounds: 100
+
 # OpenRouter (LLM) defaults
 #
 # Notes:

@@ -132,7 +132,9 @@ defmodule FleetPromptWeb.ChatController do
       tool_choice: "auto"
     ]
 
-    case run_tool_loop(base_messages, tenant, actor_user_id, opts, max_rounds: 3) do
+    max_rounds = FleetPrompt.Chat.Settings.tool_loop_max_rounds()
+
+    case run_tool_loop(base_messages, tenant, actor_user_id, opts, max_rounds: max_rounds) do
       {:ok, _final_meta} ->
         Process.get(:fp_sse_conn, conn)
 
@@ -173,6 +175,7 @@ defmodule FleetPromptWeb.ChatController do
     - Be concise and helpful.
     - Do not claim you performed actions you did not perform.
     - If you need to use tools, call them instead of guessing.
+    - When multiple tool calls are required to satisfy a user request, prefer batching all required tool calls into a single assistant turn.
     - Only call write tools (create_*) when the user explicitly asks to create something.
 
     Available tools are provided via the OpenAI tools interface.
@@ -187,6 +190,12 @@ defmodule FleetPromptWeb.ChatController do
 
   defp do_run_tool_loop(messages, tenant, actor_user_id, llm_opts, round, max_rounds)
        when round <= max_rounds do
+    Logger.debug("[Chat] tool loop round start",
+      round: round,
+      max_rounds: max_rounds,
+      message_count: length(messages)
+    )
+
     # Per-round assistant text (for history); global text is `:fp_llm_acc`.
     Process.put(:fp_llm_round_acc, "")
     Process.put(:fp_llm_tool_calls_acc, %{})
@@ -227,6 +236,13 @@ defmodule FleetPromptWeb.ChatController do
         tool_calls =
           Process.get(:fp_llm_tool_calls_acc, %{})
           |> finalize_tool_calls()
+
+        Logger.debug("[Chat] tool loop round complete",
+          round: round,
+          assistant_text_bytes: byte_size(Process.get(:fp_llm_round_acc, "")),
+          tool_call_count: length(tool_calls),
+          tool_names: Enum.map(tool_calls, &get_in(&1, ["function", "name"]))
+        )
 
         # Record the assistant turn (including tool_calls if present), then either finish or execute tools.
         assistant_turn =
@@ -274,11 +290,18 @@ defmodule FleetPromptWeb.ChatController do
         end
 
       {:error, err} ->
+        Logger.warning("[Chat] LLM stream failed during tool loop",
+          round: round,
+          error: normalize_error(err),
+          error_details: format_llm_error_details(err)
+        )
+
         {:error, err}
     end
   end
 
-  defp do_run_tool_loop(_messages, _tenant, _actor_user_id, _llm_opts, _round, _max_rounds) do
+  defp do_run_tool_loop(_messages, _tenant, _actor_user_id, _llm_opts, round, max_rounds) do
+    Logger.warning("[Chat] tool loop exceeded max rounds", round: round, max_rounds: max_rounds)
     {:error, "tool loop exceeded max rounds"}
   end
 
@@ -348,6 +371,12 @@ defmodule FleetPromptWeb.ChatController do
       name = Map.get(fun, "name") || ""
       args_json = Map.get(fun, "arguments") || "{}"
 
+      Logger.debug("[Chat] executing tool",
+        tool: name,
+        tool_call_id: tool_call_id,
+        args_bytes: byte_size(args_json)
+      )
+
       _ = sse_send_pd(%{type: "tool_start", tool: name})
 
       result =
@@ -364,6 +393,12 @@ defmodule FleetPromptWeb.ChatController do
               other -> "Tool #{name} failed: #{inspect(other)}"
             end
         end
+
+      Logger.debug("[Chat] tool finished",
+        tool: name,
+        tool_call_id: tool_call_id,
+        result_bytes: byte_size(to_string(result))
+      )
 
       _ = sse_send_pd(%{type: "tool_result", tool: name})
 
@@ -535,4 +570,14 @@ defmodule FleetPromptWeb.ChatController do
   defp normalize_error(%{message: msg}) when is_binary(msg), do: msg
   defp normalize_error(msg) when is_binary(msg), do: msg
   defp normalize_error(other), do: inspect(other)
+
+  defp format_llm_error_details(%FleetPrompt.LLM.Error{} = err) do
+    %{
+      provider: err.provider,
+      status: err.status,
+      details: err.details
+    }
+  end
+
+  defp format_llm_error_details(_), do: %{}
 end
