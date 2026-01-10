@@ -4,6 +4,8 @@ FleetPrompt
 ### Production
 ```bash
 fly deploy --app fleetprompt
+
+fly ssh console --machine 7847221ce7dd18 -C "mix ash_postgres.migrate --tenants"
 ```
 
 ### Development

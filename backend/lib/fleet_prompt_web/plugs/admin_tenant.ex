@@ -201,8 +201,8 @@ defmodule FleetPromptWeb.Plugs.AdminTenant do
   end
 
   defp valid_slug?(slug) when is_binary(slug) do
-    # Conservative slug rules: lowercase alphanumerics + hyphens, 1..63 chars.
-    String.length(slug) in 1..63 and String.match?(slug, ~r/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    # Conservative slug rules: lowercase alphanumerics + underscores, 1..63 chars.
+    String.length(slug) in 1..63 and String.match?(slug, ~r/^[a-z0-9]+(?:_[a-z0-9]+)*$/)
   end
 
   defp valid_tenant_schema?(tenant) when is_binary(tenant) do

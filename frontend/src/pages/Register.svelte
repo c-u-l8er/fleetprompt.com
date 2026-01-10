@@ -48,13 +48,13 @@
         const raw = (input ?? "").trim().toLowerCase();
 
         // Keep consistent with backend slug rules used elsewhere:
-        // lowercase alphanumerics + hyphens, 1..63 chars, no leading/trailing hyphen.
+        // lowercase alphanumerics + underscores, 1..63 chars, no leading/trailing underscore.
         const cleaned = raw
-            .replace(/[^a-z0-9\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/-+/g, "-")
-            .replace(/^-+/, "")
-            .replace(/-+$/, "");
+            .replace(/[^a-z0-9\s_]/g, "")
+            .replace(/\s+/g, "_")
+            .replace(/_+/g, "_")
+            .replace(/^_+/, "")
+            .replace(/_+$/, "");
 
         return cleaned.slice(0, 63);
     };
@@ -75,8 +75,8 @@
         if (!orgSlugTrimmed) return "Organization slug is required.";
 
         // Conservative slug validation to match backend expectations.
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(orgSlugTrimmed)) {
-            return "Organization slug must be lowercase letters/numbers, optionally separated by single hyphens.";
+        if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(orgSlugTrimmed)) {
+            return "Organization slug must be lowercase letters/numbers, optionally separated by underscores.";
         }
 
         if (orgSlugTrimmed.length < 1 || orgSlugTrimmed.length > 63) {
@@ -277,7 +277,7 @@
                         <p class="text-xs text-muted-foreground">
                             Used to create your tenant schema
                             <code class="rounded bg-muted px-1 py-0.5"
-                                >org_{orgSlug.trim() || "your-slug"}</code
+                                >org_{orgSlug.trim() || "your_slug"}</code
                             >.
                         </p>
                     </div>

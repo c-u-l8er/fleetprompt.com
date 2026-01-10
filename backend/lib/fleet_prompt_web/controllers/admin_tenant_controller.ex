@@ -217,7 +217,7 @@ defmodule FleetPromptWeb.AdminTenantController do
   end
 
   defp valid_slug?(slug) when is_binary(slug) do
-    String.length(slug) in 1..63 and String.match?(slug, ~r/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    String.length(slug) in 1..63 and String.match?(slug, ~r/^[a-z0-9]+(?:_[a-z0-9]+)*$/)
   end
 
   defp valid_tenant_schema?(tenant) when is_binary(tenant) do
