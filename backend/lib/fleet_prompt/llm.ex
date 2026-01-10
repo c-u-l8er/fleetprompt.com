@@ -35,11 +35,21 @@ defmodule FleetPrompt.LLM do
   @typedoc """
   A chat message in OpenAI-compatible format.
 
-  Roles: "system" | "user" | "assistant" | (optionally) "tool"
+  Roles: "system" | "user" | "assistant" | (optionally) "tool".
+
+  Tool calling (OpenAI-compatible) may include additional fields:
+  - assistant messages may include `tool_calls`
+  - tool messages include `tool_call_id`
+
+  This facade intentionally allows these extra fields and passes them through
+  to the provider.
   """
   @type chat_message :: %{
           required(:role) => String.t(),
-          required(:content) => String.t()
+          required(:content) => String.t(),
+          optional(:tool_call_id) => String.t(),
+          optional(:tool_calls) => list() | map(),
+          optional(:name) => String.t()
         }
 
   @typedoc "Options for chat completion."
@@ -57,7 +67,9 @@ defmodule FleetPrompt.LLM do
             frequency_penalty: number(),
             presence_penalty: number(),
             stop: [String.t()] | String.t(),
-            response_format: map()
+            response_format: map(),
+            tools: [map()],
+            tool_choice: String.t() | map()
           ]
 
   defmodule Error do
@@ -156,6 +168,8 @@ defmodule FleetPrompt.LLM do
         |> maybe_put_opt(:presence_penalty, opts)
         |> maybe_put_opt(:stop, opts)
         |> maybe_put_opt(:response_format, opts)
+        |> maybe_put_opt(:tools, opts)
+        |> maybe_put_opt(:tool_choice, opts)
 
       timeout_ms = Keyword.get(opts, :timeout_ms, @default_timeout_ms)
 
@@ -231,6 +245,8 @@ defmodule FleetPrompt.LLM do
         |> maybe_put_opt(:presence_penalty, opts)
         |> maybe_put_opt(:stop, opts)
         |> maybe_put_opt(:response_format, opts)
+        |> maybe_put_opt(:tools, opts)
+        |> maybe_put_opt(:tool_choice, opts)
 
       timeout_ms = Keyword.get(opts, :timeout_ms, @default_timeout_ms)
 
@@ -383,10 +399,17 @@ defmodule FleetPrompt.LLM do
             {:ok, decoded} ->
               # OpenAI streaming shape:
               # %{"choices" => [%{"delta" => %{"content" => "..."}, ...}], "usage" => ...?}
-              chunk = get_in(decoded, ["choices", Access.at(0), "delta", "content"])
+              choice = get_in(decoded, ["choices", Access.at(0)])
+              delta = Map.get(choice || %{}, "delta", %{})
+              chunk = Map.get(delta, "content")
+              tool_calls = Map.get(delta, "tool_calls")
 
               if is_binary(chunk) and chunk != "" do
                 on_event.({:chunk, chunk})
+              end
+
+              if is_list(tool_calls) and tool_calls != [] do
+                on_event.({:tool_calls, tool_calls})
               end
 
               # Some providers optionally include usage in-stream (final event or periodic).
@@ -407,22 +430,51 @@ defmodule FleetPrompt.LLM do
 
   defp normalize_messages(messages) when is_list(messages) do
     try do
-      normalized =
-        Enum.map(messages, fn
-          %{role: role, content: content} ->
-            %{role: to_string(role), content: to_string(content)}
-
-          %{"role" => role, "content" => content} ->
-            %{role: to_string(role), content: to_string(content)}
-
-          other ->
-            raise ArgumentError, "invalid chat message: #{inspect(other)}"
-        end)
-
+      normalized = Enum.map(messages, &normalize_message!/1)
       {:ok, normalized}
     rescue
       e in ArgumentError ->
         {:error, Error.new(Exception.message(e))}
+    end
+  end
+
+  defp normalize_message!(%{} = msg) do
+    role = Map.get(msg, :role) || Map.get(msg, "role")
+    content = Map.get(msg, :content) || Map.get(msg, "content")
+
+    if is_nil(role) or is_nil(content) do
+      raise ArgumentError, "invalid chat message (missing role/content): #{inspect(msg)}"
+    end
+
+    base = %{role: to_string(role), content: to_string(content)}
+
+    base
+    |> maybe_put_string(msg, :name)
+    |> maybe_put_string(msg, :tool_call_id)
+    |> maybe_put_raw(msg, :tool_calls)
+  end
+
+  defp normalize_message!(other) do
+    raise ArgumentError, "invalid chat message: #{inspect(other)}"
+  end
+
+  defp maybe_put_string(acc, msg, key) do
+    v = Map.get(msg, key) || Map.get(msg, Atom.to_string(key))
+
+    if is_binary(v) and String.trim(v) != "" do
+      Map.put(acc, key, v)
+    else
+      acc
+    end
+  end
+
+  defp maybe_put_raw(acc, msg, key) do
+    v = Map.get(msg, key) || Map.get(msg, Atom.to_string(key))
+
+    if is_nil(v) do
+      acc
+    else
+      Map.put(acc, key, v)
     end
   end
 

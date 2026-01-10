@@ -69,7 +69,7 @@
     let streamingMessage: ChatMessage | null = null;
     let errorMessage: string | null = null;
 
-    // Selected tenant-scoped Agent UUID to run executions against.
+    // Selected tenant-scoped Agent UUID (UI hint only; sent to the backend as context).
     let agentId = "";
 
     // Default the agent id (only if you haven't picked/typed one yet):
@@ -263,18 +263,6 @@
         const content = input.trim();
         if (!content || isStreaming) return;
 
-        const trimmedAgentId = agentId.trim();
-        if (!trimmedAgentId) {
-            if (!agents || agents.length === 0) {
-                errorMessage =
-                    "No agents are available yet for this tenant. Install a starter package below (recommended), or create an agent in Admin → Agents.";
-            } else {
-                errorMessage =
-                    "Select an agent first (tenant-scoped). You can also manage agents in AshAdmin under Agents.";
-            }
-            return;
-        }
-
         errorMessage = null;
 
         const userMsg: ChatMessage = {
@@ -290,7 +278,7 @@
         autoResize();
         queueMicrotask(scrollToBottom);
 
-        // Cancel any previous run/poll (defensive).
+        // Cancel any previous stream (defensive).
         if (currentStreamAbort) {
             currentStreamAbort.abort();
             currentStreamAbort = null;
@@ -308,118 +296,64 @@
                     .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
                     ?.getAttribute("content") ?? "";
 
-            // 1) Create an execution
-            const createRes = await fetch("/executions", {
+            const res = await fetch("/chat/message", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Accept: "application/json",
+                    Accept: "text/event-stream",
                     ...(csrf ? { "X-CSRF-Token": csrf } : {}),
                 },
                 body: JSON.stringify({
-                    agent_id: trimmedAgentId,
-                    input: content,
-                    // Optional tuning knobs; keep conservative defaults for now.
-                    max_tokens: 800,
-                    temperature: 0.3,
+                    message: content,
+                    agent_id: agentId.trim() || null,
                 }),
                 signal: abort.signal,
             });
 
-            if (!createRes.ok) {
-                const text = await createRes.text().catch(() => "");
+            if (!res.ok) {
+                const text = await res.text().catch(() => "");
                 throw new Error(
-                    `Execution create failed (${createRes.status}): ${text || createRes.statusText}`,
+                    `Chat request failed (${res.status}): ${text || res.statusText}`,
                 );
             }
 
-            const created = (await createRes.json().catch(() => null)) as any;
-            const executionId: string | undefined = created?.execution?.id;
-
-            if (!executionId) {
-                throw new Error(
-                    "Execution create succeeded but no execution.id was returned.",
-                );
+            if (!res.body) {
+                throw new Error("Chat response had no body.");
             }
 
-            // 2) Poll execution status until terminal
-            const startedAt = Date.now();
-            const maxWaitMs = 90_000;
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
 
             while (true) {
-                if (abort.signal.aborted) break;
+                const { done, value } = await reader.read();
+                if (done) break;
 
-                const pollRes = await fetch(
-                    `/executions/${executionId}/status`,
-                    {
-                        method: "GET",
-                        headers: {
-                            Accept: "application/json",
-                        },
-                        signal: abort.signal,
-                    },
-                );
+                buffer += decoder.decode(value, { stream: true });
 
-                if (!pollRes.ok) {
-                    const text = await pollRes.text().catch(() => "");
-                    throw new Error(
-                        `Execution poll failed (${pollRes.status}): ${text || pollRes.statusText}`,
-                    );
+                const parts = buffer.split("\n\n");
+                buffer = parts.pop() ?? "";
+
+                for (const rawEvent of parts) {
+                    const payloads = sseExtractJsonPayloads(rawEvent);
+
+                    for (const p of payloads) {
+                        if (!p || p === "[DONE]") continue;
+
+                        try {
+                            const evt = JSON.parse(p) as SseEvent;
+                            applySseEvent(evt);
+                        } catch (err) {
+                            // Ignore malformed events; keep streaming.
+                            console.error("SSE parse error", err, p);
+                        }
+                    }
                 }
 
-                const polled = (await pollRes.json().catch(() => null)) as any;
-                const state: string | undefined = polled?.execution?.state;
-                const output: string | undefined = polled?.execution?.output;
-                const errText: string | undefined = polled?.execution?.error;
-
-                // Simple UI affordance while running.
-                streamingMessage = {
-                    id: uid("assistant_stream"),
-                    role: "assistant",
-                    content:
-                        state && (state === "queued" || state === "running")
-                            ? `Running (${state})…`
-                            : "Running…",
-                    actions: [],
-                    inserted_at: nowIso(),
-                };
-
-                queueMicrotask(scrollToBottom);
-
-                if (state === "succeeded") {
-                    const assistantMsg: ChatMessage = {
-                        id: uid("assistant"),
-                        role: "assistant",
-                        content: (output ?? "").trim() || "(empty response)",
-                        actions: [],
-                        inserted_at: nowIso(),
-                    };
-
-                    messages = [...messages, assistantMsg];
-                    streamingMessage = null;
+                if (!isStreaming) {
+                    // `applySseEvent` may have received the `complete` event.
                     break;
                 }
-
-                if (state === "failed") {
-                    streamingMessage = null;
-                    errorMessage = errText || "Execution failed.";
-                    break;
-                }
-
-                if (state === "canceled") {
-                    streamingMessage = null;
-                    errorMessage = "Execution was canceled.";
-                    break;
-                }
-
-                if (Date.now() - startedAt > maxWaitMs) {
-                    streamingMessage = null;
-                    errorMessage =
-                        "Execution is taking longer than expected. Keep the page open and try polling again.";
-                    break;
-                }
-
-                await new Promise((r) => setTimeout(r, 650));
             }
         } catch (err: any) {
             const aborted =
@@ -428,10 +362,14 @@
                     err.message.toLowerCase().includes("abort"));
 
             if (!aborted) {
-                errorMessage = err?.message ?? "Execution request failed.";
+                errorMessage = err?.message ?? "Chat request failed.";
             }
         } finally {
-            isStreaming = false;
+            // If we didn't get a `complete` event, stop the stream now.
+            if (isStreaming) {
+                isStreaming = false;
+            }
+
             currentStreamAbort = null;
             queueMicrotask(scrollToBottom);
         }
@@ -464,7 +402,7 @@
 
 <AppShell
     title="Chat"
-    subtitle="Agent execution chat — POST /executions + poll GET /executions/:id/status"
+    subtitle="Streaming LLM chat — POST /chat/message (SSE) with server-side tool calling"
     showAdminLink={true}
     {user}
     {tenant}
@@ -497,7 +435,7 @@
                             class="hidden sm:block w-[22rem] h-9 rounded-md border border-border bg-background px-3 text-sm
                    placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                             disabled={isStreaming}
-                            title="Select a tenant-scoped agent to run executions against."
+                            title="Optional: select a tenant-scoped agent id to include as chat context."
                         >
                             {#each agents as a (a.id)}
                                 <option value={a.id}>{a.name}</option>
@@ -605,8 +543,9 @@
                         No agents found for this tenant
                     </div>
                     <div class="mt-1 text-sm text-muted-foreground">
-                        Chat runs through a tenant-scoped Agent. The fastest fix
-                        is to install a starter package that includes agents.
+                        If you want agents available in this tenant (for other
+                        parts of the app), install a starter package that creates
+                        them.
                     </div>
 
                     <div class="mt-3 flex flex-wrap gap-2">
@@ -819,8 +758,9 @@
             </form>
 
             <div class="mt-2 text-xs text-muted-foreground">
-                This is a demo streaming endpoint. Phase 3 will add conversation
-                history and real model responses.
+                Responses stream from <code>/chat/message</code> (SSE). Tool calls
+                are executed server-side and the model resumes with the tool
+                results.
             </div>
         </div>
     </div>

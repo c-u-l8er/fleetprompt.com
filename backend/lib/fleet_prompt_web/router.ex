@@ -2,7 +2,10 @@ defmodule FleetPromptWeb.Router do
   use FleetPromptWeb, :router
   import AshAdmin.Router
 
+  require Logger
+
   pipeline :browser do
+    plug(:log_accept_headers)
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_flash)
@@ -36,6 +39,23 @@ defmodule FleetPromptWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(Inertia.Plug)
+  end
+
+  # Server-Sent Events (SSE) pipeline.
+  #
+  # We keep the auth/session/tenant context, but allow the `Accept: text/event-stream`
+  # header to pass through Phoenix's `plug(:accepts, [...])`.
+  pipeline :browser_sse do
+    plug(:log_accept_headers)
+    plug(:accepts, ["sse"])
+    plug(:fetch_session)
+    plug(:fetch_flash)
+    plug(FleetPromptWeb.Plugs.FetchCurrentUser)
+    plug(FleetPromptWeb.Plugs.FetchOrgContext)
+    plug(:assign_request_path)
+    plug(FleetPromptWeb.Plugs.AdminTenant)
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
   end
 
   pipeline :protected do
@@ -130,8 +150,14 @@ defmodule FleetPromptWeb.Router do
     post("/marketplace/install", MarketplaceController, :install)
     post("/marketplace/uninstall", MarketplaceController, :uninstall)
     get("/chat", ChatController, :index)
+  end
 
-    # Chat SSE endpoint (Phase 3 transport)
+  # Chat SSE endpoint (Phase 3 transport)
+  #
+  # NOTE: Routed through :browser_sse so `Accept: text/event-stream` is allowed.
+  scope "/", FleetPromptWeb do
+    pipe_through([:browser_sse, :protected])
+
     post("/chat/message", ChatController, :send_message)
   end
 
@@ -198,6 +224,19 @@ defmodule FleetPromptWeb.Router do
       live_dashboard("/dashboard", metrics: FleetPromptWeb.Telemetry)
       forward("/mailbox", Plug.Swoosh.MailboxPreview)
     end
+  end
+
+  defp log_accept_headers(conn, _opts) do
+    if conn.request_path == "/chat/message" do
+      accept = Plug.Conn.get_req_header(conn, "accept") |> Enum.join(",")
+      content_type = Plug.Conn.get_req_header(conn, "content-type") |> Enum.join(",")
+
+      Logger.debug(
+        "[Router] /chat/message accept=#{accept} content-type=#{content_type}"
+      )
+    end
+
+    conn
   end
 
   defp assign_request_path(conn, _opts) do

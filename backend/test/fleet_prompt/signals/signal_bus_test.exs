@@ -34,7 +34,7 @@ defmodule FleetPrompt.Signals.SignalBusTest do
       Organization
       |> Ash.Changeset.for_create(:create, %{
         name: "Signals Test Org #{uniq}",
-        slug: "signals-test-#{uniq}",
+        slug: "signals_test_#{uniq}",
         tier: :pro
       })
       |> Ash.create()

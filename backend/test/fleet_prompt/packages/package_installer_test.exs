@@ -16,7 +16,7 @@ defmodule FleetPrompt.Packages.PackageInstallerTest do
       Organization
       |> Ash.Changeset.for_create(:create, %{
         name: "Pkg Install Test Org #{uniq}",
-        slug: "pkg-install-test-#{uniq}",
+        slug: "pkg_install_test_#{uniq}",
         tier: :pro
       })
       |> Ash.create()

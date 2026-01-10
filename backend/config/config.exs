@@ -64,6 +64,14 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
+# SSE (Server-Sent Events)
+#
+# Phoenix's `plug(:accepts, [...])` matches request Accept headers using the
+# MIME library's configured types.
+config :mime, :types, %{
+  "text/event-stream" => ["sse"]
+}
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 

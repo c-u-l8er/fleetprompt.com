@@ -7,7 +7,17 @@ defmodule FleetPromptWeb.PageControllerTest do
 
     # Inertia renders a mount div with a `data-page` JSON payload.
     assert html =~ ~s(data-page=")
-    assert html =~ ~s(&quot;component&quot;:&quot;Home&quot;)
-    assert html =~ ~s(&quot;message&quot;:&quot;Deploy AI agent fleets in minutes&quot;)
+
+    # The `data-page` attribute value is HTML-escaped, so we match against `"...`.
+    expected_component =
+      "&" <> "quot;component" <> "&" <> "quot;:" <> "&" <> "quot;Home" <> "&" <> "quot;"
+
+    expected_message =
+      "&" <>
+        "quot;message" <> "&" <> "quot;:" <> "&" <>
+        "quot;Deploy fleets of AI agents in minutes" <> "&" <> "quot;"
+
+    assert html =~ expected_component
+    assert html =~ expected_message
   end
 end

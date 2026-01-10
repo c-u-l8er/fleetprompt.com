@@ -24,7 +24,7 @@ defmodule FleetPrompt.Repo.TenantMigrations.RelaxExecutionOutputNotNull do
     execute("""
     DO $$
     DECLARE
-      schema_name text := #{inspect(prefix())};
+      schema_name text := '#{prefix()}';
     BEGIN
       IF schema_name IS NULL OR schema_name = '' THEN
         schema_name := current_schema();
@@ -65,7 +65,7 @@ defmodule FleetPrompt.Repo.TenantMigrations.RelaxExecutionOutputNotNull do
     execute("""
     DO $$
     DECLARE
-      schema_name text := #{inspect(prefix())};
+      schema_name text := '#{prefix()}';
     BEGIN
       IF schema_name IS NULL OR schema_name = '' THEN
         schema_name := current_schema();

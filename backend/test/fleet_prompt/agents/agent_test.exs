@@ -11,7 +11,7 @@ defmodule FleetPrompt.Agents.AgentTest do
       Organization
       |> Ash.Changeset.for_create(:create, %{
         name: "Test Org #{uniq}",
-        slug: "test-org-#{uniq}",
+        slug: "test_org_#{uniq}",
         tier: :pro
       })
       |> Ash.create()

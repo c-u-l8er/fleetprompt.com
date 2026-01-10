@@ -17,7 +17,7 @@ defmodule FleetPrompt.Directives.DirectiveRunnerTest do
       Organization
       |> Ash.Changeset.for_create(:create, %{
         name: "Directive Runner Test Org #{uniq}",
-        slug: "directive-runner-test-#{uniq}",
+        slug: "directive_runner_test_#{uniq}",
         tier: :pro
       })
       |> Ash.create()
@@ -402,8 +402,7 @@ defmodule FleetPrompt.Directives.DirectiveRunnerTest do
         thread_id: thread.id,
         content: "Hello from test #{uniq}",
         author_type: :human,
-        author_id: to_string(user.id),
-        metadata: %{"source" => "test"}
+        author_id: to_string(user.id)
       })
       |> Ash.Changeset.set_tenant(tenant)
       |> Ash.create()
