@@ -81,7 +81,6 @@
 
                 <div class="mt-8 flex flex-wrap items-center gap-3">
                     <a
-                        use:inertia
                         href="https://fleetprompt.com"
                         class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
                         bg-secondary text-secondary-foreground hover:bg-secondary/90 h-10 px-4"
