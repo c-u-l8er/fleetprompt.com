@@ -30,7 +30,7 @@ primary_region = "iad"
 
   # Phoenix uses this for URL generation in prod (see `backend/config/runtime.exs`).
   # Set to your app host (e.g. "<your-app>.fly.dev") or your custom domain.
-  PHX_HOST = "fleetprompt.com"
+  PHX_HOST = "app.fleetprompt.com"
 
   # Fly Postgres commonly prefers IPv6 connectivity.
   ECTO_IPV6 = "true"
