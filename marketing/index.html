@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>FleetPrompt - Agentic Intelligence</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Oxygen, Ubuntu, Cantarell, sans-serif;
+                overflow: hidden;
+                background: #0a0e1a;
+            }
+
+            #canvas {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 1;
+            }
+
+            .content {
+                position: relative;
+                z-index: 2;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+            }
+
+            .logo-container {
+                text-align: center;
+                animation: fadeIn 1.5s ease-in;
+            }
+
+            .logo-container img {
+                max-width: 90vw;
+                width: 800px;
+                height: auto;
+                filter: drop-shadow(0 0 30px rgba(152, 183, 57, 0.3));
+                animation: pulse 3s ease-in-out infinite;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    filter: drop-shadow(0 0 30px rgba(152, 183, 57, 0.3));
+                }
+                50% {
+                    filter: drop-shadow(0 0 50px rgba(49, 115, 170, 0.5));
+                }
+            }
+
+            .tagline {
+                margin-top: 30px;
+                font-size: 1.2rem;
+                color: #98b739;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                opacity: 0;
+                animation: fadeInDelay 2s ease-in 0.5s forwards;
+            }
+
+            @keyframes fadeInDelay {
+                to {
+                    opacity: 1;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .logo-container img {
+                    width: 95vw;
+                }
+                .tagline {
+                    font-size: 0.9rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>
+
+        <div class="content">
+            <div class="logo-container">
+                <a href="https://app.fleetprompt.com">
+                    <img
+                        src="/logo-with-text.png"
+                        alt="FleetPrompt - Agentic Intelligence"
+                    />
+                </a>
+            </div>
+        </div>
+
+        <script>
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+
+            // Colors
+            const green = "#98b739";
+            const blue = "#3173aa";
+            const colors = [green, blue];
+
+            // Network state
+            let nodes = [];
+            let connections = [];
+            let messagePackets = [];
+            let animationRunning = false;
+
+            // Helper function to parse hex to RGB
+            function hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(
+                    hex,
+                );
+                return result
+                    ? {
+                          r: parseInt(result[1], 16),
+                          g: parseInt(result[2], 16),
+                          b: parseInt(result[3], 16),
+                      }
+                    : null;
+            }
+
+            // Helper to interpolate colors
+            function interpolateColor(color1, color2, factor) {
+                const c1 = hexToRgb(color1);
+                const c2 = hexToRgb(color2);
+                const r = Math.round(c1.r + (c2.r - c1.r) * factor);
+                const g = Math.round(c1.g + (c2.g - c1.g) * factor);
+                const b = Math.round(c1.b + (c2.b - c1.b) * factor);
+                return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+            }
+
+            // Message packet class
+            class MessagePacket {
+                constructor(fromNode, toNode, color, data) {
+                    this.fromNode = fromNode;
+                    this.toNode = toNode;
+                    this.progress = 0;
+                    this.speed = 0.02 + Math.random() * 0.02;
+                    this.color = color;
+                    this.data = data;
+                    this.active = true;
+                }
+
+                update() {
+                    this.progress += this.speed;
+                    if (this.progress >= 1) {
+                        this.toNode.receiveMessage(this);
+                        this.active = false;
+                        return false;
+                    }
+                    return true;
+                }
+
+                draw() {
+                    const x =
+                        this.fromNode.x +
+                        (this.toNode.x - this.fromNode.x) * this.progress;
+                    const y =
+                        this.fromNode.y +
+                        (this.toNode.y - this.fromNode.y) * this.progress;
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+
+                    const trailLength = 0.15;
+                    for (let i = 0; i < 5; i++) {
+                        const trailProgress = Math.max(
+                            0,
+                            this.progress - (i * trailLength) / 5,
+                        );
+                        const tx =
+                            this.fromNode.x +
+                            (this.toNode.x - this.fromNode.x) * trailProgress;
+                        const ty =
+                            this.fromNode.y +
+                            (this.toNode.y - this.fromNode.y) * trailProgress;
+                        const alpha = (1 - i / 5) * 0.6;
+
+                        const gradient = ctx.createRadialGradient(
+                            tx,
+                            ty,
+                            0,
+                            tx,
+                            ty,
+                            8,
+                        );
+                        gradient.addColorStop(
+                            0,
+                            this.color +
+                                Math.floor(alpha * 255)
+                                    .toString(16)
+                                    .padStart(2, "0"),
+                        );
+                        gradient.addColorStop(1, this.color + "00");
+                        ctx.beginPath();
+                        ctx.arc(tx, ty, 8, 0, Math.PI * 2);
+                        ctx.fillStyle = gradient;
+                        ctx.fill();
+                    }
+                }
+            }
+
+            // Circuit node class with intelligence
+            class Node {
+                constructor(x, y, id) {
+                    this.x = x;
+                    this.y = y;
+                    this.id = id;
+                    this.baseRadius = Math.random() * 3 + 2;
+                    this.radius = this.baseRadius;
+                    this.targetRadius = this.baseRadius;
+                    this.neighbors = [];
+                    this.color =
+                        colors[Math.floor(Math.random() * colors.length)];
+                    this.targetColor = this.color;
+                    this.pulsePhase = Math.random() * Math.PI * 2;
+                    this.data = Math.random();
+                    this.messageQueue = [];
+                    this.lastSendTime = 0;
+                    this.swarmParticles = [];
+                    this.activity = 0;
+                }
+
+                addNeighbor(node) {
+                    if (!this.neighbors.includes(node)) {
+                        this.neighbors.push(node);
+                    }
+                }
+
+                receiveMessage(packet) {
+                    this.data = (this.data * 0.7 + packet.data * 0.3) % 1;
+                    this.activity = 1.0;
+
+                    const colorFactor = this.data;
+                    this.targetColor = interpolateColor(
+                        green,
+                        blue,
+                        colorFactor,
+                    );
+
+                    this.targetRadius = this.baseRadius * 2.5;
+
+                    if (Math.random() > 0.3) {
+                        this.sendIntelligentMessages();
+                    }
+                }
+
+                sendIntelligentMessages() {
+                    const now = Date.now();
+                    if (now - this.lastSendTime < 500) return;
+
+                    this.lastSendTime = now;
+
+                    const sortedNeighbors = [...this.neighbors].sort((a, b) => {
+                        const diffA = Math.abs(a.data - this.data);
+                        const diffB = Math.abs(b.data - this.data);
+                        return diffB - diffA;
+                    });
+
+                    const numToSend = Math.min(2, sortedNeighbors.length);
+                    for (let i = 0; i < numToSend; i++) {
+                        const neighbor = sortedNeighbors[i];
+                        const mutatedData =
+                            (this.data + (Math.random() - 0.5) * 0.2) % 1;
+                        const packet = new MessagePacket(
+                            this,
+                            neighbor,
+                            this.color,
+                            mutatedData,
+                        );
+                        this.messageQueue.push(packet);
+                    }
+                }
+
+                createSwarmEffect(intensity = 1.0) {
+                    const numParticles = Math.floor(20 * intensity);
+                    for (let i = 0; i < numParticles; i++) {
+                        const angle =
+                            (Math.PI * 2 * i) / numParticles +
+                            Math.random() * 0.5;
+                        const speed = 1 + Math.random() * 2;
+                        const distance = 10 + Math.random() * 30;
+                        this.swarmParticles.push({
+                            angle: angle,
+                            distance: distance,
+                            maxDistance: distance + 50 * intensity,
+                            speed: speed,
+                            life: 1.0,
+                            decay: 0.01 + Math.random() * 0.02,
+                            color: this.color,
+                        });
+                    }
+                }
+
+                updateSwarm() {
+                    this.swarmParticles = this.swarmParticles.filter(
+                        (particle) => {
+                            particle.distance += particle.speed;
+                            particle.angle += 0.02;
+                            particle.life -= particle.decay;
+                            return (
+                                particle.life > 0 &&
+                                particle.distance < particle.maxDistance
+                            );
+                        },
+                    );
+                }
+
+                drawSwarm() {
+                    this.swarmParticles.forEach((particle) => {
+                        const px =
+                            this.x +
+                            Math.cos(particle.angle) * particle.distance;
+                        const py =
+                            this.y +
+                            Math.sin(particle.angle) * particle.distance;
+
+                        const alpha = particle.life * 0.8;
+                        const size = 2 + particle.life * 2;
+
+                        ctx.beginPath();
+                        ctx.arc(px, py, size, 0, Math.PI * 2);
+                        ctx.fillStyle =
+                            particle.color +
+                            Math.floor(alpha * 255)
+                                .toString(16)
+                                .padStart(2, "0");
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.moveTo(this.x, this.y);
+                        ctx.lineTo(px, py);
+                        ctx.strokeStyle =
+                            particle.color +
+                            Math.floor(alpha * 80)
+                                .toString(16)
+                                .padStart(2, "0");
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    });
+                }
+
+                update() {
+                    if (this.color !== this.targetColor) {
+                        const currentRgb = hexToRgb(this.color);
+                        const targetRgb = hexToRgb(this.targetColor);
+                        const speed = 0.1;
+                        const r = Math.round(
+                            currentRgb.r + (targetRgb.r - currentRgb.r) * speed,
+                        );
+                        const g = Math.round(
+                            currentRgb.g + (targetRgb.g - currentRgb.g) * speed,
+                        );
+                        const b = Math.round(
+                            currentRgb.b + (targetRgb.b - currentRgb.b) * speed,
+                        );
+                        this.color = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+                    }
+
+                    this.radius += (this.targetRadius - this.radius) * 0.15;
+                    this.targetRadius +=
+                        (this.baseRadius - this.targetRadius) * 0.05;
+
+                    this.activity *= 0.95;
+
+                    this.updateSwarm();
+
+                    if (
+                        Math.random() > 0.998 &&
+                        this.messageQueue.length === 0
+                    ) {
+                        this.data = Math.random();
+                        this.sendIntelligentMessages();
+                    }
+                }
+
+                draw() {
+                    const pulse =
+                        Math.sin(Date.now() * 0.002 + this.pulsePhase) * 0.5 +
+                        0.5;
+                    const alpha = 0.3 + pulse * 0.4 + this.activity * 0.3;
+
+                    this.drawSwarm();
+
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle =
+                        this.color +
+                        Math.floor(alpha * 255)
+                            .toString(16)
+                            .padStart(2, "0");
+                    ctx.fill();
+
+                    const glowSize = this.radius * (2 + this.activity * 2);
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, glowSize, 0, Math.PI * 2);
+                    const gradient = ctx.createRadialGradient(
+                        this.x,
+                        this.y,
+                        0,
+                        this.x,
+                        this.y,
+                        glowSize,
+                    );
+                    const glowAlpha = Math.floor(
+                        (0.4 + this.activity * 0.4) * 255,
+                    )
+                        .toString(16)
+                        .padStart(2, "0");
+                    gradient.addColorStop(0, this.color + glowAlpha);
+                    gradient.addColorStop(1, this.color + "00");
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
+            }
+
+            // Connection class
+            class Connection {
+                constructor(nodeA, nodeB) {
+                    this.nodeA = nodeA;
+                    this.nodeB = nodeB;
+                    this.activity = 0;
+                }
+
+                draw() {
+                    const hasMessages =
+                        this.nodeA.messageQueue.some(
+                            (m) => m.toNode === this.nodeB,
+                        ) ||
+                        this.nodeB.messageQueue.some(
+                            (m) => m.toNode === this.nodeA,
+                        );
+
+                    if (hasMessages) {
+                        this.activity = Math.min(1, this.activity + 0.1);
+                    } else {
+                        this.activity *= 0.9;
+                    }
+
+                    const baseAlpha = 0.15 + this.activity * 0.3;
+                    const color = interpolateColor(
+                        this.nodeA.color,
+                        this.nodeB.color,
+                        0.5,
+                    );
+
+                    ctx.beginPath();
+                    ctx.moveTo(this.nodeA.x, this.nodeA.y);
+                    ctx.lineTo(this.nodeB.x, this.nodeB.y);
+                    ctx.strokeStyle =
+                        color +
+                        Math.floor(baseAlpha * 255)
+                            .toString(16)
+                            .padStart(2, "0");
+                    ctx.lineWidth = 1 + this.activity * 2;
+                    ctx.stroke();
+                }
+            }
+
+            // Initialize network
+            function initNetwork() {
+                nodes = [];
+                connections = [];
+                messagePackets = [];
+
+                const gridSpacing = 80;
+                const margin = 100;
+                let id = 0;
+
+                for (
+                    let x = margin;
+                    x < canvas.width - margin;
+                    x += gridSpacing
+                ) {
+                    for (
+                        let y = margin;
+                        y < canvas.height - margin;
+                        y += gridSpacing
+                    ) {
+                        const offsetX = (Math.random() - 0.5) * 40;
+                        const offsetY = (Math.random() - 0.5) * 40;
+                        nodes.push(new Node(x + offsetX, y + offsetY, id++));
+                    }
+                }
+
+                nodes.forEach((node, i) => {
+                    nodes.slice(i + 1).forEach((otherNode) => {
+                        const dx = node.x - otherNode.x;
+                        const dy = node.y - otherNode.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (
+                            distance < gridSpacing * 1.5 &&
+                            Math.random() > 0.5
+                        ) {
+                            connections.push(new Connection(node, otherNode));
+                            node.addNeighbor(otherNode);
+                            otherNode.addNeighbor(node);
+                        }
+                    });
+                });
+
+                for (let i = 0; i < 3; i++) {
+                    const randomNode =
+                        nodes[Math.floor(Math.random() * nodes.length)];
+                    randomNode.sendIntelligentMessages();
+                }
+            }
+
+            // Animation loop
+            function animate() {
+                ctx.fillStyle = "#0a0e1a";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                connections.forEach((conn) => conn.draw());
+
+                nodes.forEach((node) => {
+                    node.update();
+                    node.draw();
+                });
+
+                nodes.forEach((node) => {
+                    if (node.messageQueue.length > 0) {
+                        messagePackets.push(...node.messageQueue);
+                        node.messageQueue = [];
+                    }
+                });
+
+                messagePackets = messagePackets.filter((packet) => {
+                    packet.draw();
+                    return packet.update();
+                });
+
+                requestAnimationFrame(animate);
+            }
+
+            // Canvas resize handler
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                initNetwork();
+            }
+
+            // Click handler
+            canvas.addEventListener("click", (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                let closestNode = null;
+                let minDist = Infinity;
+
+                nodes.forEach((node) => {
+                    const dx = node.x - x;
+                    const dy = node.y - y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < minDist && dist < 50) {
+                        minDist = dist;
+                        closestNode = node;
+                    }
+                });
+
+                if (closestNode) {
+                    closestNode.createSwarmEffect(1.5);
+                    closestNode.data = Math.random();
+                    closestNode.activity = 1.0;
+                    closestNode.targetRadius = closestNode.baseRadius * 3;
+
+                    closestNode.neighbors.forEach((neighbor) => {
+                        const mutatedData =
+                            (closestNode.data + (Math.random() - 0.5) * 0.3) %
+                            1;
+                        const packet = new MessagePacket(
+                            closestNode,
+                            neighbor,
+                            closestNode.color,
+                            mutatedData,
+                        );
+                        closestNode.messageQueue.push(packet);
+                    });
+                }
+            });
+
+            // Hover effect
+            canvas.addEventListener("mousemove", (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                let found = false;
+                nodes.forEach((node) => {
+                    const dx = node.x - x;
+                    const dy = node.y - y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 50) {
+                        found = true;
+                    }
+                });
+
+                canvas.style.cursor = found ? "pointer" : "default";
+            });
+
+            // Initialize everything
+            resizeCanvas();
+            window.addEventListener("resize", resizeCanvas);
+            animate();
+        </script>
+    </body>
+</html>
