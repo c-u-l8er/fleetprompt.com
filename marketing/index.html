@@ -51,6 +51,23 @@
                 animation: pulse 3s ease-in-out infinite;
             }
 
+            .copyright {
+                position: fixed;
+                bottom: 1em;
+            }
+
+            .copyright, .powered-by {
+                color: #888;
+            }
+
+            .powered-by a {
+                color: #aaa;
+            }
+            .powered-by a:hover {
+                color: #fff;
+            }
+
+
             @keyframes fadeIn {
                 from {
                     opacity: 0;
@@ -110,9 +127,16 @@
                     />
                 </a>
             </div>
+            <br />
+            <span class="copyright">© <span id="year"></span> FleetPrompt.com ... <span class="powered-by">Powered by <a href="https://ampersandboxdesign.com" target="_blank">[&]</a></span></span>
         </div>
-
+        
+        
         <script>
+            // Basic DOM wiring
+            document.getElementById("year").textContent = new Date().getFullYear();
+
+
             const canvas = document.getElementById("canvas");
             const ctx = canvas.getContext("2d");
 
