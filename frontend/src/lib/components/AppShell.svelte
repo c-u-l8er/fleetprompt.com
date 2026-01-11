@@ -615,7 +615,7 @@
                 class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground"
             >
                 <div>
-                    © {new Date().getFullYear()} FleetPrompt
+                    © {new Date().getFullYear()} FleetPrompt.com ... <span class="powered-by">Powered by <a href="https://ampersandboxdesign.com" target="_blank">[&]</a></span>
                 </div>
                 <div class="flex items-center gap-4">
                     <a
