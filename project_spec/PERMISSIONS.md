@@ -15,7 +15,7 @@ Use explicit, capability-like strings (see portfolio standard):
 - `filesystem:read:<glob>`
 - `filesystem:write:<glob>`
 - `network:egress:<host-or-tag>`
-- `a2a:publish:<topic>` / `a2a:subscribe:<topic>`
+- `event:publish:<pattern>` / `event:subscribe:<pattern>`
 
 ## 3) Enforcement points
 
