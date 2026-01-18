@@ -11,6 +11,17 @@ In the portfolio architecture, FleetPrompt runs as an **OpenSentience Agent** fo
 Canonical portfolio context:
 - `opensentience.org/project_spec/portfolio-integration.md`
 
+## Scope clarification: FleetPrompt Engine vs FleetPrompt Marketplace
+
+This spec set (`fleetprompt.com/project_spec/`) describes the **FleetPrompt Engine**: an OpenSentience-managed agent that discovers/validates `.fleetprompt/` resources and executes skills/workflows locally via OpenSentience Core tool routing.
+
+The **FleetPrompt Marketplace** (commercial) is a separate product from the FleetPrompt Engine reimplementation plan. Marketplace-level specs live here:
+- `MARKETPLACE_COMMERCIAL.md` (accounts, Stripe Connect payouts, listings, entitlements, artifacts/download delivery, Ash+Phoenix+Inertia+Svelte stack)
+
+The marketplace must remain compatible with OpenSentience Core’s trust boundaries and governance docs:
+- `opensentience.org/project_spec/TRUST_AND_REGISTRY.md` (registry/provenance/verification posture, including paid-updates entitlements)
+- `opensentience.org/project_spec/agent_marketplace.md` (install/build/enable/run lifecycle and safe-by-default constraints)
+
 ## Read this spec in order
 
 1. `ARCHITECTURE.md` — component boundaries + responsibilities
@@ -41,8 +52,9 @@ Canonical portfolio context:
 
 ## Non-goals (for reimplementation MVP)
 
-- Rebuilding FleetPrompt as a multi-tenant SaaS.
-- Reusing Phoenix/Ash multitenancy (`org_<slug>` schemas). That model was correct for SaaS, but it is not required for a local agent MVP.
+- Building the **FleetPrompt Marketplace** (commercial web app). This spec set focuses on the FleetPrompt Engine (agent runtime) only. See `MARKETPLACE_COMMERCIAL.md` for the marketplace plan/spec.
+- Rebuilding FleetPrompt Engine as a multi-tenant SaaS.
+- Reusing Phoenix/Ash multitenancy (`org_<slug>` schemas) inside the Engine. That model was correct for SaaS, but it is not required for a local agent MVP.
 
 ## Open questions (explicit)
 
