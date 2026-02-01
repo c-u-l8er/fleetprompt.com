@@ -2,7 +2,7 @@
 Version: 1.0  
 Status: Draft (normative once adopted)  
 Audience: Engineering  
-Last updated: 2026-01-31
+Last updated: 2026-02-01
 
 This document defines the **FleetPrompt v1** API surface and wire contracts:
 - normalized error envelope (required)
@@ -696,12 +696,17 @@ This spec defines **R1**.
 
 Authentication:
 - MUST be server-to-server.
-- Acceptable auth schemes:
-  - HMAC-signed request over raw bytes, similar to WHS delegated invocation style, OR
-  - mTLS, OR
-  - private network + static bearer token (least preferred)
-  
-The chosen scheme MUST be documented in an ADR, and MUST NOT be callable from browsers.
+- Auth mode (v1): HMAC over **raw request body bytes** + timestamp skew window (locked by `ADR-0003`).
+- Required headers (MUST):
+  - `X-WHS-Delegation-Source: <string>`
+  - `X-WHS-Delegation-Timestamp: <epoch_ms_as_string>`
+  - `X-WHS-Delegation-Signature: v1=<hex(hmac_sha256(raw_body_bytes, FLEETPROMPT_INTERNAL_REDEEM_SECRET))>`
+- Verification rules (MUST):
+  - Verify the signature over the **exact raw request body bytes** BEFORE parsing JSON.
+  - Enforce a timestamp skew window of **±5 minutes**.
+  - Reject missing/invalid headers or failed verification as `UNAUTHENTICATED`.
+- Defense-in-depth (SHOULD):
+  - Enforce an allowlist for `X-WHS-Delegation-Source` (e.g., `whs`, `agentromatic`, `agentelic`).
 
 Request:
 ```ProjectWHS/fleetprompt.com/project_spec/spec_v1/10_API_CONTRACTS.md#L1-999

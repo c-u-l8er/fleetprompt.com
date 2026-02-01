@@ -101,12 +101,16 @@ FleetPrompt will support a server-to-server redemption flow:
     - for `spec_asset`: `specAssetId` or artifact pointer (if supported)
 
 #### 3.2 Server authentication for internal redemption
-The redemption endpoint MUST require a server authentication scheme that is not feasible from browsers. Acceptable schemes include:
-- HMAC signature over raw body bytes + timestamp skew window
-- mTLS between services
-- short-lived service JWT with strict issuer/audience and rotation
+The redemption endpoint MUST use the portfolio-standard **server-to-server HMAC scheme over raw request body bytes** with a **timestamp skew window** (mirrors the WHS delegated invocation pattern).
 
-The chosen scheme MUST be captured in a follow-up ADR (or in this ADR’s “Implementation Notes” once implemented).
+Required headers (MUST):
+- `X-WHS-Delegation-Source: <string>`
+- `X-WHS-Delegation-Timestamp: <epoch_ms_as_string>`
+- `X-WHS-Delegation-Signature: v1=<hex(hmac_sha256(raw_body_bytes, FLEETPROMPT_INTERNAL_REDEEM_SECRET))>`
+
+Verification rules (MUST):
+- Verify the signature over the **exact raw request body bytes** before parsing JSON.
+- Enforce a timestamp skew window of **±5 minutes**; reject requests outside the window.
 
 Rationale:
 - Prevents confused-deputy scenarios.
