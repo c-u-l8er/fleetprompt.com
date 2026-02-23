@@ -1,0 +1,1843 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>FleetPrompt — The Agent Marketplace</title>
+        <meta
+            name="description"
+            content="Discover, publish, and install production-ready AI agents. The open marketplace where spec-driven agents find their fleet. Built on trust scores, versioned manifests, and one-click deployment to OpenSentience."
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Space+Mono:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg: #09090e;
+                --s1: #0f0f16;
+                --s2: #15151f;
+                --s3: #1c1c2a;
+                --br: #252538;
+                --br-s: rgba(249, 115, 22, 0.06);
+                --tx: #e6e4df;
+                --tm: #8a8898;
+                --td: #504e64;
+                --tw: #302f42;
+                --or: #f97316;
+                --or-d: rgba(249, 115, 22, 0.1);
+                --or-m: rgba(249, 115, 22, 0.25);
+                --or-g: rgba(249, 115, 22, 0.04);
+                --cy: #22d3ee;
+                --cy-d: rgba(34, 211, 238, 0.1);
+                --gn: #34d399;
+                --gn-d: rgba(52, 211, 153, 0.08);
+                --vi: #a78bfa;
+                --vi-d: rgba(167, 139, 250, 0.08);
+                --rd: #f87171;
+                --ff: "Space Mono", monospace;
+                --fs: "Libre Baskerville", serif;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            html {
+                scroll-behavior: smooth;
+            }
+            body {
+                font-family: var(--ff);
+                background: var(--bg);
+                color: var(--tx);
+                overflow-x: hidden;
+                -webkit-font-smoothing: antialiased;
+                font-size: 14px;
+                line-height: 1.7;
+            }
+            a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            /* Grid background */
+            body::after {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image:
+                    linear-gradient(var(--br-s) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--br-s) 1px, transparent 1px);
+                background-size: 64px 64px;
+                pointer-events: none;
+                z-index: 0;
+            }
+
+            /* Grain */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+                pointer-events: none;
+                z-index: 9998;
+                opacity: 0.4;
+            }
+
+            .glow {
+                position: fixed;
+                border-radius: 50%;
+                filter: blur(160px);
+                pointer-events: none;
+                z-index: 0;
+            }
+            .g1 {
+                width: 750px;
+                height: 750px;
+                background: radial-gradient(
+                    circle,
+                    rgba(249, 115, 22, 0.07),
+                    transparent 70%
+                );
+                top: -280px;
+                left: 20%;
+                animation: drift1 30s ease-in-out infinite;
+            }
+            .g2 {
+                width: 550px;
+                height: 550px;
+                background: radial-gradient(
+                    circle,
+                    rgba(34, 211, 238, 0.05),
+                    transparent 70%
+                );
+                bottom: -120px;
+                right: -80px;
+                animation: drift2 36s ease-in-out infinite;
+            }
+            .g3 {
+                width: 400px;
+                height: 400px;
+                background: radial-gradient(
+                    circle,
+                    rgba(167, 139, 250, 0.04),
+                    transparent 70%
+                );
+                top: 50%;
+                left: -150px;
+                animation: drift1 22s ease-in-out infinite reverse;
+            }
+            @keyframes drift1 {
+                0%,
+                100% {
+                    transform: translate(0, 0);
+                }
+                50% {
+                    transform: translate(-45px, 30px);
+                }
+            }
+            @keyframes drift2 {
+                0%,
+                100% {
+                    transform: translate(0, 0);
+                }
+                50% {
+                    transform: translate(30px, -40px);
+                }
+            }
+
+            .wrap {
+                max-width: 1080px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                position: relative;
+                z-index: 1;
+            }
+
+            /* NAV */
+            nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                padding: 1.2rem 2rem;
+                background: rgba(9, 9, 14, 0.88);
+                backdrop-filter: blur(24px);
+                border-bottom: 1px solid var(--br);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                text-decoration: none;
+                color: var(--tx);
+                font-size: 0.85rem;
+                font-weight: 700;
+                letter-spacing: -0.01em;
+            }
+            .logo-mark {
+                width: 26px;
+                height: 26px;
+                border-radius: 6px;
+                background: linear-gradient(135deg, var(--or), #fb923c);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.6rem;
+                font-weight: 700;
+                color: var(--bg);
+            }
+            .logo .dim {
+                color: var(--td);
+            }
+            .nav-r {
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+            }
+            .nav-r a {
+                font-size: 0.7rem;
+                color: var(--tm);
+                text-decoration: none;
+                font-weight: 400;
+                transition: color 0.2s;
+                letter-spacing: 0.02em;
+            }
+            .nav-r a:hover {
+                color: var(--tx);
+            }
+            .btn-p {
+                padding: 0.5rem 1.1rem;
+                border-radius: 6px;
+                background: var(--or);
+                color: #fff;
+                font-size: 0.7rem;
+                font-weight: 700;
+                font-family: var(--ff);
+                border: none;
+                cursor: pointer;
+                text-decoration: none;
+                transition: all 0.2s;
+                letter-spacing: 0.02em;
+            }
+            .btn-p:hover {
+                background: #fb923c;
+                transform: translateY(-1px);
+            }
+            .btn-ghost {
+                padding: 0.5rem 1.1rem;
+                border-radius: 6px;
+                border: 1px solid var(--br);
+                color: var(--tm);
+                font-size: 0.7rem;
+                font-weight: 700;
+                font-family: var(--ff);
+                cursor: pointer;
+                text-decoration: none;
+                transition: all 0.2s;
+                background: transparent;
+                letter-spacing: 0.02em;
+            }
+            .btn-ghost:hover {
+                border-color: var(--td);
+                color: var(--tx);
+            }
+
+            /* HERO */
+            .hero {
+                padding: 11rem 0 6rem;
+                text-align: center;
+                position: relative;
+                z-index: 1;
+            }
+            .hero-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.35rem 0.9rem;
+                border-radius: 20px;
+                border: 1px solid var(--br);
+                background: var(--s1);
+                font-size: 0.65rem;
+                color: var(--tm);
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                margin-bottom: 2rem;
+            }
+            .hero-badge .dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--or);
+                animation: blink 2.5s ease-in-out infinite;
+            }
+            @keyframes blink {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.3;
+                }
+            }
+            .hero h1 {
+                font-family: var(--fs);
+                font-size: clamp(2.8rem, 6vw, 4.5rem);
+                font-weight: 400;
+                line-height: 1.15;
+                color: var(--tx);
+                margin-bottom: 1.5rem;
+                letter-spacing: -0.02em;
+            }
+            .hero h1 em {
+                font-style: italic;
+                color: var(--or);
+            }
+            .hero-sub {
+                font-size: 1rem;
+                color: var(--tm);
+                margin-bottom: 1rem;
+                font-weight: 400;
+                line-height: 1.6;
+                max-width: 560px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .hero-desc {
+                font-size: 0.78rem;
+                color: var(--td);
+                max-width: 520px;
+                margin: 0 auto 2.5rem;
+                line-height: 1.8;
+            }
+            .hero-stats {
+                display: flex;
+                justify-content: center;
+                gap: 3rem;
+                margin-bottom: 3rem;
+                flex-wrap: wrap;
+            }
+            .h-stat {
+                text-align: center;
+            }
+            .h-stat .val {
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--tx);
+                display: block;
+                line-height: 1;
+                margin-bottom: 0.3rem;
+            }
+            .h-stat .val span {
+                color: var(--or);
+                font-size: 1.2rem;
+            }
+            .h-stat .lbl {
+                font-size: 0.6rem;
+                color: var(--td);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                line-height: 1.4;
+            }
+            .hero-acts {
+                display: flex;
+                justify-content: center;
+                gap: 0.75rem;
+                flex-wrap: wrap;
+            }
+
+            /* SECTIONS */
+            section {
+                padding: 5rem 0;
+                position: relative;
+                z-index: 1;
+            }
+            .sec-label {
+                font-size: 0.6rem;
+                text-transform: uppercase;
+                letter-spacing: 0.16em;
+                color: var(--or);
+                margin-bottom: 0.75rem;
+                font-weight: 700;
+            }
+            section h2 {
+                font-family: var(--fs);
+                font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+                font-weight: 400;
+                line-height: 1.25;
+                margin-bottom: 1rem;
+                letter-spacing: -0.01em;
+            }
+            section h2 .accent {
+                color: var(--or);
+            }
+            .sec-sub {
+                font-size: 0.82rem;
+                color: var(--tm);
+                max-width: 560px;
+                line-height: 1.7;
+                margin-bottom: 3rem;
+            }
+
+            /* REGISTRY PREVIEW */
+            .registry {
+                border: 1px solid var(--br);
+                border-radius: 10px;
+                background: var(--s1);
+                overflow: hidden;
+                margin-bottom: 5rem;
+            }
+            .reg-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.75rem 1.25rem;
+                border-bottom: 1px solid var(--br);
+                background: var(--s2);
+            }
+            .reg-header h3 {
+                font-size: 0.7rem;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+            }
+            .reg-search {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.3rem 0.8rem;
+                border-radius: 5px;
+                border: 1px solid var(--br);
+                background: var(--s1);
+                font-size: 0.65rem;
+                color: var(--td);
+                font-family: var(--ff);
+            }
+            .reg-body {
+                padding: 0;
+            }
+            .reg-item {
+                display: grid;
+                grid-template-columns: 1fr auto auto auto;
+                align-items: center;
+                gap: 1.5rem;
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+                transition: background 0.15s;
+            }
+            .reg-item:last-child {
+                border-bottom: none;
+            }
+            .reg-item:hover {
+                background: var(--s2);
+            }
+            .reg-name {
+                display: flex;
+                flex-direction: column;
+                gap: 0.2rem;
+            }
+            .reg-name strong {
+                font-size: 0.8rem;
+                font-weight: 700;
+                color: var(--tx);
+            }
+            .reg-name span {
+                font-size: 0.62rem;
+                color: var(--td);
+            }
+            .reg-trust {
+                display: flex;
+                align-items: center;
+                gap: 0.35rem;
+                font-size: 0.65rem;
+                font-weight: 700;
+            }
+            .trust-bar {
+                width: 48px;
+                height: 4px;
+                border-radius: 2px;
+                background: var(--s3);
+                overflow: hidden;
+                position: relative;
+            }
+            .trust-fill {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                border-radius: 2px;
+            }
+            .trust-high {
+                background: var(--gn);
+            }
+            .trust-med {
+                background: var(--or);
+            }
+            .reg-ver {
+                font-size: 0.62rem;
+                color: var(--td);
+                font-weight: 400;
+            }
+            .reg-install {
+                font-size: 0.6rem;
+                padding: 0.3rem 0.7rem;
+                border-radius: 4px;
+                border: 1px solid var(--br);
+                color: var(--tm);
+                font-family: var(--ff);
+                cursor: pointer;
+                background: transparent;
+                transition: all 0.2s;
+                font-weight: 700;
+            }
+            .reg-install:hover {
+                border-color: var(--or);
+                color: var(--or);
+            }
+
+            /* PIPELINE */
+            .pipeline {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0;
+                margin-bottom: 2rem;
+                position: relative;
+            }
+            .pipeline::before {
+                content: "";
+                position: absolute;
+                top: 2.2rem;
+                left: 12%;
+                right: 12%;
+                height: 1px;
+                background: linear-gradient(
+                    90deg,
+                    var(--or),
+                    var(--cy),
+                    var(--gn),
+                    var(--vi)
+                );
+                opacity: 0.25;
+            }
+            .pipe-step {
+                text-align: center;
+                position: relative;
+            }
+            .pipe-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.1rem;
+                margin: 0 auto 1rem;
+                position: relative;
+                z-index: 1;
+            }
+            .pipe-step:nth-child(1) .pipe-icon {
+                background: var(--or-d);
+                border: 1px solid rgba(249, 115, 22, 0.2);
+            }
+            .pipe-step:nth-child(2) .pipe-icon {
+                background: var(--cy-d);
+                border: 1px solid rgba(34, 211, 238, 0.2);
+            }
+            .pipe-step:nth-child(3) .pipe-icon {
+                background: var(--gn-d);
+                border: 1px solid rgba(52, 211, 153, 0.2);
+            }
+            .pipe-step:nth-child(4) .pipe-icon {
+                background: var(--vi-d);
+                border: 1px solid rgba(167, 139, 250, 0.2);
+            }
+            .pipe-step h4 {
+                font-size: 0.75rem;
+                font-weight: 700;
+                margin-bottom: 0.4rem;
+                letter-spacing: 0.02em;
+            }
+            .pipe-step p {
+                font-size: 0.62rem;
+                color: var(--td);
+                line-height: 1.6;
+                padding: 0 0.5rem;
+            }
+
+            /* FEATURES */
+            .feature-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1px;
+                background: var(--br);
+                border: 1px solid var(--br);
+                border-radius: 10px;
+                overflow: hidden;
+            }
+            .feat {
+                padding: 1.75rem;
+                background: var(--s1);
+                transition: background 0.2s;
+            }
+            .feat:hover {
+                background: var(--s2);
+            }
+            .feat-icon {
+                font-size: 1.25rem;
+                margin-bottom: 0.75rem;
+                display: block;
+            }
+            .feat h4 {
+                font-size: 0.78rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+                letter-spacing: 0.02em;
+            }
+            .feat p {
+                font-size: 0.68rem;
+                color: var(--td);
+                line-height: 1.7;
+            }
+
+            /* MANIFEST */
+            .manifest-section {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2.5rem;
+                align-items: start;
+            }
+            .manifest-info h2 {
+                margin-bottom: 0.75rem;
+            }
+            .manifest-info .sec-sub {
+                margin-bottom: 1.5rem;
+            }
+            .manifest-points {
+                list-style: none;
+            }
+            .manifest-points li {
+                display: flex;
+                align-items: baseline;
+                gap: 0.6rem;
+                font-size: 0.72rem;
+                color: var(--tm);
+                padding: 0.45rem 0;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            }
+            .manifest-points li:last-child {
+                border-bottom: none;
+            }
+            .manifest-points .ck {
+                color: var(--or);
+                font-size: 0.65rem;
+                flex-shrink: 0;
+            }
+            .code-block {
+                border: 1px solid var(--br);
+                border-radius: 8px;
+                background: var(--s1);
+                overflow: hidden;
+            }
+            .code-header {
+                padding: 0.6rem 1rem;
+                border-bottom: 1px solid var(--br);
+                font-size: 0.6rem;
+                color: var(--td);
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                font-weight: 700;
+                background: var(--s2);
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+            .code-dots {
+                display: flex;
+                gap: 4px;
+            }
+            .code-dots span {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: var(--tw);
+            }
+            .code-body {
+                padding: 1.25rem;
+                font-size: 0.68rem;
+                line-height: 1.8;
+                overflow-x: auto;
+            }
+            .code-body pre {
+                font-family: var(--ff);
+                white-space: pre;
+            }
+            .hl-k {
+                color: var(--or);
+            }
+            .hl-s {
+                color: var(--gn);
+            }
+            .hl-c {
+                color: var(--td);
+                font-style: italic;
+            }
+            .hl-n {
+                color: var(--cy);
+            }
+            .hl-v {
+                color: var(--vi);
+            }
+            .hl-p {
+                color: var(--tm);
+            }
+
+            /* TRUST */
+            .trust-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1px;
+                background: var(--br);
+                border: 1px solid var(--br);
+                border-radius: 10px;
+                overflow: hidden;
+            }
+            .trust-card {
+                padding: 2rem;
+                background: var(--s1);
+                transition: background 0.2s;
+            }
+            .trust-card:hover {
+                background: var(--s2);
+            }
+            .trust-card h4 {
+                font-size: 0.78rem;
+                font-weight: 700;
+                margin-bottom: 0.4rem;
+            }
+            .trust-card .principle {
+                font-size: 0.62rem;
+                color: var(--or);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-weight: 700;
+                margin-bottom: 0.6rem;
+            }
+            .trust-card p {
+                font-size: 0.68rem;
+                color: var(--td);
+                line-height: 1.7;
+            }
+            .trust-card code {
+                font-size: 0.62rem;
+                padding: 0.15rem 0.4rem;
+                border-radius: 3px;
+                background: var(--s3);
+                color: var(--tm);
+                font-family: var(--ff);
+            }
+
+            /* STACK */
+            .stack-diagram {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                border-radius: 10px;
+                overflow: hidden;
+                border: 1px solid var(--br);
+            }
+            .stack-layer {
+                display: grid;
+                grid-template-columns: 160px 120px 1fr;
+                align-items: center;
+                gap: 1rem;
+                padding: 0.9rem 1.5rem;
+                background: var(--s1);
+                transition: background 0.2s;
+            }
+            .stack-layer:hover {
+                background: var(--s2);
+            }
+            .stack-name {
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.02em;
+            }
+            .stack-role {
+                font-size: 0.58rem;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-weight: 700;
+                padding: 0.2rem 0.5rem;
+                border-radius: 3px;
+                text-align: center;
+                width: fit-content;
+            }
+            .stack-desc {
+                font-size: 0.65rem;
+                color: var(--td);
+            }
+            .stack-layer:nth-child(1) .stack-role {
+                color: var(--rd);
+                background: rgba(248, 113, 113, 0.08);
+            }
+            .stack-layer:nth-child(2) .stack-role {
+                color: var(--vi);
+                background: var(--vi-d);
+            }
+            .stack-layer:nth-child(3) .stack-role {
+                color: var(--gn);
+                background: var(--gn-d);
+            }
+            .stack-layer:nth-child(4) .stack-role {
+                color: var(--cy);
+                background: var(--cy-d);
+            }
+            .stack-layer:nth-child(5) .stack-role {
+                color: var(--or);
+                background: var(--or-d);
+            }
+            .stack-layer:nth-child(6) .stack-role {
+                color: #818cf8;
+                background: rgba(129, 140, 248, 0.08);
+            }
+            .stack-highlight {
+                background: var(--s2) !important;
+                border-left: 2px solid var(--or);
+            }
+            .stack-highlight .stack-name {
+                color: var(--or);
+            }
+
+            /* IS / ISNT */
+            .clarity-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1.5rem;
+            }
+            .clarity-col {
+                border: 1px solid var(--br);
+                border-radius: 10px;
+                overflow: hidden;
+            }
+            .clarity-col h3 {
+                font-size: 0.72rem;
+                font-weight: 700;
+                padding: 0.75rem 1.25rem;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                border-bottom: 1px solid var(--br);
+            }
+            .clarity-col.is {
+                background: var(--s1);
+            }
+            .clarity-col.is h3 {
+                color: var(--or);
+                background: var(--or-d);
+            }
+            .clarity-col.isnt {
+                background: var(--s1);
+            }
+            .clarity-col.isnt h3 {
+                color: var(--td);
+                background: var(--s2);
+            }
+            .cl-item {
+                padding: 0.65rem 1.25rem;
+                font-size: 0.7rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.025);
+                color: var(--tm);
+            }
+            .cl-item:last-child {
+                border-bottom: none;
+            }
+            .cl-item strong {
+                color: var(--tx);
+                font-weight: 700;
+            }
+
+            /* CTA */
+            .cta-section {
+                padding: 6rem 0;
+                text-align: center;
+            }
+            .cta-section h2 {
+                font-family: var(--fs);
+                font-size: clamp(1.8rem, 4vw, 2.8rem);
+                font-weight: 400;
+                line-height: 1.2;
+                margin-bottom: 1rem;
+            }
+            .cta-section h2 .accent {
+                color: var(--or);
+            }
+            .cta-sub {
+                font-size: 0.82rem;
+                color: var(--tm);
+                max-width: 480px;
+                margin: 0 auto 2.5rem;
+                line-height: 1.7;
+            }
+            .cta-form {
+                display: flex;
+                justify-content: center;
+                gap: 0.5rem;
+                max-width: 420px;
+                margin: 0 auto 1rem;
+                flex-wrap: wrap;
+            }
+            .cta-input {
+                flex: 1;
+                min-width: 200px;
+                padding: 0.6rem 1rem;
+                border-radius: 6px;
+                border: 1px solid var(--br);
+                background: var(--s1);
+                color: var(--tx);
+                font-family: var(--ff);
+                font-size: 0.72rem;
+                outline: none;
+                transition: border-color 0.2s;
+            }
+            .cta-input::placeholder {
+                color: var(--tw);
+            }
+            .cta-input:focus {
+                border-color: var(--or);
+            }
+            .cta-note {
+                font-size: 0.6rem;
+                color: var(--tw);
+                letter-spacing: 0.04em;
+            }
+
+            /* FOOTER */
+            footer {
+                border-top: 1px solid var(--br);
+                padding: 2rem 0;
+                position: relative;
+                z-index: 1;
+            }
+            .footer-inner {
+                max-width: 1080px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            .ft-left {
+                font-size: 0.62rem;
+                color: var(--td);
+            }
+            .ft-left a {
+                color: var(--tm);
+                text-decoration: none;
+                transition: color 0.2s;
+            }
+            .ft-left a:hover {
+                color: var(--or);
+            }
+            .ft-right {
+                display: flex;
+                gap: 1.5rem;
+            }
+            .ft-right a {
+                font-size: 0.62rem;
+                color: var(--td);
+                text-decoration: none;
+                transition: color 0.2s;
+            }
+            .ft-right a:hover {
+                color: var(--tx);
+            }
+
+            /* REVEAL */
+            .rv {
+                opacity: 0;
+                transform: translateY(30px);
+                transition:
+                    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            .rv.v {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            /* RESPONSIVE */
+            @media (max-width: 900px) {
+                .pipeline {
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 1.5rem;
+                }
+                .pipeline::before {
+                    display: none;
+                }
+                .feature-grid {
+                    grid-template-columns: 1fr;
+                }
+                .manifest-section {
+                    grid-template-columns: 1fr;
+                }
+                .trust-grid {
+                    grid-template-columns: 1fr;
+                }
+                .clarity-grid {
+                    grid-template-columns: 1fr;
+                }
+                .stack-layer {
+                    grid-template-columns: 1fr;
+                    gap: 0.3rem;
+                    padding: 0.75rem 1rem;
+                }
+                .stack-role {
+                    width: auto;
+                    justify-self: start;
+                }
+                .reg-item {
+                    grid-template-columns: 1fr auto;
+                    gap: 0.75rem;
+                }
+                .reg-ver,
+                .reg-trust {
+                    display: none;
+                }
+            }
+            @media (max-width: 640px) {
+                nav {
+                    padding: 1rem 1.25rem;
+                }
+                .nav-r a:not(.btn-p) {
+                    display: none;
+                }
+                .hero {
+                    padding: 8rem 0 4rem;
+                }
+                .hero-stats {
+                    gap: 1.5rem;
+                }
+                .pipeline {
+                    grid-template-columns: 1fr;
+                }
+                .cta-form {
+                    flex-direction: column;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="glow g1"></div>
+        <div class="glow g2"></div>
+        <div class="glow g3"></div>
+
+        <!-- NAV -->
+        <nav>
+            <a href="#" class="logo">
+                <span class="logo-mark">FP</span>
+                fleetprompt<span class="dim">.com</span>
+            </a>
+            <div class="nav-r">
+                <a href="#how">How It Works</a>
+                <a href="#features">Features</a>
+                <a href="#trust">Trust</a>
+                <a href="#stack">Stack</a>
+                <a href="#cta" class="btn-p">Get Early Access</a>
+            </div>
+        </nav>
+
+        <!-- HERO -->
+        <section class="hero">
+            <div class="wrap">
+                <div class="hero-badge rv v">
+                    <span class="dot"></span>
+                    The open agent marketplace
+                </div>
+                <h1 class="rv v" style="transition-delay: 0.1s">
+                    Ship agents to<br />the <em>world.</em>
+                </h1>
+                <p class="hero-sub rv v" style="transition-delay: 0.2s">
+                    The open marketplace where production-ready AI agents are
+                    published, discovered, and deployed in one click.
+                </p>
+                <p class="hero-desc rv v" style="transition-delay: 0.25s">
+                    Spec-verified. Trust-scored. Versioned manifests. One-click
+                    install to OpenSentience. No vendor lock-in.
+                </p>
+                <div class="hero-stats rv v" style="transition-delay: 0.3s">
+                    <div class="h-stat">
+                        <span class="val">57<span>%</span></span>
+                        <span class="lbl"
+                            >of Orgs Have Agents<br />in Production</span
+                        >
+                    </div>
+                    <div class="h-stat">
+                        <span class="val">40<span>%</span></span>
+                        <span class="lbl"
+                            >of Agent Projects<br />Will Be Scrapped</span
+                        >
+                    </div>
+                    <div class="h-stat">
+                        <span class="val">0<span></span></span>
+                        <span class="lbl">Open Agent<br />Marketplaces</span>
+                    </div>
+                </div>
+                <div class="hero-acts rv v" style="transition-delay: 0.4s">
+                    <a
+                        href="#cta"
+                        class="btn-p"
+                        style="padding: 0.65rem 1.6rem; font-size: 0.78rem"
+                        >Publish Your First Agent →</a
+                    >
+                    <a
+                        href="#how"
+                        class="btn-ghost"
+                        style="padding: 0.65rem 1.6rem; font-size: 0.78rem"
+                        >See How It Works</a
+                    >
+                </div>
+            </div>
+        </section>
+
+        <!-- REGISTRY PREVIEW -->
+        <section>
+            <div class="wrap">
+                <div class="registry rv">
+                    <div class="reg-header">
+                        <h3>⚡ fleetprompt registry</h3>
+                        <div class="reg-search">⌘K search agents...</div>
+                    </div>
+                    <div class="reg-body">
+                        <div class="reg-item">
+                            <div class="reg-name">
+                                <strong>code-reviewer</strong>
+                                <span
+                                    >by ops-team · Reviews code changes and
+                                    suggests improvements</span
+                                >
+                            </div>
+                            <div class="reg-trust">
+                                <div class="trust-bar">
+                                    <div
+                                        class="trust-fill trust-high"
+                                        style="width: 94%"
+                                    ></div>
+                                </div>
+                                <span style="color: var(--gn)">94</span>
+                            </div>
+                            <span class="reg-ver">v2.3.1</span>
+                            <button class="reg-install">install</button>
+                        </div>
+                        <div class="reg-item">
+                            <div class="reg-name">
+                                <strong>customer-support-v2</strong>
+                                <span
+                                    >by support-eng · Handles inquiries,
+                                    processes refunds, escalates issues</span
+                                >
+                            </div>
+                            <div class="reg-trust">
+                                <div class="trust-bar">
+                                    <div
+                                        class="trust-fill trust-high"
+                                        style="width: 91%"
+                                    ></div>
+                                </div>
+                                <span style="color: var(--gn)">91</span>
+                            </div>
+                            <span class="reg-ver">v2.1.0</span>
+                            <button class="reg-install">install</button>
+                        </div>
+                        <div class="reg-item">
+                            <div class="reg-name">
+                                <strong>data-analyst</strong>
+                                <span
+                                    >by analytics-co · Queries databases,
+                                    generates reports, visualizes trends</span
+                                >
+                            </div>
+                            <div class="reg-trust">
+                                <div class="trust-bar">
+                                    <div
+                                        class="trust-fill trust-high"
+                                        style="width: 88%"
+                                    ></div>
+                                </div>
+                                <span style="color: var(--gn)">88</span>
+                            </div>
+                            <span class="reg-ver">v1.4.0</span>
+                            <button class="reg-install">install</button>
+                        </div>
+                        <div class="reg-item">
+                            <div class="reg-name">
+                                <strong>incident-responder</strong>
+                                <span
+                                    >by sre-team · Monitors alerts, triages
+                                    incidents, runs playbooks</span
+                                >
+                            </div>
+                            <div class="reg-trust">
+                                <div class="trust-bar">
+                                    <div
+                                        class="trust-fill trust-med"
+                                        style="width: 76%"
+                                    ></div>
+                                </div>
+                                <span style="color: var(--or)">76</span>
+                            </div>
+                            <span class="reg-ver">v0.9.2</span>
+                            <button class="reg-install">install</button>
+                        </div>
+                        <div class="reg-item">
+                            <div class="reg-name">
+                                <strong>doc-writer</strong>
+                                <span
+                                    >by devrel · Generates documentation from
+                                    code and specs</span
+                                >
+                            </div>
+                            <div class="reg-trust">
+                                <div class="trust-bar">
+                                    <div
+                                        class="trust-fill trust-high"
+                                        style="width: 85%"
+                                    ></div>
+                                </div>
+                                <span style="color: var(--gn)">85</span>
+                            </div>
+                            <span class="reg-ver">v1.2.0</span>
+                            <button class="reg-install">install</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- HOW IT WORKS -->
+        <section id="how">
+            <div class="wrap">
+                <p class="sec-label rv">How It Works</p>
+                <h2 class="rv">
+                    From spec to <span class="accent">fleet</span> in four steps
+                </h2>
+                <p class="sec-sub rv">
+                    Every agent on FleetPrompt is built against a SpecPrompt
+                    specification, tested in Agentelic, and deployed to
+                    OpenSentience. The pipeline is the trust.
+                </p>
+                <div class="pipeline rv">
+                    <div class="pipe-step">
+                        <div class="pipe-icon">📝</div>
+                        <h4>Publish</h4>
+                        <p>
+                            Push a tested agent with its SPEC.md manifest from
+                            Agentelic to the registry
+                        </p>
+                    </div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">🔍</div>
+                        <h4>Discover</h4>
+                        <p>
+                            Search by capability, trust score, domain, or
+                            compatible runtime
+                        </p>
+                    </div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">📦</div>
+                        <h4>Install</h4>
+                        <p>
+                            One command deploys the agent manifest to your
+                            OpenSentience runtime
+                        </p>
+                    </div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">🚀</div>
+                        <h4>Run</h4>
+                        <p>
+                            Agent starts with explicit permissions, full audit
+                            trail, and Graphonomous memory
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MANIFEST PREVIEW -->
+        <section>
+            <div class="wrap">
+                <div class="manifest-section rv">
+                    <div class="manifest-info">
+                        <p class="sec-label">Agent Manifests</p>
+                        <h2>
+                            Every agent carries<br />its
+                            <span class="accent">identity</span>
+                        </h2>
+                        <p class="sec-sub">
+                            FleetPrompt agents aren't black boxes. Every
+                            published agent includes a machine-readable manifest
+                            declaring capabilities, permissions, dependencies,
+                            and the SpecPrompt spec it was built against.
+                        </p>
+                        <ul class="manifest-points">
+                            <li>
+                                <span class="ck">✓</span> Versioned with
+                                semantic versioning
+                            </li>
+                            <li>
+                                <span class="ck">✓</span> Permissions declared
+                                upfront, reviewed on install
+                            </li>
+                            <li>
+                                <span class="ck">✓</span> SpecPrompt spec linked
+                                for full traceability
+                            </li>
+                            <li>
+                                <span class="ck">✓</span> MCP server
+                                dependencies explicitly listed
+                            </li>
+                            <li>
+                                <span class="ck">✓</span> Trust score computed
+                                from tests, usage, and audits
+                            </li>
+                            <li>
+                                <span class="ck">✓</span> One-click fork to
+                                customize for your team
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <div class="code-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            manifest.json
+                        </div>
+                        <div class="code-body">
+                            <pre>{
+  <span class="hl-k">"name"</span>: <span class="hl-s">"customer-support-v2"</span>,
+  <span class="hl-k">"version"</span>: <span class="hl-s">"2.1.0"</span>,
+  <span class="hl-k">"author"</span>: <span class="hl-s">"ops-team"</span>,
+  <span class="hl-k">"runtime"</span>: <span class="hl-s">"opensentience"</span>,
+  <span class="hl-k">"trust_score"</span>: <span class="hl-n">91</span>,
+  <span class="hl-k">"spec"</span>: <span class="hl-s">"SPEC.md"</span>,
+
+  <span class="hl-k">"permissions"</span>: {
+    <span class="hl-k">"required"</span>: [
+      {<span class="hl-k">"cap"</span>: <span class="hl-s">"orders:read"</span>},
+      {<span class="hl-k">"cap"</span>: <span class="hl-s">"refunds:create"</span>,
+       <span class="hl-k">"scope"</span>: <span class="hl-s">"max:500"</span>}
+    ]
+  },
+
+  <span class="hl-k">"mcp_servers"</span>: [
+    <span class="hl-s">"graphonomous"</span>,
+    <span class="hl-s">"orders-api"</span>,
+    <span class="hl-s">"notifications"</span>
+  ],
+
+  <span class="hl-c">// Built and tested in Agentelic</span>
+  <span class="hl-k">"build"</span>: {
+    <span class="hl-k">"tests_passed"</span>: <span class="hl-n">47</span>,
+    <span class="hl-k">"coverage"</span>: <span class="hl-s">"94%"</span>
+  }
+}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FEATURES -->
+        <section id="features">
+            <div class="wrap">
+                <p class="sec-label rv">Features</p>
+                <h2 class="rv">
+                    Built for agents that <span class="accent">matter</span>
+                </h2>
+                <p class="sec-sub rv">
+                    Not another model hub. FleetPrompt is purpose-built for
+                    distributing production AI agents — with the trust,
+                    governance, and tooling that entails.
+                </p>
+                <div class="feature-grid rv">
+                    <div class="feat">
+                        <span class="feat-icon">🔐</span>
+                        <h4>Trust Scores</h4>
+                        <p>
+                            Every agent is scored on test coverage, spec
+                            compliance, usage history, and audit results. Trust
+                            is earned, not declared.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">📋</span>
+                        <h4>Spec-Verified</h4>
+                        <p>
+                            Only agents built against a valid SpecPrompt
+                            specification can be published. The spec is the
+                            source of truth.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">🏷️</span>
+                        <h4>Semantic Versioning</h4>
+                        <p>
+                            Full version history with changelogs. Pin to
+                            specific versions, auto-update patches, or lock to
+                            major releases.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">⚡</span>
+                        <h4>One-Click Install</h4>
+                        <p>
+                            Deploy any agent to your OpenSentience runtime with
+                            a single command. Permissions reviewed before
+                            activation.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">🔀</span>
+                        <h4>Fork &amp; Customize</h4>
+                        <p>
+                            Fork any public agent, modify the spec, re-test in
+                            Agentelic, and publish your variant. Standing on
+                            shoulders.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">🌐</span>
+                        <h4>Open Protocol</h4>
+                        <p>
+                            MCP-native, MIT-licensed registry protocol. No
+                            vendor lock-in. Works with any MCP-compatible
+                            runtime.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">🏢</span>
+                        <h4>Private Registries</h4>
+                        <p>
+                            Enterprise teams can host private FleetPrompt
+                            registries. Internal agents, internal trust, same
+                            toolchain.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">📊</span>
+                        <h4>Usage Analytics</h4>
+                        <p>
+                            Track installs, active deployments, error rates, and
+                            user ratings. Know how your agents perform in the
+                            wild.
+                        </p>
+                    </div>
+                    <div class="feat">
+                        <span class="feat-icon">🧠</span>
+                        <h4>Graphonomous-Ready</h4>
+                        <p>
+                            Agents with continual learning declare Graphonomous
+                            as a dependency. Memory grows with every deployment.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TRUST -->
+        <section id="trust">
+            <div class="wrap">
+                <p class="sec-label rv">Trust &amp; Security</p>
+                <h2 class="rv">
+                    Trust is the <span class="accent">product</span>
+                </h2>
+                <p class="sec-sub rv">
+                    The agent marketplace problem isn't discovery — it's trust.
+                    FleetPrompt makes every agent's provenance, permissions, and
+                    track record transparent and verifiable.
+                </p>
+                <div class="trust-grid rv">
+                    <div class="trust-card">
+                        <div class="principle">Provenance</div>
+                        <h4>Spec-to-Ship Traceability</h4>
+                        <p>
+                            Every published agent links back to its SpecPrompt
+                            spec, Agentelic test results, and build pipeline.
+                            The manifest is a receipt, not a promise.
+                        </p>
+                    </div>
+                    <div class="trust-card">
+                        <div class="principle">Permissions</div>
+                        <h4>Declared, Not Discovered</h4>
+                        <p>
+                            Agent capabilities are declared in the manifest and
+                            reviewed on install. No hidden network calls, no
+                            surprise filesystem access.
+                            <code>permissions.required[]</code>
+                        </p>
+                    </div>
+                    <div class="trust-card">
+                        <div class="principle">Scoring</div>
+                        <h4>Trust Is Computed</h4>
+                        <p>
+                            Trust scores are calculated from test coverage, spec
+                            compliance, deployment history, error rates, and
+                            community ratings. Algorithms, not badges.
+                        </p>
+                    </div>
+                    <div class="trust-card">
+                        <div class="principle">Governance</div>
+                        <h4>Delegatic-Enforced Policies</h4>
+                        <p>
+                            Enterprise teams set Delegatic policies for which
+                            agents can be installed, by whom, and with what
+                            permissions. Governance scales with the fleet.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- IS / ISNT -->
+        <section>
+            <div class="wrap">
+                <p class="sec-label rv">Clarity</p>
+                <h2 class="rv">
+                    What FleetPrompt <span class="accent">is</span>
+                </h2>
+                <div class="clarity-grid rv">
+                    <div class="clarity-col is">
+                        <h3>FleetPrompt Is</h3>
+                        <div class="cl-item">
+                            <strong>An agent registry</strong> — like npm for AI
+                            agents, with manifests and versioning
+                        </div>
+                        <div class="cl-item">
+                            <strong>A trust layer</strong> — computed scores
+                            based on provenance, testing, and usage
+                        </div>
+                        <div class="cl-item">
+                            <strong>Spec-native</strong> — every agent is backed
+                            by a SpecPrompt specification
+                        </div>
+                        <div class="cl-item">
+                            <strong>Runtime-agnostic</strong> — built for
+                            OpenSentience, open to any MCP runtime
+                        </div>
+                        <div class="cl-item">
+                            <strong>Open protocol</strong> — MIT-licensed
+                            registry, no vendor lock-in
+                        </div>
+                        <div class="cl-item">
+                            <strong>The distribution layer</strong> — connecting
+                            builders to operators
+                        </div>
+                    </div>
+                    <div class="clarity-col isnt">
+                        <h3>FleetPrompt Is Not</h3>
+                        <div class="cl-item">
+                            <strong>A model hub</strong> — we distribute agents,
+                            not weights or checkpoints
+                        </div>
+                        <div class="cl-item">
+                            <strong>A prompt library</strong> — agents have
+                            specs, tests, and manifests, not just prompts
+                        </div>
+                        <div class="cl-item">
+                            <strong>An execution runtime</strong> — that's
+                            OpenSentience's job
+                        </div>
+                        <div class="cl-item">
+                            <strong>A build system</strong> — that's Agentelic's
+                            job
+                        </div>
+                        <div class="cl-item">
+                            <strong>A walled garden</strong> — publish from any
+                            CI, install to any MCP runtime
+                        </div>
+                        <div class="cl-item">
+                            <strong>Vaporware</strong> — built on the same stack
+                            that powers the [&] portfolio
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- STACK -->
+        <section id="stack">
+            <div class="wrap">
+                <p class="sec-label rv">The [&amp;] Stack</p>
+                <h2 class="rv">
+                    Distribution is the<br /><span class="accent"
+                        >last mile</span
+                    >
+                </h2>
+                <p class="sec-sub rv">
+                    FleetPrompt is the distribution layer of the Ampersand Box
+                    portfolio. Agents flow through the stack — from
+                    specification to production fleet.
+                </p>
+                <div class="stack-diagram rv">
+                    <div class="stack-layer">
+                        <span class="stack-name">SpecPrompt</span>
+                        <span class="stack-role">Standards</span>
+                        <span class="stack-desc"
+                            >Defines agent behavior as versioned
+                            specifications</span
+                        >
+                    </div>
+                    <div class="stack-layer">
+                        <span class="stack-name">Agentelic</span>
+                        <span class="stack-role">Engineering</span>
+                        <span class="stack-desc"
+                            >Builds, tests, and packages agents against
+                            specs</span
+                        >
+                    </div>
+                    <div class="stack-layer">
+                        <span class="stack-name">OpenSentience</span>
+                        <span class="stack-role">Runtime</span>
+                        <span class="stack-desc"
+                            >Governs, executes, and observes agents
+                            locally</span
+                        >
+                    </div>
+                    <div class="stack-layer">
+                        <span class="stack-name">Graphonomous</span>
+                        <span class="stack-role">Memory</span>
+                        <span class="stack-desc"
+                            >Continual learning knowledge graphs for
+                            agents</span
+                        >
+                    </div>
+                    <div class="stack-layer stack-highlight">
+                        <span class="stack-name">FleetPrompt ←</span>
+                        <span class="stack-role">Distribution</span>
+                        <span class="stack-desc"
+                            >The open marketplace — publish, discover, install
+                            production agents</span
+                        >
+                    </div>
+                    <div class="stack-layer">
+                        <span class="stack-name">Delegatic</span>
+                        <span class="stack-role">Governance</span>
+                        <span class="stack-desc"
+                            >Organization hierarchy, policy inheritance, and
+                            audit trails</span
+                        >
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CLI PREVIEW -->
+        <section>
+            <div class="wrap">
+                <div class="manifest-section rv">
+                    <div class="code-block" style="order: 1">
+                        <div class="code-header">
+                            <div class="code-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            terminal
+                        </div>
+                        <div class="code-body">
+                            <pre><span class="hl-c"># publish a tested agent to the registry</span>
+$ <span class="hl-k">fleetprompt publish</span> ./customer-support-v2
+  <span class="hl-p">→ Validating manifest.json...</span>  <span class="hl-s">✓</span>
+  <span class="hl-p">→ Verifying SPEC.md...</span>         <span class="hl-s">✓</span>
+  <span class="hl-p">→ Checking test results...</span>     <span class="hl-s">47/47 passed</span>
+  <span class="hl-p">→ Computing trust score...</span>     <span class="hl-n">91</span>
+  <span class="hl-p">→ Publishing v2.1.0...</span>         <span class="hl-s">✓ live</span>
+
+<span class="hl-c"># search the registry</span>
+$ <span class="hl-k">fleetprompt search</span> <span class="hl-s">"code review"</span>
+  <span class="hl-v">code-reviewer</span>       v2.3.1  trust:<span class="hl-n">94</span>
+  <span class="hl-v">pr-summarizer</span>       v1.0.3  trust:<span class="hl-n">82</span>
+  <span class="hl-v">security-scanner</span>    v0.8.0  trust:<span class="hl-n">78</span>
+
+<span class="hl-c"># install to OpenSentience</span>
+$ <span class="hl-k">fleetprompt install</span> code-reviewer
+  <span class="hl-p">→ Downloading manifest...</span>     <span class="hl-s">✓</span>
+  <span class="hl-p">→ Reviewing permissions...</span>
+    <span class="hl-v">filesystem_read</span>  ~/projects/**
+    <span class="hl-v">mcp_tool</span>         git:*
+  <span class="hl-p">→ Grant permissions? [y/N]</span> <span class="hl-k">y</span>
+  <span class="hl-p">→ Installing to OpenSentience...</span> <span class="hl-s">✓ ready</span></pre>
+                        </div>
+                    </div>
+                    <div class="manifest-info" style="order: 2">
+                        <p class="sec-label">Developer Experience</p>
+                        <h2>
+                            Three commands.<br />That's the
+                            <span class="accent">workflow.</span>
+                        </h2>
+                        <p class="sec-sub">
+                            Publish from your CI pipeline. Search from your
+                            terminal. Install with explicit permission review.
+                            The CLI is the first-class interface.
+                        </p>
+                        <ul class="manifest-points">
+                            <li>
+                                <span class="ck">→</span>
+                                <code
+                                    style="
+                                        font-size: 0.68rem;
+                                        padding: 0.15rem 0.4rem;
+                                        border-radius: 3px;
+                                        background: var(--s3);
+                                        color: var(--or);
+                                    "
+                                    >fleetprompt publish</code
+                                >
+                                — push tested agents to the registry
+                            </li>
+                            <li>
+                                <span class="ck">→</span>
+                                <code
+                                    style="
+                                        font-size: 0.68rem;
+                                        padding: 0.15rem 0.4rem;
+                                        border-radius: 3px;
+                                        background: var(--s3);
+                                        color: var(--or);
+                                    "
+                                    >fleetprompt search</code
+                                >
+                                — find agents by capability or domain
+                            </li>
+                            <li>
+                                <span class="ck">→</span>
+                                <code
+                                    style="
+                                        font-size: 0.68rem;
+                                        padding: 0.15rem 0.4rem;
+                                        border-radius: 3px;
+                                        background: var(--s3);
+                                        color: var(--or);
+                                    "
+                                    >fleetprompt install</code
+                                >
+                                — deploy to OpenSentience with review
+                            </li>
+                            <li>
+                                <span class="ck">→</span>
+                                <code
+                                    style="
+                                        font-size: 0.68rem;
+                                        padding: 0.15rem 0.4rem;
+                                        border-radius: 3px;
+                                        background: var(--s3);
+                                        color: var(--or);
+                                    "
+                                    >fleetprompt update</code
+                                >
+                                — upgrade agents with changelog diff
+                            </li>
+                            <li>
+                                <span class="ck">→</span>
+                                <code
+                                    style="
+                                        font-size: 0.68rem;
+                                        padding: 0.15rem 0.4rem;
+                                        border-radius: 3px;
+                                        background: var(--s3);
+                                        color: var(--or);
+                                    "
+                                    >fleetprompt audit</code
+                                >
+                                — inspect trust score and provenance
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="cta-section rv" id="cta">
+            <div class="wrap">
+                <h2>
+                    Your agents deserve<br />an
+                    <span class="accent">audience.</span>
+                </h2>
+                <p class="cta-sub">
+                    FleetPrompt is the open marketplace for production AI
+                    agents. Publish what you've built. Discover what others have
+                    proven. Grow the fleet.
+                </p>
+                <div class="cta-form">
+                    <input
+                        type="email"
+                        class="cta-input"
+                        placeholder="you@company.com"
+                    />
+                    <button class="btn-p" style="padding: 0.6rem 1.3rem">
+                        Request Access
+                    </button>
+                </div>
+                <p class="cta-note">
+                    Open marketplace. MIT-licensed protocol. Launching 2026.
+                </p>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer>
+            <div class="footer-inner">
+                <div class="ft-left">
+                    &copy; 2026 FleetPrompt &middot; Part of
+                    <a href="https://ampersandboxdesign.com"
+                        >[&amp;] Ampersand Box Design</a
+                    >
+                </div>
+                <div class="ft-right">
+                    <a href="https://ampersandboxdesign.com">Portfolio</a>
+                    <a href="https://specprompt.com">SpecPrompt</a>
+                    <a href="https://agentelic.com">Agentelic</a>
+                    <a href="https://opensentience.org">OpenSentience</a>
+                    <a href="https://graphonomous.com">Graphonomous</a>
+                    <a href="https://delegatic.com">Delegatic</a>
+                    <a href="https://github.com/AmpersandBoxDesign">GitHub</a>
+                    <a href="mailto:hello@ampersandboxdesign.com">Contact</a>
+                </div>
+            </div>
+        </footer>
+
+        <script>
+            // Scroll reveal
+            const obs = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((e) => {
+                        if (e.isIntersecting) {
+                            e.target.classList.add("v");
+                            obs.unobserve(e.target);
+                        }
+                    });
+                },
+                { threshold: 0.1, rootMargin: "0px 0px -60px 0px" },
+            );
+            document.querySelectorAll(".rv").forEach((el) => obs.observe(el));
+
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach((a) => {
+                a.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    const t = document.querySelector(a.getAttribute("href"));
+                    if (t)
+                        t.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                        });
+                });
+            });
+        </script>
+    </body>
+</html>
