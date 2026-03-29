@@ -4,7 +4,7 @@ Discover, publish, and install production-ready AI agents. Built on trust scores
 
 ## Source-of-truth spec
 
-- `project_spec/README.md` — FleetPrompt technical specification
+- `docs/spec/README.md` — FleetPrompt technical specification
 
 ## Role in [&] Ecosystem
 

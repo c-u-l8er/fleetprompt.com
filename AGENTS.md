@@ -39,4 +39,4 @@ SpecPrompt (define) → Agentelic (build) → FleetPrompt (distribute) → OpenS
 
 ## Status
 
-Spec complete. Implementation pending. See `project_spec/README.md`.
+Spec complete. Implementation pending. See `docs/spec/README.md`.
