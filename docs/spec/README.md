@@ -653,6 +653,53 @@ SpecPrompt                Agentelic              FleetPrompt
 
 ---
 
+## 10.1 PULSE Loop Manifest
+
+FleetPrompt declares **two** PULSE-conforming loops under OS-010 because the marketplace has two distinct closed feedback cycles: the **publish loop** (manifest → trust score → discovery) and the **trust loop** (usage outcomes → reputation recompute → re-rank). PULSE supports multiple loops per product through separate manifest files.
+
+### Loop 1: `fleetprompt.publish`
+
+| Phase ID | Kind | Description |
+|---|---|---|
+| `retrieve_artifact` | `retrieve` | Pull built artifact + manifest from Agentelic via `ConsolidationEvent` |
+| `route_validation` | `route` | Choose validation tier: schema-only, deterministic test replay, full live test |
+| `act_publish` | `act` | Atomic publish: hash, sign, register, index for search |
+| `learn_acceptance` | `learn` | Update publish heuristics from rejection rate and revocation events |
+| `consolidate_index` | `consolidate` | Rebuild search index, prune deprecated manifests, archive old versions |
+
+**Cadence:** `event` (artifact arrival from Agentelic). Closure via Postgres, `eventual`.
+
+### Loop 2: `fleetprompt.trust`
+
+| Phase ID | Kind | Description |
+|---|---|---|
+| `retrieve_signals` | `retrieve` | Pull `ReputationUpdate` + `OutcomeSignal` events from subscribed loops |
+| `trust_recompute` | `custom: recompute` | Recompute trust score using test coverage, usage history, audit results, ReputationUpdate deltas |
+| `act_rerank` | `act` | Update marketplace ranking + emit revocation if trust falls below threshold |
+| `learn_calibration` | `learn` | Calibrate trust weights from confirmed-bad-agent post-mortems |
+| `consolidate_scores` | `consolidate` | Periodic score decay; archive historical trust trajectories |
+
+**Cadence:** Primary `cross_loop_signal` (subscribes to `ReputationUpdate` and `OutcomeSignal`), fallback `periodic` (decay).
+
+**Substrates (both loops):**
+- `memory`: `graphonomous://workspace/{ws_id}` (trust history, usage patterns)
+- `policy`: `delegatic://workspace/{ws_id}`
+- `audit`: `delegatic://workspace/{ws_id}/audit`
+- `auth`: `open_sentience://workspace/{ws_id}`
+- `transport`: `mcp` + `https`
+- `time`: optional
+
+**Invariants enabled:** `phase_atomicity`, `feedback_immutability`, `append_only_audit`, `outcome_grounding`, `trace_id_propagation`.
+
+**Cross-loop connections:**
+- `fleetprompt.publish` consumes `ConsolidationEvent` from `agentelic.build_pipeline`
+- `fleetprompt.trust` consumes `ReputationUpdate` from `agentromatic.deliberation` and any other loop emitting reputation deltas
+- `fleetprompt.trust` emits `ReputationUpdate` (re-broadcast after recompute) to all subscribed agent runtimes — making FleetPrompt the **canonical reputation broker** of the [&] ecosystem
+
+**Why this matters:** the FleetPrompt trust loop is the only loop in the portfolio whose primary cadence is `cross_loop_signal`. PULSE's six-cadence model is what makes a pure-signal-driven loop expressible as a first-class citizen, on equal footing with event-driven and streaming loops.
+
+---
+
 ## 11. MCP Tools
 
 FleetPrompt exposes itself as an MCP server for programmatic registry access:
