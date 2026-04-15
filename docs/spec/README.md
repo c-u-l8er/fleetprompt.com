@@ -155,7 +155,7 @@ FleetPrompt.Application
 | Hot Cache | ETS | Manifest lookups, trust scores, and search indexes in microseconds. |
 | Audit Pipeline | Broadway | Batched audit event writes. Back-pressure. Guaranteed delivery. |
 | Background Jobs | Oban | Trust recomputation, webhook delivery, search index refresh, deprecation notices. |
-| Auth | Clerk → custom Plug | Publisher identity. API key management for CI/CD publish flows. |
+| Auth | Supabase Auth (shared ecosystem) → custom Plug | Publisher identity via shared `amp.profiles`. API key management for CI/CD publish flows. Same auth as all [&] products. |
 | Telemetry | :telemetry + Prometheus | Search latency, publish throughput, install success rate, trust compute time. |
 | Deployment | Mix release + Docker | Single BEAM node or clustered via libcluster. |
 
@@ -174,7 +174,7 @@ defmodule FleetPrompt.Manifests.Manifest do
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
-  schema "manifests" do
+  schema "fleet.manifests" do
     belongs_to :agent, FleetPrompt.Agents.Agent, type: :binary_id
     belongs_to :publisher, FleetPrompt.Publishers.Publisher, type: :binary_id
 
@@ -698,6 +698,25 @@ FleetPrompt declares **two** PULSE-conforming loops under OS-010 because the mar
 
 **Why this matters:** the FleetPrompt trust loop is the only loop in the portfolio whose primary cadence is `cross_loop_signal`. PULSE's six-cadence model is what makes a pure-signal-driven loop expressible as a first-class citizen, on equal footing with event-driven and streaming loops.
 
+### 10.2 Dark Factory Pipeline Intake
+
+FleetPrompt receives `ConsolidationEvent` from Agentelic when a build succeeds. The intake protocol:
+
+1. **Event validation:** Verify CloudEvents envelope, check `workspace_id` matches a registered workspace, validate `artifact_hash`
+2. **Spec hash cross-check:** Pull `spec_hash` from the event, verify it matches a known spec in `spec.specs` (SpecPrompt registry). If the spec is unknown, reject with `SPEC_NOT_REGISTERED`.
+3. **Trust computation:** Initial trust score computed from:
+   - Test coverage from Agentelic build results (30%)
+   - Spec compliance from SpecPrompt validation (25%)
+   - Usage history: 0 for new agents (25%)
+   - Audit quality from build provenance completeness (20%)
+4. **Publish:** Atomic write to `fleet.agents` + `fleet.manifests` + search index update
+5. **Emit:** `ConsolidationEvent` to deploy target (OpenSentience/WebHost) with `trust_score` included
+
+**Trust × PRISM reconciliation:** Both FleetPrompt and PRISM compute reputation-like scores, but they are distinct:
+- **FleetPrompt trust** = marketplace trust (can I safely install this agent?)
+- **PRISM CL scores** = cognitive capability (how well does this agent learn/reason?)
+- **Reconciliation:** PRISM `ReputationUpdate` tokens feed into FleetPrompt's trust recompute as one input signal (via the trust loop's `retrieve_signals` phase). FleetPrompt is the **canonical trust broker** — it aggregates PRISM signals alongside test coverage, usage, and audit data. PRISM does not replace FleetPrompt trust; it informs it.
+
 ---
 
 ## 11. MCP Tools
@@ -862,7 +881,7 @@ defmodule FleetPrompt.Agents.Agent do
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
-  schema "agents" do
+  schema "fleet.agents" do
     field :slug, :string
     field :name, :string
     field :description, :string
@@ -870,6 +889,7 @@ defmodule FleetPrompt.Agents.Agent do
     field :search_vector, FleetPrompt.TSVector  # generated column
 
     belongs_to :publisher, FleetPrompt.Publishers.Publisher, type: :binary_id
+    belongs_to :workspace, Amp.Workspaces.Workspace, type: :binary_id  # amp.workspaces — scopes agent visibility
     has_many :manifests, FleetPrompt.Manifests.Manifest
     has_many :installs, FleetPrompt.Installs.Install
 
@@ -886,15 +906,16 @@ defmodule FleetPrompt.Publishers.Publisher do
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
-  schema "publishers" do
+  schema "fleet.publishers" do
     field :name, :string
     field :slug, :string
     field :email, :string
-    field :clerk_user_id, :string
+    field :user_id, :binary_id                # References amp.profiles (Supabase Auth)
     field :api_key_hash, :string
     field :tier, Ecto.Enum, values: [:free, :pro, :enterprise], default: :free
     field :verified, :boolean, default: false
 
+    belongs_to :workspace, Amp.Workspaces.Workspace, type: :binary_id  # amp.workspaces
     has_many :agents, FleetPrompt.Agents.Agent
 
     timestamps()
@@ -910,10 +931,11 @@ defmodule FleetPrompt.Installs.Install do
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
-  schema "installs" do
+  schema "fleet.installs" do
     belongs_to :agent, FleetPrompt.Agents.Agent, type: :binary_id
     belongs_to :manifest, FleetPrompt.Manifests.Manifest, type: :binary_id
     belongs_to :deployer, FleetPrompt.Publishers.Publisher, type: :binary_id
+    belongs_to :workspace, Amp.Workspaces.Workspace, type: :binary_id  # amp.workspaces — install scope
 
     field :runtime_url, :string
     field :status, Ecto.Enum,
@@ -937,7 +959,8 @@ defmodule FleetPrompt.Audit.Event do
 
   @primary_key {:id, :binary_id, autogenerate: true}
 
-  schema "audit_events" do
+  schema "fleet.audit_events" do
+    field :workspace_id, :binary_id       # amp.workspaces — audit scope (required for compliance)
     field :action, :string  # "publish" | "install" | "fork" | "deprecate" | "yank" | "trust_change"
     field :target_type, :string
     field :target_id, :string
@@ -1064,7 +1087,7 @@ These events feed into the ecosystem-wide observability layer and contribute to 
 ### Phase 6: Enterprise (Weeks 31-38)
 - [ ] Private registries (isolated namespace, custom trust policies)
 - [ ] Team collaboration (shared publisher accounts, RBAC)
-- [ ] SSO/SAML via Clerk
+- [ ] SSO/SAML via Supabase Auth (enterprise SSO providers)
 - [ ] Advanced trust policies (org-specific weight overrides)
 - [ ] SLA monitoring and compliance exports
 
