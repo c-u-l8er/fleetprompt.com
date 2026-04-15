@@ -1,0 +1,43 @@
+{
+  "name": "customer-support-v2",
+  "slug": "customer-support-v2",
+  "version": "2.1.0",
+  "description": "Production customer support agent with multi-channel capability",
+  "category": "support",
+  "tags": ["customer-support", "multi-channel", "nlp"],
+  "spec_url": "https://specprompt.com/specs/customer-support-v2/SPEC.md",
+  "spec_hash": "sha256:a1b2c3d4e5f6789012345678901234567890123456789012345678901234abcd",
+  "permissions": [
+    {
+      "capability": "tickets:read",
+      "scope": "read",
+      "reason": "Read customer support tickets to understand context"
+    },
+    {
+      "capability": "tickets:write",
+      "scope": "write",
+      "reason": "Create and update ticket responses"
+    },
+    {
+      "capability": "knowledge-base:read",
+      "scope": "read",
+      "reason": "Access knowledge base articles for accurate responses"
+    }
+  ],
+  "mcp_servers": [
+    {
+      "name": "graphonomous",
+      "url": "https://graphonomous-mcp.fly.dev",
+      "required": true
+    }
+  ],
+  "runtime": "opensentience",
+  "min_runtime_version": "0.3.0",
+  "build_pipeline": "agentelic",
+  "build_hash": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "test_results": {
+    "passed": 142,
+    "failed": 0,
+    "skipped": 3
+  }
+}

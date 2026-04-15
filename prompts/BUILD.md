@@ -233,14 +233,14 @@ fleetprompt.com/
 
 ## Success Criteria
 
-- [ ] Manifest publish validates spec hash, enforces version immutability, computes initial trust score
-- [ ] TrustEngine computes correct 4-signal weighted scores (test fixtures)
-- [ ] TrustWorker recomputes on new data, caches in ETS, broadcasts via PubSub
-- [ ] Full-text search returns ranked results with trust score and category filters
-- [ ] Fork system creates new agent with provenance tracking and zero trust
-- [ ] Install pipeline enforces permission review, Delegatic policy check, deploy flow
-- [ ] Dark factory intake accepts ConsolidationEvent, cross-checks spec hash, auto-publishes
-- [ ] MCP server discovers tools via `tools/list` and executes all 7 tools
-- [ ] Audit trail captures all publish, install, fork, trust change events
-- [ ] Supabase migration applies cleanly alongside existing `amp.*`, `kag.*`, `rune.*` schemas
-- [ ] LiveView search works in real-time with sub-second response
+- [x] Manifest publish validates spec hash, enforces version immutability, computes initial trust score
+- [x] TrustEngine computes correct 4-signal weighted scores (test fixtures)
+- [x] TrustWorker recomputes on new data, caches in ETS, broadcasts via PubSub
+- [x] Full-text search returns ranked results with trust score and category filters
+- [x] Fork system creates new agent with provenance tracking and zero trust
+- [x] Install pipeline enforces permission review, Delegatic policy check, deploy flow
+- [x] Dark factory intake accepts ConsolidationEvent, cross-checks spec hash, auto-publishes
+- [x] MCP server discovers tools via `tools/list` and executes all 7 tools
+- [x] Audit trail captures all publish, install, fork, trust change events
+- [x] Supabase migration applies cleanly alongside existing `amp.*`, `kag.*`, `rune.*` schemas
+- [x] LiveView search works in real-time with sub-second response
