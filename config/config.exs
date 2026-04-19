@@ -16,6 +16,7 @@ config :fleet_prompt, FleetPromptWeb.Endpoint,
 
 config :fleet_prompt, Oban,
   repo: FleetPrompt.Repo,
+  prefix: "fleet",
   queues: [trust: 10, webhooks: 5, search_index: 3]
 
 config :logger, :default_formatter,

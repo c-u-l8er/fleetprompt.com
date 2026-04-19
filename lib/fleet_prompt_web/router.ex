@@ -13,6 +13,13 @@ defmodule FleetPromptWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # MCP JSON-RPC endpoint
+  scope "/mcp", FleetPromptWeb do
+    pipe_through :api
+
+    post "/", MCPController, :handle
+  end
+
   scope "/", FleetPromptWeb do
     pipe_through :browser
 
