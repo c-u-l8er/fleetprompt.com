@@ -70,6 +70,49 @@ defmodule FleetPrompt.MCP.Server do
     Tools.definitions()
   end
 
+  @doc """
+  Thin convenience wrapper for `tools/list` — returns the tool
+  definitions in an atom-keyed envelope suitable for consumers that
+  want a direct API (e.g. tests, internal callers) without building
+  a JSON-RPC request.
+
+  Returns `{:ok, %{tools: [definition, ...]}}`.
+  """
+  @spec handle_tools_list() :: {:ok, %{tools: list()}}
+  def handle_tools_list do
+    {:ok, %{tools: list_tools()}}
+  end
+
+  @doc """
+  Thin convenience wrapper for `tools/call` — invokes the named tool
+  and shapes the result into an MCP-style content envelope. Unlike
+  `handle_request/1`, this returns `{:error, envelope}` for tool
+  failures so direct callers can pattern-match on success vs failure
+  without inspecting `isError`.
+
+  Success: `{:ok, %{content: [%{type: "text", text: json}]}}`.
+  Failure: `{:error, %{content: [%{type: "text", text: msg}], isError: true}}`.
+  """
+  @spec handle_tools_call(String.t(), map()) ::
+          {:ok, %{content: list()}} | {:error, %{content: list(), isError: true}}
+  def handle_tools_call(tool_name, args) when is_binary(tool_name) and is_map(args) do
+    case Tools.call(tool_name, args) do
+      {:ok, result} ->
+        {:ok, %{content: [%{type: "text", text: Jason.encode!(result)}]}}
+
+      {:error, message} when is_binary(message) ->
+        {:error, %{content: [%{type: "text", text: message}], isError: true}}
+
+      {:error, other} ->
+        {:error, %{content: [%{type: "text", text: inspect(other)}], isError: true}}
+    end
+  rescue
+    e ->
+      Logger.error("MCP tool error: #{Exception.format(:error, e, __STACKTRACE__)}")
+
+      {:error, %{content: [%{type: "text", text: Exception.message(e)}], isError: true}}
+  end
+
   # --- Dispatch ---
 
   defp dispatch("initialize", _params) do

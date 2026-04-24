@@ -4,8 +4,9 @@ defmodule FleetPrompt.Versions.Version do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.agent_versions" do
+  schema "agent_versions" do
     belongs_to :agent, FleetPrompt.Agents.Agent
 
     field :workspace_id, :binary_id

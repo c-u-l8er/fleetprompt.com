@@ -4,8 +4,9 @@ defmodule FleetPrompt.Trust.Score do
 
   @primary_key {:agent_id, :binary_id, autogenerate: false}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.trust_scores" do
+  schema "trust_scores" do
     field :overall_score, :decimal, default: Decimal.new(0)
     field :test_coverage, :decimal, default: Decimal.new(0)
     field :usage_signal, :decimal, default: Decimal.new(0)

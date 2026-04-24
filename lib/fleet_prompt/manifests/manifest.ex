@@ -4,8 +4,9 @@ defmodule FleetPrompt.Manifests.Manifest do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.manifests" do
+  schema "manifests" do
     belongs_to :agent, FleetPrompt.Agents.Agent
     belongs_to :publisher, FleetPrompt.Publishers.Publisher
 
@@ -77,7 +78,15 @@ defmodule FleetPrompt.Manifests.Manifest do
     |> validate_format(:slug, ~r/^[a-z0-9\-]+$/)
     |> validate_inclusion(:build_pipeline, ~w(agentelic manual ci))
     |> validate_number(:trust_score, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
-    |> unique_constraint([:agent_id, :version])
+    # DB-level constraint is named `manifests_agent_id_version_key`
+    # (Postgres's default for UNIQUE). Previously declared as
+    # `fleet.manifests_agent_id_version_index` which never matched —
+    # the Ecto `changeset_errors` path for duplicate-version publishes
+    # would silently fall through to a raised constraint error instead
+    # of becoming a `{:error, changeset}` tuple.
+    |> unique_constraint([:agent_id, :version],
+      name: "manifests_agent_id_version_key"
+    )
   end
 
   @doc """

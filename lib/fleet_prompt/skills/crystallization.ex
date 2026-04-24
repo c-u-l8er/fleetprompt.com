@@ -13,11 +13,12 @@ defmodule FleetPrompt.Skills.Crystallization do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
   @source_types ~w(interaction_trace procedural_cluster composition_candidate)a
   @statuses ~w(pending_review approved rejected superseded)a
 
-  schema "fleet.skill_crystallizations" do
+  schema "skill_crystallizations" do
     belongs_to :manifest, FleetPrompt.Manifests.Manifest
 
     field :source_type, Ecto.Enum, values: @source_types

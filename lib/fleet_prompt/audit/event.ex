@@ -4,8 +4,9 @@ defmodule FleetPrompt.Audit.Event do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.audit_events" do
+  schema "audit_events" do
     field :workspace_id, :binary_id
     field :actor_user_id, :binary_id
     field :action, :string

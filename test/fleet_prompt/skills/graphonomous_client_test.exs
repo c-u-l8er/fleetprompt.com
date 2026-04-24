@@ -290,6 +290,289 @@ defmodule FleetPrompt.Skills.GraphonomousClientTest do
     end
   end
 
+  # ---- initialize_telespace/1 -----------------------------------
+
+  describe "initialize_telespace/1" do
+    defp store_node_envelope(node_id) do
+      Jason.encode!(%{
+        "jsonrpc" => "2.0",
+        "id" => 99,
+        "result" => %{
+          "content" => [],
+          "structuredContent" => %{
+            "status" => "ok",
+            "node_id" => node_id,
+            "node_type" => "semantic"
+          }
+        }
+      })
+    end
+
+    test "requires :agent_id and :workspace_id" do
+      assert {:error, {:missing_required, :agent_id}} =
+               HTTP.initialize_telespace(workspace_id: "ws-1")
+
+      assert {:error, {:missing_required, :workspace_id}} =
+               HTTP.initialize_telespace(agent_id: "ag-1")
+    end
+
+    test "rejects empty string required opts" do
+      assert {:error, {:missing_required, :agent_id}} =
+               HTTP.initialize_telespace(agent_id: "", workspace_id: "ws-1")
+    end
+
+    test "round-trips a store_node response via injected transport" do
+      envelope = store_node_envelope("node_ts_abc")
+      captured = :ets.new(:ts_captured, [:public])
+
+      transport = fn url, body, _timeout ->
+        :ets.insert(captured, {:url, url})
+        :ets.insert(captured, {:body, body})
+        {:ok, envelope}
+      end
+
+      opts = [
+        endpoint: "http://fake/mcp",
+        agent_id: "ag-1",
+        workspace_id: "ws-1",
+        version_id: "v-1",
+        installed_by: "user-1",
+        transport: transport
+      ]
+
+      assert {:ok, ref} = HTTP.initialize_telespace(opts)
+      assert ref["node_id"] == "node_ts_abc"
+      assert ref["endpoint"] == "http://fake/mcp"
+
+      [{_, url}] = :ets.lookup(captured, :url)
+      assert url == "http://fake/mcp"
+
+      [{_, posted_body}] = :ets.lookup(captured, :body)
+      decoded = Jason.decode!(posted_body)
+
+      assert decoded["method"] == "tools/call"
+      assert decoded["params"]["name"] == "act"
+      args = decoded["params"]["arguments"]
+      assert args["action"] == "store_node"
+      assert args["node_type"] == "semantic"
+      assert args["source"] == "fleetprompt.install_engine"
+      assert is_binary(args["content"])
+      assert String.contains?(args["content"], "ag-1")
+
+      # metadata is encoded as a JSON string (matching store_node's
+      # Graphonomous contract)
+      assert is_binary(args["metadata"])
+      metadata = Jason.decode!(args["metadata"])
+      assert metadata["agent_id"] == "ag-1"
+      assert metadata["workspace_id"] == "ws-1"
+      assert metadata["version_id"] == "v-1"
+      assert metadata["installed_by"] == "user-1"
+      assert metadata["kind"] == "fleetprompt_install_telespace"
+
+      :ets.delete(captured)
+    end
+
+    test "surfaces transport failures as :transport_failed" do
+      transport = fn _url, _body, _timeout -> {:error, :nxdomain} end
+
+      assert {:error, {:transport_failed, :nxdomain}} =
+               HTTP.initialize_telespace(
+                 agent_id: "ag-1",
+                 workspace_id: "ws-1",
+                 transport: transport
+               )
+    end
+
+    test "surfaces jsonrpc errors" do
+      body =
+        Jason.encode!(%{
+          "jsonrpc" => "2.0",
+          "id" => 1,
+          "error" => %{"code" => -32601, "message" => "Method not found"}
+        })
+
+      transport = fn _, _, _ -> {:ok, body} end
+
+      assert {:error, {:jsonrpc_error, -32601, "Method not found"}} =
+               HTTP.initialize_telespace(
+                 agent_id: "ag-1",
+                 workspace_id: "ws-1",
+                 transport: transport
+               )
+    end
+
+    test "surfaces tool_error when structuredContent.status == error" do
+      body =
+        Jason.encode!(%{
+          "jsonrpc" => "2.0",
+          "id" => 1,
+          "result" => %{
+            "content" => [],
+            "structuredContent" => %{
+              "status" => "error",
+              "error" => "quota_exceeded",
+              "reason" => "workspace over node budget"
+            }
+          }
+        })
+
+      transport = fn _, _, _ -> {:ok, body} end
+
+      assert {:error, {:tool_error, "quota_exceeded", "workspace over node budget"}} =
+               HTTP.initialize_telespace(
+                 agent_id: "ag-1",
+                 workspace_id: "ws-1",
+                 transport: transport
+               )
+    end
+
+    test "falls back to content[].text when structuredContent is absent" do
+      inner = Jason.encode!(%{"node_id" => "node_from_content"})
+
+      body =
+        Jason.encode!(%{
+          "jsonrpc" => "2.0",
+          "id" => 1,
+          "result" => %{
+            "content" => [%{"type" => "text", "text" => inner}]
+          }
+        })
+
+      transport = fn _, _, _ -> {:ok, body} end
+
+      assert {:ok, ref} =
+               HTTP.initialize_telespace(
+                 agent_id: "ag-1",
+                 workspace_id: "ws-1",
+                 transport: transport
+               )
+
+      assert ref["node_id"] == "node_from_content"
+    end
+
+    test "Stub returns a canned success by default" do
+      alias FleetPrompt.Skills.GraphonomousClient.Stub
+
+      Stub.put_telespace_result({:ok, %{"node_id" => "stub-node", "endpoint" => "stub"}})
+
+      assert {:ok, %{"node_id" => "stub-node"}} =
+               Stub.initialize_telespace(agent_id: "x", workspace_id: "y")
+    end
+  end
+
+  # ---- real HTTP transport against a local Bandit stub server ----
+
+  describe "real-HTTP roundtrip against local Bandit server" do
+    defmodule FakeGraphonomousPlug do
+      @moduledoc """
+      Minimal plug that mimics a Graphonomous MCP endpoint for tests.
+      Parses the JSON-RPC envelope, verifies the `act(store_node)`
+      shape, and returns a well-formed success envelope with a
+      deterministic node_id so assertions can match exactly.
+
+      No actual knowledge graph state. Just protocol-shape verification
+      across the real `:httpc` / Bandit boundary.
+      """
+      import Plug.Conn
+
+      def init(opts), do: opts
+
+      def call(%Plug.Conn{method: "POST"} = conn, _opts) do
+        {:ok, body, conn} = read_body(conn)
+
+        response =
+          case Jason.decode(body) do
+            {:ok, %{"params" => %{"name" => "act", "arguments" => args}, "id" => id}} ->
+              node_id = "node-http-roundtrip-#{System.unique_integer([:positive])}"
+
+              %{
+                "jsonrpc" => "2.0",
+                "id" => id,
+                "result" => %{
+                  "content" => [],
+                  "structuredContent" => %{
+                    "status" => "ok",
+                    "node_id" => node_id,
+                    "echoed_action" => args["action"],
+                    "echoed_node_type" => args["node_type"]
+                  }
+                }
+              }
+
+            _ ->
+              %{
+                "jsonrpc" => "2.0",
+                "id" => 0,
+                "error" => %{"code" => -32600, "message" => "invalid request"}
+              }
+          end
+
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(response))
+      end
+
+      def call(conn, _opts) do
+        send_resp(conn, 405, "method not allowed")
+      end
+    end
+
+    setup do
+      # Bind to an OS-chosen ephemeral port so parallel test runs
+      # don't collide. Capture the chosen port from ThousandIsland.
+      {:ok, server} =
+        Bandit.start_link(
+          plug: FakeGraphonomousPlug,
+          port: 0,
+          scheme: :http,
+          thousand_island_options: [num_acceptors: 1]
+        )
+
+      {:ok, {_addr, port}} = ThousandIsland.listener_info(server)
+      endpoint = "http://127.0.0.1:#{port}/mcp"
+
+      on_exit(fn ->
+        # Bandit has no `stop/1`; the supervisor child is just a pid.
+        if Process.alive?(server), do: Process.exit(server, :shutdown)
+      end)
+
+      {:ok, endpoint: endpoint, port: port}
+    end
+
+    test "initialize_telespace/1 roundtrips against a live HTTP server", %{endpoint: endpoint} do
+      assert {:ok, ref} =
+               HTTP.initialize_telespace(
+                 endpoint: endpoint,
+                 agent_id: "ag-real-http",
+                 workspace_id: "ws-real-http",
+                 version_id: "v-real-http",
+                 timeout_ms: 3_000
+               )
+
+      assert ref["endpoint"] == endpoint
+      assert is_binary(ref["node_id"])
+      assert String.starts_with?(ref["node_id"], "node-http-roundtrip-")
+
+      # Server saw and echoed our store_node action shape
+      assert ref["raw"]["echoed_action"] == "store_node"
+      assert ref["raw"]["echoed_node_type"] == "semantic"
+    end
+
+    test "fetch_successful_traces/1 survives a non-match response shape", %{endpoint: endpoint} do
+      # The fake server always responds to "act" — for "retrieve"
+      # calls it returns the same envelope (no "traces" key). Verify
+      # the parser surfaces this as :unexpected_response_shape
+      # instead of crashing.
+      assert {:error, _} =
+               HTTP.fetch_successful_traces(
+                 endpoint: endpoint,
+                 state_hash: "sha256:test",
+                 limit: 1,
+                 timeout_ms: 3_000
+               )
+    end
+  end
+
   # ---- impl/0 configuration hook ---------------------------------
 
   describe "GraphonomousClient.impl/0" do

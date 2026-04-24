@@ -17,7 +17,11 @@ defmodule FleetPrompt.MixProject do
   def application do
     [
       mod: {FleetPrompt.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      # :inets is needed by Skills.GraphonomousClient.HTTP for the
+      # default :httpc transport. Listed here (rather than
+      # lazy-starting in the module) so the app is available at the
+      # start of the supervision tree.
+      extra_applications: [:logger, :runtime_tools, :inets, :ssl]
     ]
   end
 
@@ -45,7 +49,16 @@ defmodule FleetPrompt.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:req, "~> 0.5"}
+      {:req, "~> 0.5"},
+      # OS-006 Governance Shim — used by InstallEngine step 4
+      # (Delegatic policy check). Path dep: see /delegatic for the
+      # authorization kernel.
+      {:delegatic, path: "../delegatic"},
+      # OS-008 Agent Harness — used by InstallEngine step 5
+      # (OpenSentience deploy). Path dep into the vendored copy that
+      # Graphonomous carries; hex publication is explicitly not on
+      # the roadmap, so the path dep is the permanent pattern.
+      {:open_sentience, path: "../graphonomous/deps/open_sentience"}
     ]
   end
 

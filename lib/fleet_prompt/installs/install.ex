@@ -4,8 +4,9 @@ defmodule FleetPrompt.Installs.Install do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.installs" do
+  schema "installs" do
     belongs_to :agent, FleetPrompt.Agents.Agent
     belongs_to :version, FleetPrompt.Versions.Version, foreign_key: :version_id
 

@@ -111,11 +111,13 @@ defmodule FleetPrompt.PublishFlowTest do
       assert changeset.valid?
 
       # The unique constraint is enforced at DB level via:
-      # unique_constraint([:agent_id, :version])
-      # Verify the constraint is declared in the changeset
+      # unique_constraint([:agent_id, :version], name: "manifests_agent_id_version_key")
+      # The name matches the real Postgres constraint (which follows
+      # the `<table>_<cols>_key` convention, not the Ecto-default
+      # `_index` suffix).
       assert Enum.any?(changeset.constraints, fn c ->
                c.type == :unique and
-                 c.constraint == "fleet.manifests_agent_id_version_index"
+                 c.constraint == "manifests_agent_id_version_key"
              end)
     end
   end

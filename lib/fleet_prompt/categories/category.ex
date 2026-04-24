@@ -4,8 +4,9 @@ defmodule FleetPrompt.Categories.Category do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.categories" do
+  schema "categories" do
     field :name, :string
     field :slug, :string
     field :description, :string

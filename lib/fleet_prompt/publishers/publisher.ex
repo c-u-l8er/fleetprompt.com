@@ -4,8 +4,9 @@ defmodule FleetPrompt.Publishers.Publisher do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.publishers" do
+  schema "publishers" do
     field :workspace_id, :binary_id
     field :name, :string
     field :slug, :string

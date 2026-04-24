@@ -4,8 +4,9 @@ defmodule FleetPrompt.Agents.Agent do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @schema_prefix "fleet"
 
-  schema "fleet.agents" do
+  schema "agents" do
     belongs_to :publisher, FleetPrompt.Publishers.Publisher
     belongs_to :category, FleetPrompt.Categories.Category
 

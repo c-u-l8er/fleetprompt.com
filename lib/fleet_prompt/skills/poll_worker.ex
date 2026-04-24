@@ -96,12 +96,36 @@ defmodule FleetPrompt.Skills.PollWorker do
   def crystallize_one(trace, opts) when is_map(trace) and is_list(opts) do
     case Crystallizer.from_trace(trace, opts) do
       {:ok, %{manifest: manifest_attrs, crystallization: cr_attrs}} ->
-        insert_pair(manifest_attrs, cr_attrs)
+        # Pre-check for idempotency: if a crystallization for this
+        # (source_type, source_id) already exists we short-circuit
+        # without attempting any inserts. This avoids relying on
+        # downstream constraint violations — in particular, the
+        # manifest's (agent_id, version) unique constraint would
+        # otherwise fire FIRST (since a second run generates the
+        # same version "0.1.0") and mask the crystallization-side
+        # conflict as a generic changeset error instead of the
+        # intended `:already_crystallized` skip.
+        if crystallization_exists?(cr_attrs) do
+          {:skipped, :already_crystallized}
+        else
+          insert_pair(manifest_attrs, cr_attrs)
+        end
 
       {:error, {:invalid_trace, reason}} ->
         {:error, {:invalid_trace, reason}}
     end
   end
+
+  defp crystallization_exists?(%{source_type: type, source_id: id})
+       when not is_nil(type) and is_binary(id) do
+    import Ecto.Query
+
+    Repo.exists?(
+      from(c in Crystallization, where: c.source_type == ^type and c.source_id == ^id)
+    )
+  end
+
+  defp crystallization_exists?(_), do: false
 
   # -- internals ----------------------------------------------------
 
