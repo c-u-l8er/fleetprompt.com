@@ -51,14 +51,17 @@ defmodule FleetPrompt.MixProject do
       {:bandit, "~> 1.5"},
       {:req, "~> 0.5"},
       # OS-006 Governance Shim — used by InstallEngine step 4
-      # (Delegatic policy check). Path dep: see /delegatic for the
-      # authorization kernel.
-      {:delegatic, path: "../delegatic"},
+      # (Delegatic policy check). Sourced from the public c-u-l8er/
+      # delegatic-engine github repo so production Docker builds don't
+      # need a multi-project build context.
+      {:delegatic, git: "https://github.com/c-u-l8er/delegatic-engine.git", branch: "main"},
       # OS-008 Agent Harness — used by InstallEngine step 5
-      # (OpenSentience deploy). Path dep into the vendored copy that
-      # Graphonomous carries; hex publication is explicitly not on
-      # the roadmap, so the path dep is the permanent pattern.
-      {:open_sentience, path: "../graphonomous/deps/open_sentience"}
+      # (OpenSentience deploy). Sourced from c-u-l8er/opensentience.org
+      # which carries the mix library at its repo root. Hex publication
+      # is explicitly not on the roadmap; git-dep is the permanent
+      # pattern.
+      {:open_sentience,
+       git: "https://github.com/c-u-l8er/opensentience.org.git", branch: "main"}
     ]
   end
 
