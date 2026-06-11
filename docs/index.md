@@ -2,6 +2,8 @@
 
 > **The open marketplace where production-ready AI agents are published, discovered, and deployed in one click.**
 
+> **Part of the [&] Protocol stack** · [Ecosystem overview](../../ECOSYSTEM.md) · [Three-protocol stack](../../PULSE/docs/THREE_PROTOCOL_STACK.md) · [Stack status](../../STACK_COMPLETION.md)
+
 Welcome to the documentation hub for **FleetPrompt** — the open agent marketplace
 for the [&] Protocol ecosystem. FleetPrompt is the registry where production-ready
 AI agents are published, discovered, and deployed. Every listed agent carries a
@@ -127,6 +129,8 @@ Trust scores are recomputed asynchronously whenever new data arrives.
 ## Project Links
 
 - **Spec:** [Technical Specification](spec/README.md)
+- **User stories:** [FleetPrompt User Stories](ux/user-stories.md)
+- **Build prompt:** [FleetPrompt Implementation Build Prompt](../prompts/BUILD.md)
 - **[&] Protocol ecosystem:** `AmpersandBoxDesign/`
 
 ---
