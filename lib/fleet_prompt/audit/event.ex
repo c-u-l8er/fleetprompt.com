@@ -25,5 +25,10 @@ defmodule FleetPrompt.Audit.Event do
     |> cast(attrs, [:workspace_id, :actor_user_id, :action, :target_type, :target_id, :metadata])
     |> validate_required([:workspace_id, :action])
     |> validate_inclusion(:action, @valid_actions)
+    # `workspace_id` is NOT NULL and references `amp.workspaces`. Naming the
+    # constraint is what turns an unknown workspace into `{:error, changeset}` a
+    # caller can match instead of a raised Postgrex error it cannot.
+    |> foreign_key_constraint(:workspace_id, name: "audit_events_workspace_id_fkey")
+    |> foreign_key_constraint(:actor_user_id, name: "audit_events_actor_user_id_fkey")
   end
 end

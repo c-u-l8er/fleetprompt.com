@@ -85,12 +85,24 @@ defmodule FleetPrompt.Registry do
 
   @doc """
   Get the latest published manifest listed by an agent.
+
+  "Latest" means most recently created, with `version` as a tie-break.
+
+  The tie-break is not decoration. `created_at` is `utc_datetime` — second
+  precision — so two manifests published in the same second sorted
+  non-deterministically and this returned either one. The install flow asks
+  this question, so "which version am I installing?" had no stable answer for a
+  publish burst. It is a text comparison, not semver: 10.0.0 sorts below 2.0.0.
+  Within one second that is arbitrary-but-stable, which is all a tie-break is
+  for; across seconds `created_at` decides and publish order wins. Real semver
+  ordering is a behaviour change and wants to be chosen, not slipped in under a
+  bug fix.
   """
   def get_latest_manifest(agent_id) do
     agent_id
     |> listed_by()
     |> where([m], m.status == :published)
-    |> order_by([m], desc: m.created_at)
+    |> order_by([m], desc: m.created_at, desc: m.version)
     |> limit(1)
     |> Repo.one()
   end
@@ -127,36 +139,37 @@ defmodule FleetPrompt.Registry do
 
   1. Validates manifest fields (changeset)
   2. Validates spec_hash is present (returns `{:error, :missing_spec_hash}` if absent)
-  3. Computes initial trust score from test results + spec data
-  4. Inserts with unique constraint on (agent_id, version) for immutability
-  5. Caches in ETS
-  6. Writes audit event + broadcasts via PubSub
+  3. Resolves the workspace this publish happened in
+  4. Computes initial trust score from test results + spec data
+  5. Inserts the manifest, its listing and its audit event in one transaction
+     — unique constraint on (slug, version) gives version immutability
+  6. Caches in ETS and broadcasts via PubSub, once the transaction has committed
+
+  The manifest, the listing and the audit event are written together on
+  purpose. The audit write used to be a bare call whose result was discarded,
+  and `audit_events.workspace_id` is NOT NULL — so a publish that could not
+  resolve a workspace produced a manifest with no provenance record and
+  returned `{:ok, manifest}`. Nothing failed, which is why nobody noticed. It
+  became reachable when a manifest stopped requiring an agent, since the
+  workspace was derived from the agent.
 
   ## Options
 
   - `:actor_id` — user ID performing the publish (for audit trail)
+  - `:workspace_id` — publish workspace; defaults to the listing agent's
   - `:skip_spec_validation` — set true to skip spec_hash requirement (for testing)
   """
   def publish_manifest(attrs, opts \\ []) do
     {agent_id, publisher_id, attrs} = pop_listing(attrs)
 
     with :ok <- validate_spec_hash(attrs, opts),
+         {:ok, workspace_id} <- resolve_workspace(agent_id, opts),
          attrs <- compute_and_attach_trust(attrs),
          attrs <- Map.put(attrs, :status, :published),
-         changeset <- Manifest.changeset(%Manifest{}, attrs),
-         {:ok, manifest} <- Repo.insert(changeset) do
-      # Listing. The manifest is the engine's; this row is the marketplace
-      # claiming it. Publishing without an agent is a legal engine operation,
-      # so a missing agent_id skips the listing rather than failing the publish.
-      if agent_id, do: list_manifest_for_agent(manifest.id, agent_id, publisher_id)
-
-      # Cache
+         {:ok, manifest} <-
+           insert_published(attrs, agent_id, publisher_id, workspace_id, opts) do
       Cache.put_manifest(manifest, agent_id)
 
-      # Audit
-      AuditWriter.record_publish(manifest, opts[:actor_id], workspace_id_of(agent_id))
-
-      # Broadcast
       Phoenix.PubSub.broadcast(
         FleetPrompt.PubSub,
         "registry:events",
@@ -164,6 +177,35 @@ defmodule FleetPrompt.Registry do
       )
 
       {:ok, manifest}
+    end
+  end
+
+  defp insert_published(attrs, agent_id, publisher_id, workspace_id, opts) do
+    Repo.transaction(fn ->
+      with {:ok, manifest} <- %Manifest{} |> Manifest.changeset(attrs) |> Repo.insert(),
+           # Listing. The manifest is the engine's; this row is the marketplace
+           # claiming it. Publishing without an agent is a legal engine
+           # operation, so a missing agent_id skips the listing rather than
+           # failing the publish.
+           {:ok, _listing} <- maybe_list(manifest, agent_id, publisher_id),
+           {:ok, _event} <-
+             AuditWriter.record_publish(manifest, opts[:actor_id], workspace_id) do
+        manifest
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp maybe_list(_manifest, nil, _publisher_id), do: {:ok, nil}
+
+  defp maybe_list(manifest, agent_id, publisher_id),
+    do: list_manifest_for_agent(manifest.id, agent_id, publisher_id)
+
+  defp resolve_workspace(agent_id, opts) do
+    case Keyword.get(opts, :workspace_id) || workspace_id_of(agent_id) do
+      nil -> {:error, :missing_workspace_id}
+      id -> {:ok, id}
     end
   end
 
