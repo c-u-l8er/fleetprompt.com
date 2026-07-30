@@ -21,7 +21,7 @@ defmodule FleetPrompt.Manifests.AgentManifest do
 
   schema "agent_manifests" do
     belongs_to :agent, FleetPrompt.Agents.Agent, primary_key: true
-    belongs_to :manifest, FleetPrompt.Manifests.Manifest, primary_key: true
+    belongs_to :manifest, Kiln.Manifests.Manifest, primary_key: true
     belongs_to :publisher, FleetPrompt.Publishers.Publisher
 
     timestamps(inserted_at: :created_at, type: :utc_datetime)

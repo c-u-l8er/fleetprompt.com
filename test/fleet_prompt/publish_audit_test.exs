@@ -14,8 +14,8 @@ defmodule FleetPrompt.PublishAuditTest do
   """
   use FleetPrompt.DataCase, async: true
 
-  alias FleetPrompt.Audit.Event
-  alias FleetPrompt.Manifests.Manifest
+  alias Kiln.Audit.Event
+  alias Kiln.Manifests.Manifest
   alias FleetPrompt.Registry
 
   defp insert_workspace! do

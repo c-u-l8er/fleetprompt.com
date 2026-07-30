@@ -7,8 +7,16 @@ defmodule FleetPrompt.PipelineIntake do
   1. Validate CloudEvents envelope (type, source, workspace_id)
   2. Extract artifact manifest + test results
   3. Cross-check spec_hash against SpecPrompt registry
-  4. Delegates to Registry.publish_manifest which handles:
-     - Trust computation, version immutability, caching, audit, PubSub
+  4. Delegate to `Registry.publish_manifest/2`, which handles trust
+     computation, the marketplace listing, version immutability, caching,
+     audit and PubSub
+
+  This is the *marketplace's* intake, and it is deliberately not
+  `Kiln.PipelineIntake`. The engine's version publishes a manifest and stops;
+  this one also computes a trust score, writes the `agent_manifests` listing
+  when the event names an agent, warms the ETS cache and broadcasts. Those are
+  marketplace signals, which is why they are done around the `{:ok, manifest}`
+  the engine returns rather than inside it.
   """
 
   alias FleetPrompt.Registry
@@ -70,13 +78,23 @@ defmodule FleetPrompt.PipelineIntake do
       publisher_id: data["publisher_id"]
     }
 
-    # Registry.publish_manifest handles trust computation, caching, audit, PubSub
-    case Registry.publish_manifest(attrs) do
+    # The envelope's workspace_id is the publish workspace. It was already
+    # being validated on the way in and then dropped on the floor here, so an
+    # event that named a workspace but no agent was refused for having no
+    # workspace — with the answer sitting in the event.
+    opts = [workspace_id: data["workspace_id"]]
+
+    # Registry.publish_manifest handles trust computation, the listing,
+    # caching, audit and PubSub.
+    case Registry.publish_manifest(attrs, opts) do
       {:ok, manifest} ->
         {:ok, manifest}
 
       {:error, :missing_spec_hash} ->
         {:error, :spec_not_registered}
+
+      {:error, :missing_workspace_id} ->
+        {:error, :missing_workspace_id}
 
       {:error, changeset} ->
         {:error, {:publish_failed, changeset}}

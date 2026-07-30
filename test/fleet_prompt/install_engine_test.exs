@@ -11,7 +11,7 @@ defmodule FleetPrompt.InstallEngineTest do
   use ExUnit.Case, async: true
 
   alias FleetPrompt.InstallEngine
-  alias FleetPrompt.Manifests.Manifest
+  alias Kiln.Manifests.Manifest
 
   # ---- audit_status/0 --------------------------------------------
 
@@ -326,22 +326,22 @@ defmodule FleetPrompt.InstallEngineTest do
   describe "graphonomous_connect/5 (step 6)" do
     setup do
       # Route the default impl() lookup to the Stub for these tests.
-      original = Application.get_env(:fleet_prompt, :graphonomous_client)
+      original = Application.get_env(:kiln, :graphonomous_client)
 
       Application.put_env(
-        :fleet_prompt,
+        :kiln,
         :graphonomous_client,
-        FleetPrompt.Skills.GraphonomousClient.Stub
+        Kiln.Skills.GraphonomousClient.Stub
       )
 
       on_exit(fn ->
         if is_nil(original) do
-          Application.delete_env(:fleet_prompt, :graphonomous_client)
+          Application.delete_env(:kiln, :graphonomous_client)
         else
-          Application.put_env(:fleet_prompt, :graphonomous_client, original)
+          Application.put_env(:kiln, :graphonomous_client, original)
         end
 
-        FleetPrompt.Skills.GraphonomousClient.Stub.put_telespace_result(
+        Kiln.Skills.GraphonomousClient.Stub.put_telespace_result(
           {:ok, %{"node_id" => "stub-telespace", "endpoint" => "stub"}}
         )
       end)
@@ -361,7 +361,7 @@ defmodule FleetPrompt.InstallEngineTest do
     end
 
     test "returns {:ok, ref} on stub success (non-fatal path)" do
-      FleetPrompt.Skills.GraphonomousClient.Stub.put_telespace_result(
+      Kiln.Skills.GraphonomousClient.Stub.put_telespace_result(
         {:ok, %{"node_id" => "node-abc", "endpoint" => "stub"}}
       )
 
@@ -370,7 +370,7 @@ defmodule FleetPrompt.InstallEngineTest do
     end
 
     test "returns {:error, _} without raising when client returns an error" do
-      FleetPrompt.Skills.GraphonomousClient.Stub.put_telespace_result(
+      Kiln.Skills.GraphonomousClient.Stub.put_telespace_result(
         {:error, {:transport_failed, :nxdomain}}
       )
 

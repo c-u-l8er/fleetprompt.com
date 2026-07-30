@@ -15,10 +15,12 @@ defmodule FleetPrompt.Registry do
   import Ecto.Query
   alias FleetPrompt.Repo
   alias FleetPrompt.Agents.Agent
-  alias FleetPrompt.Manifests.Manifest
+  alias Kiln.Manifests.Manifest
   alias FleetPrompt.Manifests.AgentManifest
   alias FleetPrompt.Trust.Engine, as: TrustEngine
-  alias FleetPrompt.AuditWriter
+  # Manifest provenance is the engine's. `FleetPrompt.AuditWriter` is the
+  # marketplace half of the same append-only table.
+  alias Kiln.AuditWriter
   alias FleetPrompt.Cache
 
   # -- Agents ------------------------------------------------------------------
@@ -56,7 +58,7 @@ defmodule FleetPrompt.Registry do
   #
   # Every agent-keyed query below joins `fleet.agent_manifests`. The manifest
   # itself no longer knows which agent lists it — see
-  # `FleetPrompt.Manifests.Manifest` for why. These functions are the
+  # `Kiln.Manifests.Manifest` for why. These functions are the
   # marketplace's view of the engine's output and keep their old signatures;
   # the engine's own view is keyed on `(slug, version)`.
 

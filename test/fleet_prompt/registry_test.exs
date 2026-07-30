@@ -1,7 +1,7 @@
 defmodule FleetPrompt.RegistryTest do
   use FleetPrompt.DataCase, async: true
 
-  alias FleetPrompt.Manifests.Manifest
+  alias Kiln.Manifests.Manifest
 
   defp valid_manifest_attrs(overrides \\ %{}) do
     Map.merge(

@@ -50,6 +50,13 @@ defmodule FleetPrompt.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:req, "~> 0.5"},
+      # KILN — the crystallize-and-ship engine (dark factory steps 4 and 5).
+      # Extracted from this repo, because the two are different things: KILN
+      # produces manifests, FleetPrompt lists them. The manifest, audit and
+      # crystallization schemas live there now and FleetPrompt is the host
+      # that supplies the Repo. Public git dep for the same reason as the two
+      # below — the Docker build runs `mix deps.get` with no credentials.
+      {:kiln, git: "https://github.com/c-u-l8er/KILN.git", branch: "main"},
       # OS-006 Governance Shim — used by InstallEngine step 4
       # (Delegatic policy check). Sourced from the public c-u-l8er/
       # delegatic-engine github repo so production Docker builds don't
@@ -60,8 +67,7 @@ defmodule FleetPrompt.MixProject do
       # which carries the mix library at its repo root. Hex publication
       # is explicitly not on the roadmap; git-dep is the permanent
       # pattern.
-      {:open_sentience,
-       git: "https://github.com/c-u-l8er/opensentience.org.git", branch: "main"}
+      {:open_sentience, git: "https://github.com/c-u-l8er/opensentience.org.git", branch: "main"}
     ]
   end
 

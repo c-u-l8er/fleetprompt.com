@@ -1,4 +1,4 @@
-defmodule FleetPrompt.Skills.PollWorkerLiveTest do
+defmodule FleetPrompt.KilnPollWorkerLiveTest do
   @moduledoc """
   Live end-to-end test of the skill-crystallization pipeline:
 
@@ -6,7 +6,7 @@ defmodule FleetPrompt.Skills.PollWorkerLiveTest do
           ↓   (store_trace MCP call)
       Graphonomous episodic memory
           ↓   (retrieve(replay) via GraphonomousClient.HTTP)
-      FleetPrompt.Skills.PollWorker.crystallize_all/2
+      Kiln.Skills.PollWorker.crystallize_all/2
           ↓   (Crystallizer.from_trace → draft manifest + crystallization row)
       fleet.manifests + fleet.skill_crystallizations (Supabase)
 
@@ -39,50 +39,16 @@ defmodule FleetPrompt.Skills.PollWorkerLiveTest do
   @moduletag :live_crystallization
 
   alias FleetPrompt.Repo
-  alias FleetPrompt.Agents.Agent
-  alias FleetPrompt.Manifests.Manifest
-  alias FleetPrompt.Publishers.Publisher
-  alias FleetPrompt.Skills.{Crystallization, PollWorker}
-  alias FleetPrompt.Skills.GraphonomousClient.HTTP, as: GHTTP
+  alias Kiln.Manifests.Manifest
+  alias Kiln.Skills.{Crystallization, PollWorker}
+  alias Kiln.Skills.GraphonomousClient.HTTP, as: GHTTP
 
   @endpoint_default "http://127.0.0.1:4200/mcp"
 
-  # ---- fixtures (mirror install_engine_db_test.exs) --------------
-
-  defp insert_workspace! do
-    slug = "ws-crys-#{System.unique_integer([:positive])}"
-
-    {:ok, %{rows: [[id]]}} =
-      Repo.query(
-        "INSERT INTO amp.workspaces (name, slug) VALUES ($1, $2) RETURNING id::text",
-        [slug, slug]
-      )
-
-    id
-  end
-
-  defp insert_publisher! do
-    workspace_id = insert_workspace!()
-    slug = "pub-crys-#{System.unique_integer([:positive])}"
-
-    %Publisher{}
-    |> Publisher.changeset(%{workspace_id: workspace_id, name: slug, slug: slug})
-    |> Repo.insert!()
-  end
-
-  defp insert_agent!(publisher) do
-    slug = "agent-crys-#{System.unique_integer([:positive])}"
-
-    %Agent{}
-    |> Agent.changeset(%{
-      workspace_id: publisher.workspace_id,
-      publisher_id: publisher.id,
-      name: slug,
-      slug: slug,
-      description: "crystallization live test"
-    })
-    |> Repo.insert!()
-  end
+  # There are no fixtures. This file used to seed a workspace, a publisher and
+  # an agent before it could crystallize anything — three marketplace rows
+  # standing in front of an engine operation that does not need them. Their
+  # removal is the extraction, visible as deleted setup.
 
   # ---- Graphonomous trace seeding --------------------------------
 
@@ -198,8 +164,8 @@ defmodule FleetPrompt.Skills.PollWorkerLiveTest do
 
   describe "live crystallization pipeline" do
     test "seeds a trace, crystallizes it, persists manifest + crystallization row" do
-      publisher = insert_publisher!()
-      agent = insert_agent!(publisher)
+      # No publisher, no agent. Crystallizing a trace no longer needs a
+      # marketplace row to exist for the thing that has not been built yet.
       trace_id = "trace-live-crys-#{System.unique_integer([:positive])}"
 
       trace = build_trace(trace_id)
@@ -219,18 +185,20 @@ defmodule FleetPrompt.Skills.PollWorkerLiveTest do
       fetched = Enum.find(traces, &(&1["trace_id"] == trace_id))
       assert fetched, "seeded trace not returned by retrieve(replay)"
 
-      args = %{"agent_id" => agent.id, "publisher_id" => publisher.id}
-
-      assert {:ok, summary} = PollWorker.crystallize_all([fetched], args)
+      # No owner. A poll produces drafts; who lists them is decided later
+      # and elsewhere. This used to carry "agent_id"/"publisher_id" and the
+      # worker refused to run without them.
+      assert {:ok, summary} = PollWorker.crystallize_all([fetched], %{})
 
       assert summary.crystallized == 1
       assert summary.skipped == 0
 
       # Manifest row exists in fleet.manifests, as a :draft
       [manifest] = Repo.all(Manifest)
-      assert manifest.agent_id == agent.id
-      assert manifest.publisher_id == publisher.id
       assert manifest.status == :draft
+      # A crystallized draft is identified by (slug, version) and nothing else.
+      refute Map.has_key?(manifest, :agent_id)
+      refute Map.has_key?(manifest, :publisher_id)
 
       # Crystallization row exists with source_id == trace_id
       [crystallization] = Repo.all(Crystallization)
@@ -240,8 +208,6 @@ defmodule FleetPrompt.Skills.PollWorkerLiveTest do
     end
 
     test "crystallization is idempotent via (source_type, source_id) unique constraint" do
-      publisher = insert_publisher!()
-      agent = insert_agent!(publisher)
       trace_id = "trace-idem-#{System.unique_integer([:positive])}"
 
       trace = build_trace(trace_id)
@@ -255,15 +221,13 @@ defmodule FleetPrompt.Skills.PollWorkerLiveTest do
           timeout_ms: 5_000
         )
 
-      args = %{"agent_id" => agent.id, "publisher_id" => publisher.id}
-
       # First run — crystallized
       assert {:ok, %{crystallized: 1, skipped: 0}} =
-               PollWorker.crystallize_all([fetched], args)
+               PollWorker.crystallize_all([fetched], %{})
 
       # Second run — skipped (idempotent)
       assert {:ok, %{crystallized: 0, skipped: 1}} =
-               PollWorker.crystallize_all([fetched], args)
+               PollWorker.crystallize_all([fetched], %{})
 
       # And only ONE crystallization row total
       assert Repo.aggregate(Crystallization, :count, :id) == 1

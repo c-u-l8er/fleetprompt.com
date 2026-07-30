@@ -106,7 +106,7 @@ defmodule FleetPrompt.PublishFlowTest do
   describe "version immutability" do
     test "manifest changeset declares unique constraint on slug + version" do
       changeset =
-        FleetPrompt.Manifests.Manifest.changeset(%FleetPrompt.Manifests.Manifest{}, @valid_attrs)
+        Kiln.Manifests.Manifest.changeset(%Kiln.Manifests.Manifest{}, @valid_attrs)
 
       assert changeset.valid?
 
@@ -132,7 +132,7 @@ defmodule FleetPrompt.PublishFlowTest do
       attrs = Map.drop(@valid_attrs, [:agent_id, :publisher_id])
 
       changeset =
-        FleetPrompt.Manifests.Manifest.changeset(%FleetPrompt.Manifests.Manifest{}, attrs)
+        Kiln.Manifests.Manifest.changeset(%Kiln.Manifests.Manifest{}, attrs)
 
       assert changeset.valid?
     end

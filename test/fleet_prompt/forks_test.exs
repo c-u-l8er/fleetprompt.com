@@ -1,7 +1,7 @@
 defmodule FleetPrompt.ForksTest do
   use ExUnit.Case, async: true
 
-  alias FleetPrompt.Manifests.Manifest
+  alias Kiln.Manifests.Manifest
 
   describe "fork manifest validation" do
     test "forked manifest starts as draft" do

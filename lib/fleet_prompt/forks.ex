@@ -8,7 +8,7 @@ defmodule FleetPrompt.Forks do
   """
 
   alias FleetPrompt.Repo
-  alias FleetPrompt.Manifests.Manifest
+  alias Kiln.Manifests.Manifest
 
   @doc """
   Fork a published manifest into a new draft manifest under a different publisher.

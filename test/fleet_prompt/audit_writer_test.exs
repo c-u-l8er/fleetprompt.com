@@ -1,7 +1,7 @@
 defmodule FleetPrompt.AuditWriterTest do
   use ExUnit.Case, async: true
 
-  alias FleetPrompt.Audit.Event
+  alias Kiln.Audit.Event
 
   @valid_actions ~w(publish install fork deprecate yank trust_change uninstall)
 

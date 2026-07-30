@@ -13,7 +13,7 @@ defmodule FleetPrompt.InstallEngineDBTest do
 
   # async: false — this test file mutates Application env to route
   # `GraphonomousClient.impl/0` to the Stub, and must not run in
-  # parallel with `FleetPrompt.Skills.GraphonomousClientTest` (which
+  # parallel with `Kiln.Skills.GraphonomousClientTest` (which
   # asserts the default HTTP impl is returned).
   use FleetPrompt.DataCase, async: false
 
@@ -22,7 +22,7 @@ defmodule FleetPrompt.InstallEngineDBTest do
   alias FleetPrompt.Installs.Install
   alias FleetPrompt.Publishers.Publisher
   alias FleetPrompt.Versions.Version
-  alias FleetPrompt.Skills.GraphonomousClient.Stub, as: GraphonomousStub
+  alias Kiln.Skills.GraphonomousClient.Stub, as: GraphonomousStub
 
   # ---- fixtures --------------------------------------------------
 
@@ -127,24 +127,25 @@ defmodule FleetPrompt.InstallEngineDBTest do
   # ---- setup: route GraphonomousClient to the Stub ---------------
 
   setup do
-    original = Application.get_env(:fleet_prompt, :graphonomous_client)
+    original = Application.get_env(:kiln, :graphonomous_client)
 
     Application.put_env(
-      :fleet_prompt,
+      :kiln,
       :graphonomous_client,
       GraphonomousStub
     )
 
     # Default: Stub succeeds. Individual tests override via put_telespace_result/1.
     GraphonomousStub.put_telespace_result(
-      {:ok, %{"node_id" => "stub-node-#{System.unique_integer([:positive])}", "endpoint" => "stub"}}
+      {:ok,
+       %{"node_id" => "stub-node-#{System.unique_integer([:positive])}", "endpoint" => "stub"}}
     )
 
     on_exit(fn ->
       if is_nil(original) do
-        Application.delete_env(:fleet_prompt, :graphonomous_client)
+        Application.delete_env(:kiln, :graphonomous_client)
       else
-        Application.put_env(:fleet_prompt, :graphonomous_client, original)
+        Application.put_env(:kiln, :graphonomous_client, original)
       end
     end)
 
@@ -226,9 +227,7 @@ defmodule FleetPrompt.InstallEngineDBTest do
 
       # Set the Stub to raise if ever called. If install succeeds,
       # it means the skip opt bypassed the client entirely.
-      GraphonomousStub.put_telespace_result(
-        {:error, :should_not_be_called}
-      )
+      GraphonomousStub.put_telespace_result({:error, :should_not_be_called})
 
       assert {:ok, %Install{}} =
                InstallEngine.install(
@@ -303,7 +302,8 @@ defmodule FleetPrompt.InstallEngineDBTest do
                  manifest.version_id,
                  workspace_id: manifest.test_workspace_id,
                  accept_permissions: true,
-                 delegatic_policy_id: "delegatic://test/ghost-#{System.unique_integer([:positive])}"
+                 delegatic_policy_id:
+                   "delegatic://test/ghost-#{System.unique_integer([:positive])}"
                )
     end
   end

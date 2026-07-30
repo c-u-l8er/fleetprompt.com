@@ -9,7 +9,7 @@ defmodule FleetPrompt.InstallEngine do
   3. **MCP dependency resolution** — verify every required MCP server in the manifest is reachable (healthy).
   4. **Delegatic policy check** *(implemented)* — org-level constraints via OS-006 Governance Shim (`Delegatic.authorize/1`). Hard-fails install when `:delegatic_policy_id` is supplied and the policy denies; logs a warning and continues when no policy_id is supplied (opt-in governance).
   5. **OpenSentience deploy** *(implemented)* — validates the manifest is Harness-loadable by starting a transient OS-008 session via `OpenSentience.Harness.start_session/1`, then immediately stopping it. A successful start proves the runtime accepts this agent's configuration; a failure is logged as a warning and does **not** block the install (runtime-side provisioning can be retried).
-  6. **Graphonomous connect** *(implemented)* — initializes a memory telespace by POSTing a `store_node` call to the configured Graphonomous MCP endpoint via `FleetPrompt.Skills.GraphonomousClient.initialize_telespace/1`. Failures are non-fatal: logged as warnings so the install still completes.
+  6. **Graphonomous connect** *(implemented)* — initializes a memory telespace by POSTing a `store_node` call to the configured Graphonomous MCP endpoint via `Kiln.Skills.GraphonomousClient.initialize_telespace/1`. Failures are non-fatal: logged as warnings so the install still completes.
   7. **Audit + confirm** — write audit event, return install receipt.
 
   Current implementation status: **all 7 steps implemented**. Each
@@ -21,8 +21,8 @@ defmodule FleetPrompt.InstallEngine do
 
   alias FleetPrompt.{AuditWriter, Repo}
   alias FleetPrompt.Installs.Install
-  alias FleetPrompt.Manifests.Manifest
-  alias FleetPrompt.Skills.GraphonomousClient
+  alias Kiln.Manifests.Manifest
+  alias Kiln.Skills.GraphonomousClient
 
   require Logger
 

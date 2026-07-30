@@ -37,7 +37,7 @@ defmodule FleetPrompt.Trust.RecomputeWorker do
     import Ecto.Query
 
     agent_ids =
-      FleetPrompt.Manifests.Manifest
+      Kiln.Manifests.Manifest
       |> where([m], m.status == :published)
       |> select([m], m.agent_id)
       |> distinct(true)
