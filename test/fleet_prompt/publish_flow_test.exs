@@ -104,21 +104,37 @@ defmodule FleetPrompt.PublishFlowTest do
   end
 
   describe "version immutability" do
-    test "manifest changeset declares unique constraint on agent_id + version" do
+    test "manifest changeset declares unique constraint on slug + version" do
       changeset =
         FleetPrompt.Manifests.Manifest.changeset(%FleetPrompt.Manifests.Manifest{}, @valid_attrs)
 
       assert changeset.valid?
 
       # The unique constraint is enforced at DB level via:
-      # unique_constraint([:agent_id, :version], name: "manifests_agent_id_version_key")
+      # unique_constraint([:slug, :version], name: "manifests_slug_version_key")
       # The name matches the real Postgres constraint (which follows
       # the `<table>_<cols>_key` convention, not the Ecto-default
       # `_index` suffix).
+      #
+      # It was keyed on (agent_id, version) until migration 035. A manifest no
+      # longer carries the agent that lists it, so version immutability became a
+      # property of the manifest's own identity rather than of its listing.
       assert Enum.any?(changeset.constraints, fn c ->
                c.type == :unique and
-                 c.constraint == "manifests_agent_id_version_key"
+                 c.constraint == "manifests_slug_version_key"
              end)
+    end
+
+    test "manifest changeset is valid with no agent and no publisher" do
+      # The whole point of the decoupling: the engine mints its output without a
+      # marketplace row existing. Before 035 both fields were required, so this
+      # changeset could not be built at all.
+      attrs = Map.drop(@valid_attrs, [:agent_id, :publisher_id])
+
+      changeset =
+        FleetPrompt.Manifests.Manifest.changeset(%FleetPrompt.Manifests.Manifest{}, attrs)
+
+      assert changeset.valid?
     end
   end
 end

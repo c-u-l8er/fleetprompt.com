@@ -19,8 +19,19 @@ defmodule FleetPrompt.Cache do
 
   # -- Public API --------------------------------------------------------------
 
-  @doc "Cache a manifest by {agent_id, version}."
-  def put_manifest(%{agent_id: agent_id, version: version} = manifest) do
+  @doc """
+  Cache a manifest by {agent_id, version}.
+
+  This is a marketplace cache — it answers "what is this agent serving?" — so
+  the agent is supplied by the caller. It used to be read off the manifest, back
+  when a manifest carried the agent that listed it. An unlisted manifest is not
+  cached, because there is no agent to look it up by.
+  """
+  def put_manifest(manifest, agent_id)
+
+  def put_manifest(_manifest, nil), do: :ok
+
+  def put_manifest(%{version: version} = manifest, agent_id) do
     :ets.insert(:fp_manifests, {{agent_id, version}, manifest})
     :ok
   end

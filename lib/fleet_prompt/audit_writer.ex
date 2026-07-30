@@ -30,15 +30,22 @@ defmodule FleetPrompt.AuditWriter do
     |> Repo.insert()
   end
 
-  @doc "Write a publish audit event."
-  def record_publish(manifest, actor_id) do
+  @doc """
+  Write a publish audit event.
+
+  `workspace_id` is passed in rather than looked up. It used to be derived by
+  loading `fleet.agents` from `manifest.agent_id`, which made the audit writer —
+  engine code — read a marketplace table to record an engine event. The caller
+  knows which workspace it is publishing into; the engine does not.
+  """
+  def record_publish(manifest, actor_id, workspace_id) do
     write(%{
-      workspace_id: get_workspace_id(manifest),
+      workspace_id: workspace_id,
       actor_user_id: actor_id,
       action: "publish",
       target_type: "manifest",
       target_id: manifest.id,
-      metadata: %{"version" => manifest.version, "agent_id" => manifest.agent_id}
+      metadata: %{"version" => manifest.version, "slug" => manifest.slug}
     })
   end
 
@@ -55,9 +62,9 @@ defmodule FleetPrompt.AuditWriter do
   end
 
   @doc "Write a fork audit event."
-  def record_fork(forked_manifest, source_id, actor_id) do
+  def record_fork(forked_manifest, source_id, actor_id, workspace_id) do
     write(%{
-      workspace_id: get_workspace_id(forked_manifest),
+      workspace_id: workspace_id,
       actor_user_id: actor_id,
       action: "fork",
       target_type: "manifest",
@@ -75,12 +82,5 @@ defmodule FleetPrompt.AuditWriter do
       target_id: agent_id,
       metadata: %{"old_score" => old_score, "new_score" => new_score}
     })
-  end
-
-  defp get_workspace_id(manifest) do
-    case FleetPrompt.Repo.get(FleetPrompt.Agents.Agent, manifest.agent_id) do
-      nil -> nil
-      agent -> agent.workspace_id
-    end
   end
 end

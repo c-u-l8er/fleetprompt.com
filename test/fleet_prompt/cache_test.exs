@@ -11,9 +11,9 @@ defmodule FleetPrompt.CacheTest do
   describe "manifest cache" do
     test "put and get manifest" do
       agent_id = Ecto.UUID.generate()
-      manifest = %{agent_id: agent_id, version: "1.0.0", name: "test-agent"}
+      manifest = %{version: "1.0.0", name: "test-agent"}
 
-      assert :ok = Cache.put_manifest(manifest)
+      assert :ok = Cache.put_manifest(manifest, agent_id)
       assert {:ok, ^manifest} = Cache.get_manifest(agent_id, "1.0.0")
     end
 
@@ -23,11 +23,11 @@ defmodule FleetPrompt.CacheTest do
 
     test "overwrites existing manifest" do
       agent_id = Ecto.UUID.generate()
-      v1 = %{agent_id: agent_id, version: "1.0.0", name: "old"}
-      v2 = %{agent_id: agent_id, version: "1.0.0", name: "updated"}
+      v1 = %{version: "1.0.0", name: "old"}
+      v2 = %{version: "1.0.0", name: "updated"}
 
-      Cache.put_manifest(v1)
-      Cache.put_manifest(v2)
+      Cache.put_manifest(v1, agent_id)
+      Cache.put_manifest(v2, agent_id)
 
       assert {:ok, %{name: "updated"}} = Cache.get_manifest(agent_id, "1.0.0")
     end
@@ -64,7 +64,7 @@ defmodule FleetPrompt.CacheTest do
   describe "flush_all" do
     test "clears all caches" do
       agent_id = Ecto.UUID.generate()
-      Cache.put_manifest(%{agent_id: agent_id, version: "1.0.0"})
+      Cache.put_manifest(%{version: "1.0.0"}, agent_id)
       Cache.put_trust_score(agent_id, 90)
       Cache.put_category("test", [agent_id])
 

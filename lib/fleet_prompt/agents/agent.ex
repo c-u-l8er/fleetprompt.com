@@ -27,7 +27,10 @@ defmodule FleetPrompt.Agents.Agent do
     # Generated column — read-only
     field :search_vector, :string, load_in_query: false
 
-    has_many :manifests, FleetPrompt.Manifests.Manifest
+    # Manifests are reached through the join, not owned. A manifest belongs to
+    # the engine that built it; an agent only lists it.
+    has_many :agent_manifests, FleetPrompt.Manifests.AgentManifest
+    has_many :manifests, through: [:agent_manifests, :manifest]
     has_many :versions, FleetPrompt.Versions.Version
     has_many :installs, FleetPrompt.Installs.Install
     has_one :trust_score, FleetPrompt.Trust.Score

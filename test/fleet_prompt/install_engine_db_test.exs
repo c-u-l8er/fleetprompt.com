@@ -113,7 +113,12 @@ defmodule FleetPrompt.InstallEngineDBTest do
     # Return manifest with the real version_id + workspace_id + publisher
     # attached as plain fields so install/3 tests can use them without
     # having to know the full object graph.
+    #
+    # `agent_id` is attached the same way now. It used to be a manifest column;
+    # it is a row in fleet.agent_manifests since migration 035, and these tests
+    # are about the install flow, not about how the listing is stored.
     manifest
+    |> Map.put(:agent_id, agent.id)
     |> Map.put(:version_id, version.id)
     |> Map.put(:test_workspace_id, publisher.workspace_id)
     |> Map.put(:test_publisher_id, publisher.id)

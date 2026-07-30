@@ -1,4 +1,22 @@
 defmodule FleetPrompt.Manifests.Manifest do
+  @moduledoc """
+  A manifest is the artifact the crystallize-and-ship engine emits. It is
+  identified by `(slug, version)` and by nothing else.
+
+  It used to carry `agent_id` and `publisher_id`, both required. That made the
+  engine unable to write its own output without a marketplace publisher row
+  already existing — the engine depended on the marketplace in order to produce
+  the thing the marketplace exists to list. The dependency ran backwards.
+
+  Ownership now lives in `fleet.agent_manifests`, a join the marketplace writes
+  when it decides to list a manifest. A manifest can exist with no agent
+  pointing at it; that is a manifest that has been built but not listed, which
+  is a real state the old schema could not represent.
+
+  Consequence to know about: `slug` is now a registry-wide coordinate, not a
+  per-agent label. Two agents cannot publish the same slug. That is the correct
+  behaviour for a package registry and a behaviour change for a marketplace.
+  """
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -7,9 +25,6 @@ defmodule FleetPrompt.Manifests.Manifest do
   @schema_prefix "fleet"
 
   schema "manifests" do
-    belongs_to :agent, FleetPrompt.Agents.Agent
-    belongs_to :publisher, FleetPrompt.Publishers.Publisher
-
     # Identity
     field :name, :string
     field :slug, :string
@@ -53,7 +68,7 @@ defmodule FleetPrompt.Manifests.Manifest do
     timestamps(inserted_at: :created_at, type: :utc_datetime)
   end
 
-  @required_fields [:name, :slug, :version, :description, :permissions, :agent_id, :publisher_id]
+  @required_fields [:name, :slug, :version, :description, :permissions]
   @optional_fields [
     :category,
     :tags,
@@ -78,14 +93,14 @@ defmodule FleetPrompt.Manifests.Manifest do
     |> validate_format(:slug, ~r/^[a-z0-9\-]+$/)
     |> validate_inclusion(:build_pipeline, ~w(agentelic manual ci))
     |> validate_number(:trust_score, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
-    # DB-level constraint is named `manifests_agent_id_version_key`
-    # (Postgres's default for UNIQUE). Previously declared as
-    # `fleet.manifests_agent_id_version_index` which never matched —
-    # the Ecto `changeset_errors` path for duplicate-version publishes
-    # would silently fall through to a raised constraint error instead
-    # of becoming a `{:error, changeset}` tuple.
-    |> unique_constraint([:agent_id, :version],
-      name: "manifests_agent_id_version_key"
+    # DB-level constraint is named `manifests_slug_version_key` (Postgres's
+    # default for UNIQUE). The name is asserted here because the previous
+    # declaration named an index that did not exist — `unique_constraint` only
+    # converts the errors it is told the name of, so duplicate-version publishes
+    # raised instead of returning `{:error, changeset}`, and nothing failed
+    # until a duplicate was actually attempted.
+    |> unique_constraint([:slug, :version],
+      name: "manifests_slug_version_key"
     )
   end
 

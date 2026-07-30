@@ -16,6 +16,7 @@ defmodule FleetPrompt.Registry do
   alias FleetPrompt.Repo
   alias FleetPrompt.Agents.Agent
   alias FleetPrompt.Manifests.Manifest
+  alias FleetPrompt.Manifests.AgentManifest
   alias FleetPrompt.Trust.Engine, as: TrustEngine
   alias FleetPrompt.AuditWriter
   alias FleetPrompt.Cache
@@ -52,13 +53,26 @@ defmodule FleetPrompt.Registry do
   end
 
   # -- Manifests ---------------------------------------------------------------
+  #
+  # Every agent-keyed query below joins `fleet.agent_manifests`. The manifest
+  # itself no longer knows which agent lists it — see
+  # `FleetPrompt.Manifests.Manifest` for why. These functions are the
+  # marketplace's view of the engine's output and keep their old signatures;
+  # the engine's own view is keyed on `(slug, version)`.
+
+  defp listed_by(agent_id) do
+    from m in Manifest,
+      join: am in AgentManifest,
+      on: am.manifest_id == m.id,
+      where: am.agent_id == ^agent_id
+  end
 
   @doc """
-  Lists manifests for an agent, ordered by version (newest first).
+  Lists manifests listed by an agent, ordered by version (newest first).
   """
   def list_manifests(agent_id, opts \\ []) do
-    Manifest
-    |> where([m], m.agent_id == ^agent_id)
+    agent_id
+    |> listed_by()
     |> maybe_filter_status(opts[:status])
     |> order_by([m], desc: m.created_at)
     |> limit(^(opts[:limit] || 20))
@@ -70,21 +84,42 @@ defmodule FleetPrompt.Registry do
   def get_manifest!(id), do: Repo.get!(Manifest, id)
 
   @doc """
-  Get the latest published manifest for an agent.
+  Get the latest published manifest listed by an agent.
   """
   def get_latest_manifest(agent_id) do
-    Manifest
-    |> where([m], m.agent_id == ^agent_id and m.status == :published)
+    agent_id
+    |> listed_by()
+    |> where([m], m.status == :published)
     |> order_by([m], desc: m.created_at)
     |> limit(1)
     |> Repo.one()
   end
 
   @doc """
-  Get a specific version of an agent's manifest.
+  Get a specific version of a manifest listed by an agent.
   """
   def get_manifest_by_version(agent_id, version) do
-    Repo.get_by(Manifest, agent_id: agent_id, version: version)
+    agent_id
+    |> listed_by()
+    |> where([m], m.version == ^version)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc """
+  Links a manifest to an agent — the marketplace's decision to list it.
+
+  Idempotent: relisting the same pair is a no-op rather than an error, because
+  a publish that partially succeeded should be safe to retry.
+  """
+  def list_manifest_for_agent(manifest_id, agent_id, publisher_id) do
+    %AgentManifest{}
+    |> AgentManifest.changeset(%{
+      manifest_id: manifest_id,
+      agent_id: agent_id,
+      publisher_id: publisher_id
+    })
+    |> Repo.insert(on_conflict: :nothing, conflict_target: [:agent_id, :manifest_id])
   end
 
   @doc """
@@ -103,16 +138,23 @@ defmodule FleetPrompt.Registry do
   - `:skip_spec_validation` — set true to skip spec_hash requirement (for testing)
   """
   def publish_manifest(attrs, opts \\ []) do
+    {agent_id, publisher_id, attrs} = pop_listing(attrs)
+
     with :ok <- validate_spec_hash(attrs, opts),
          attrs <- compute_and_attach_trust(attrs),
          attrs <- Map.put(attrs, :status, :published),
          changeset <- Manifest.changeset(%Manifest{}, attrs),
          {:ok, manifest} <- Repo.insert(changeset) do
+      # Listing. The manifest is the engine's; this row is the marketplace
+      # claiming it. Publishing without an agent is a legal engine operation,
+      # so a missing agent_id skips the listing rather than failing the publish.
+      if agent_id, do: list_manifest_for_agent(manifest.id, agent_id, publisher_id)
+
       # Cache
-      Cache.put_manifest(manifest)
+      Cache.put_manifest(manifest, agent_id)
 
       # Audit
-      AuditWriter.record_publish(manifest, opts[:actor_id])
+      AuditWriter.record_publish(manifest, opts[:actor_id], workspace_id_of(agent_id))
 
       # Broadcast
       Phoenix.PubSub.broadcast(
@@ -127,11 +169,24 @@ defmodule FleetPrompt.Registry do
 
   @doc """
   Creates a draft manifest (not yet published). No spec validation required.
+
+  Accepts `:agent_id` / `:publisher_id` and, when both are present, links the
+  draft to the agent. They are no longer manifest fields, so a caller with
+  neither still gets a manifest — a built-but-unlisted draft.
   """
   def create_draft_manifest(attrs) do
-    %Manifest{}
-    |> Manifest.changeset(Map.put(attrs, :status, :draft))
-    |> Repo.insert()
+    {agent_id, publisher_id, attrs} = pop_listing(attrs)
+
+    case %Manifest{}
+         |> Manifest.changeset(Map.put(attrs, :status, :draft))
+         |> Repo.insert() do
+      {:ok, manifest} ->
+        if agent_id, do: list_manifest_for_agent(manifest.id, agent_id, publisher_id)
+        {:ok, manifest}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   @doc """
@@ -149,7 +204,9 @@ defmodule FleetPrompt.Registry do
          |> Manifest.status_changeset(attrs)
          |> Repo.update() do
       {:ok, updated} ->
-        Cache.put_manifest(updated)
+        # Re-cache under every agent listing this manifest. There is usually
+        # one; there can be none, and then there is nothing to cache.
+        Enum.each(agents_listing(updated.id), &Cache.put_manifest(updated, &1))
         {:ok, updated}
 
       {:error, changeset} ->
@@ -172,6 +229,39 @@ defmodule FleetPrompt.Registry do
   end
 
   # -- Private -----------------------------------------------------------------
+
+  # `agent_id` and `publisher_id` are still how callers talk about a publish —
+  # they just aren't manifest columns any more. Split them off before the
+  # changeset sees them, accepting either key form because callers arrive from
+  # JSON (MCP, pipeline intake) and from Elixir (crystallizer) alike.
+  defp pop_listing(attrs) do
+    {agent_id, attrs} = pop_either(attrs, :agent_id, "agent_id")
+    {publisher_id, attrs} = pop_either(attrs, :publisher_id, "publisher_id")
+    {agent_id, publisher_id, attrs}
+  end
+
+  defp pop_either(attrs, atom_key, string_key) do
+    case Map.pop(attrs, atom_key) do
+      {nil, rest} -> Map.pop(rest, string_key)
+      {value, rest} -> {value, Map.delete(rest, string_key)}
+    end
+  end
+
+  defp agents_listing(manifest_id) do
+    AgentManifest
+    |> where([am], am.manifest_id == ^manifest_id)
+    |> select([am], am.agent_id)
+    |> Repo.all()
+  end
+
+  defp workspace_id_of(nil), do: nil
+
+  defp workspace_id_of(agent_id) do
+    case Repo.get(Agent, agent_id) do
+      nil -> nil
+      agent -> agent.workspace_id
+    end
+  end
 
   defp validate_spec_hash(attrs, opts) do
     if Keyword.get(opts, :skip_spec_validation, false) do
