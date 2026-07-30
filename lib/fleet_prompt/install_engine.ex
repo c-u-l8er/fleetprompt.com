@@ -36,6 +36,10 @@ defmodule FleetPrompt.InstallEngine do
     * `:mcp_resolver` — function `(mcp_servers -> {:ok, resolved} | {:error, reason})`;
       defaults to `&default_mcp_resolver/1` which only checks declared shape
     * `:skip_mcp_check` — bypass MCP dependency resolution (for testing)
+    * `:manifest_resolver` — function `(agent_id -> %Manifest{} | nil | {:error, term})`
+      answering "which manifest is being installed?". Defaults to the
+      marketplace's `Registry.get_latest_manifest/1`. Supplying it is how a
+      non-marketplace caller drives the install flow without a `fleet.agents` row
     * `:delegatic_policy_id` — if set, the install will be authorized
       through `Delegatic.authorize/1` with `action_type: "install"`
       and will hard-fail on policy denial. If unset, governance is
@@ -69,7 +73,7 @@ defmodule FleetPrompt.InstallEngine do
     installed_by = Keyword.get(opts, :installed_by)
 
     with :ok <- check_permissions(opts),
-         {:ok, manifest} <- verify_manifest(agent_id),
+         {:ok, manifest} <- verify_manifest(agent_id, opts),
          {:ok, _resolved} <- resolve_mcp_dependencies(manifest, opts),
          :ok <- delegatic_policy_check(agent_id, opts),
          {:ok, install} <- create_install(agent_id, version_id, workspace_id, installed_by) do
@@ -192,13 +196,27 @@ defmodule FleetPrompt.InstallEngine do
 
   # ---- private ----------------------------------------------------
 
-  defp verify_manifest(agent_id) do
-    case FleetPrompt.Registry.get_latest_manifest(agent_id) do
+  # The install flow needs to know which manifest it is installing. Asking
+  # `FleetPrompt.Registry` directly was the last place engine code called into
+  # the marketplace, and it is a marketplace question — "what is this agent
+  # currently serving?" — so the answer is supplied rather than looked up, the
+  # same way `:mcp_resolver` and `:opensentience_deployer` already are.
+  #
+  # The default keeps the marketplace behaviour, so callers see no change.
+  defp verify_manifest(agent_id, opts) do
+    resolver = Keyword.get(opts, :manifest_resolver, &default_manifest_resolver/1)
+
+    case resolver.(agent_id) do
       nil -> {:error, :no_published_manifest}
       %Manifest{status: :published} = m -> {:ok, m}
+      %Manifest{} -> {:error, :manifest_not_published}
+      {:error, reason} -> {:error, reason}
       _ -> {:error, :manifest_not_published}
     end
   end
+
+  defp default_manifest_resolver(agent_id),
+    do: FleetPrompt.Registry.get_latest_manifest(agent_id)
 
   defp check_permissions(opts) do
     if Keyword.get(opts, :accept_permissions, false) do
