@@ -679,8 +679,9 @@
                     <div class="stamp pending" aria-label="Stamp: not installable">Not installable</div>
                     <div class="foot">
                         Same implementation on both machines — one codebase agreeing with
-                        itself, not two implementations agreeing. The verifier and runtime were
-                        copied onto the guest by hand; the image build does not ship them yet.
+                        itself, not two implementations agreeing. The guest was created straight
+                        from the build pipeline's own image and never touched afterwards: the
+                        verifier and runtime are in the image now, not copied there by hand.
                         Both stamps are earned.
                     </div>
                 </div>
@@ -767,9 +768,10 @@
                 <ul class="plain">
                     <li>
                         <strong>T&amp;R is the golden image.</strong> A FreeBSD 15 distribution
-                        assembled from pkgbase: 364 MB, 50 packages in the server flavour, and
-                        51 MB written on first boot where a stock cloud image writes about
-                        3 GB. Patching is a build-time job, done once.
+                        assembled from pkgbase: 364 MB and 50 packages in the bare server
+                        flavour, 625 MB and 56 once it carries the verifier and the interpreter
+                        that runs it. It writes 57 MB on first boot where a stock cloud image
+                        writes about 3 GB. Patching is a build-time job, done once.
                     </li>
                     <li>
                         <strong>PARKVPS is the fleet layer.</strong> QEMU/KVM with no root, no
@@ -784,10 +786,13 @@
                         aboard, disposable by deleting one overlay file.
                     </li>
                     <li>
-                        <strong>The honest gap:</strong> the runtime and verifier are not in
-                        the T&amp;R build yet. They run on a booted image because we copied
-                        them there by hand. Until the build ships them, everything above the
-                        substrate is a demonstration, not a download.
+                        <strong>The build ships the stack now.</strong> A server image built by
+                        the pipeline and never touched afterwards answers <code>trvs doctor</code>
+                        with <code>status ready</code> and derives the demo world's identity
+                        itself. The stack costs 14 MB; the interpreter it needs costs rather
+                        more, taking the server image from 364 MB to 625 MB and 50 packages to
+                        56. <strong>The remaining gap is above it:</strong> nothing here is
+                        installable, because the registry and its three commands do not exist.
                     </li>
                 </ul>
             </div>
@@ -883,8 +888,11 @@
                             </tr>
                             <tr>
                                 <th scope="row">Stack in the image</th>
-                                <td class="ref">the build installing runtime + verifier</td>
-                                <td class="no">not yet · hand-copied</td>
+                                <td class="ref">
+                                    the build installing runtime + verifier — server flavour,
+                                    pristine, measured 2026-08-09
+                                </td>
+                                <td class="win">in the image</td>
                             </tr>
                             <tr>
                                 <th scope="row">Registry service</th>
@@ -941,11 +949,12 @@
                         </p>
                     </div>
                     <div class="item">
-                        <h3>The stack is not in the build</h3>
+                        <h3>An image that can verify, and nothing that installs</h3>
                         <p>
-                            Runtime and verifier were copied onto the booted image by hand.
-                            Until the T&amp;R build ships them, "install to the substrate" is a
-                            demonstration, not a download.
+                            The stack is in the build as of 2026-08-09, so a pristine guest can
+                            replay and derive. What it cannot do is fetch: "install to the
+                            substrate" still has no registry to install from, which makes this a
+                            capability rather than a product.
                         </p>
                     </div>
                     <div class="item">
