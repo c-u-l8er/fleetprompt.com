@@ -117,7 +117,16 @@ if (existsSync(FROZEN)) {
             drift.push(`${f.id}: in the record, not in this build`);
             continue;
         }
-        for (const k of ["total", "failures", "excluded"]) {
+        /* r12 — NEVER FREEZE AN ENVIRONMENT-DEPENDENT FACT. `total` and
+           `excluded` are properties of this repository: a test exists, a tag is
+           on it. `failures` on the tagged-out run is NOT — those two tests fail
+           here because the service they need is not running, and they would
+           pass on a machine where it is. Freezing that number would make this
+           build refuse on a correctly configured machine, for a reason that has
+           nothing to do with the page. It is recorded as observed and compared
+           only where it is a repo fact. */
+        const frozenKeys = f.id === "full" ? ["total"] : ["total", "failures", "excluded"];
+        for (const k of frozenKeys) {
             if (c[k] !== f[k]) drift.push(`${f.id} ${k}: ran ${c[k]} != record ${f[k]}`);
         }
     }
@@ -139,6 +148,11 @@ if (existsSync(FROZEN)) {
                     total,
                     failures,
                     excluded,
+                    /* Which of these this build is allowed to refuse on. See
+                       the note in the drift loop: the tagged-out run's failure
+                       count depends on whether a live service is reachable, so
+                       it is observed and published, never frozen. */
+                    frozen: id === "full" ? ["total"] : ["total", "failures", "excluded"],
                 })),
             },
             null,
@@ -154,7 +168,7 @@ if (drift.length) {
     process.exit(1);
 }
 console.log(
-    `consistency gate: ${suites.length} suites re-run, ${TOTAL} tests, 0 failures, 0 drift`
+    `consistency gate: the suite re-run twice, ${TOTAL} tests defined, ${dflt.total} green under default tags, ${dflt.excluded} excluded (${full.failures} of those failing on this machine — observed, not frozen), 0 drift`
 );
 
 /* Every command this page tells a reader to run must be a command that runs.

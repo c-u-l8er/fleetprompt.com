@@ -10,7 +10,12 @@
       "runner": "ExUnit, default tags",
       "total": 112,
       "failures": 0,
-      "excluded": 2
+      "excluded": 2,
+      "frozen": [
+        "total",
+        "failures",
+        "excluded"
+      ]
     },
     {
       "id": "full",
@@ -18,7 +23,10 @@
       "runner": "ExUnit, nothing excluded",
       "total": 114,
       "failures": 2,
-      "excluded": 0
+      "excluded": 0,
+      "frozen": [
+        "total"
+      ]
     }
   ]
 }
