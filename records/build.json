@@ -1,0 +1,19 @@
+{
+  "schema": "computedriven-build-v1",
+  "_comment": "Written by build-site.mjs at emit. launch-gate.mjs re-hashes each artifact and refuses if one does not match — which is how the gate knows it is reading THIS build's output rather than a survivor of a build that threw before it rewrote the file. Source hashes are recorded too, so a source edited after the emit is caught as well.",
+  "built_at": "2026-08-17T17:11:59.355Z",
+  "version": "0.1.0",
+  "shell_revision": "shell-r9",
+  "artifacts": {
+    "index.html": "9e8cc1bd2051e45b8a1196f82e98cdde325fb6d8b4d1b9175f8faca0228dc39c",
+    "replay.js": "787ee650762aedcaa5ff8e2e95f1d4fe8627b81461babe0a2353e78c2bc48954",
+    "form.js": "73c2b40348877fd9a5df0fb62c68eb75d9a59f9e11f6a4c6bae9bcd7d260eedf"
+  },
+  "sources": {
+    "src/landing.html": "91f60a49636f08bf82b9906014e6688f7cbe232d169f6703c06719624f2796a2",
+    "src/shell.css": "137251554aba833a60aae16155335fd1e5506860c9cbd63837532c8f27582193",
+    "src/replay.js": "f873f7d0c9bb74039a6d2ad967e679b09e4a19aedaccfc5e589ad9d512c6d4bc",
+    "src/form.js": "aa13d8712afefb16dcdd6fe70c84f7a96d7ccf085c2da9e0931b5771a8640979",
+    "records/surface.json": "e9016cd1614b145b62a8579e225a540669bb14c9e9418089a6f335e24878b321"
+  }
+}

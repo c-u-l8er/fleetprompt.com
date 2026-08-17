@@ -1,1081 +1,150 @@
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>FleetPrompt — trust is a replay, not a badge</title>
-        <meta
-            name="description"
-            content="FleetPrompt is the planned registry for evidence-bundled agents: every listing ships the replayable film of its own run, and installing means replaying it on your machine. Registry size today: one entry, not yet installable. This page keeps that count honest."
-        />
-        <meta
-            name="keywords"
-            content="agent registry, agent marketplace, replayable evidence, TRAAVIIS, trvs, film, T&R, PARKVPS, FreeBSD, provenance, verification"
-        />
-        <meta property="og:title" content="FleetPrompt — trust is a replay, not a badge" />
-        <meta
-            property="og:description"
-            content="A registry where every listing ships the evidence bundle of its own run. Installing means replaying it. Current count: one entry, not installable — and the page says so."
-        />
-        <meta property="og:type" content="website" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,600;10..72,700;10..72,800&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
-            rel="stylesheet"
-        />
-        <link
-            rel="icon"
-            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0806'/%3E%3Cpath d='M5 9h22M5 15h22M5 21h13' stroke='%23F2C14E' stroke-width='2'/%3E%3Ccircle cx='24' cy='23' r='5.5' fill='none' stroke='%2358E07A' stroke-width='2'/%3E%3Cpath d='M21.5 23l1.8 1.8 3.4-3.6' fill='none' stroke='%2358E07A' stroke-width='1.8'/%3E%3C/svg%3E"
-        />
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Can a listing carry a receipt you can re-run? — FleetPrompt</title>
+<meta name="description" content="A registry design where every listing ships the evidence bundle of its own run, and installing means replaying that bundle on your machine. The registry holds one entry, it is ours, and it is not installable — the replay gate and the three commands that would use it are not built. The trust-scored marketplace it replaces is still running, and this page argues with it rather than deleting it.">
+<meta name="falsifiable-question" content="Can a listing carry a receipt you can re-run?">
+<link rel="canonical" href="https://fleetprompt.com/">
+<meta name="theme-color" content="#0a0806">
+<meta property="og:title" content="Can a listing carry a receipt you can re-run? — FleetPrompt">
+<meta property="og:description" content="Trust as a replay, not a badge. Counts on this page are real or they are absent, and the count is one.">
+<meta property="og:type" content="website"><meta property="og:url" content="https://fleetprompt.com/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0806'/%3E%3Crect x='5' y='9' width='16' height='14' fill='none' stroke='%23ff7a45' stroke-width='2'/%3E%3Cpath d='M8 12h2M8 16h2M8 20h2M16 12h2M16 16h2M16 20h2' stroke='%23ff7a45' stroke-width='1.5'/%3E%3Cpath d='M26 5v22' stroke='%23f5c451' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,700;10..72,800&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="module" src="/amp-nav.js"></script>
+<style>:root{--ink:#0a0806;--ink2:#12100b;--ink3:#191510;          --line:rgba(234,228,216,.09);--line2:rgba(234,228,216,.18);--fg:#eae4d8;--fg2:rgba(234,228,216,.66);--fg3:rgba(234,228,216,.55);--acc:#ff7a45;--acc-soft:rgba(255,122,69,.1);--acc-line:rgba(255,122,69,.34);--acc-ink:#1c0a02;--data:#5ad1c8;--data-soft:rgba(90,209,200,.1);--warn:#f5c451;--display:"Big Shoulders","Arial Narrow",system-ui,sans-serif;--ui:"Space Grotesk",system-ui,-apple-system,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;--r:10px;--rl:16px}:root{--wrap:1080px;--xs:.6875rem;--sm:.8125rem;--md:1.0625rem;--lg:1.25rem;--h2:clamp(1.9rem,4.4vw,2.9rem);--h1:clamp(2.6rem,7.2vw,4.6rem)}*{box-sizing:border-box}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}body{margin:0;background:var(--ink);color:var(--fg);font:.9375rem/1.62 var(--ui);overflow-x:hidden;-webkit-font-smoothing:antialiased}a{color:var(--acc)}h1,h2,h3{margin:0}img,canvas,svg{max-width:100%}:focus-visible{outline:2px solid var(--acc);outline-offset:2px}.wrap{max-width:var(--wrap);margin:0 auto;padding:0 22px}.skip{position:absolute;left:-9999px;top:0;background:var(--ink3);color:var(--fg);padding:10px 16px;z-index:200;border-radius:var(--r)}.skip:focus{left:8px;top:8px}.skip:hover{color:var(--acc)}.band{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:11px 22px;background:var(--ink2);border-bottom:1px solid var(--line);font-size:var(--xs)}.band .where{color:var(--fg2);text-transform:uppercase;letter-spacing:.05em}.band .where b{color:var(--fg);font-weight:600}.band .covers{color:var(--fg2);flex:1 1 320px;min-width:0}.band .spec-link{color:var(--acc);text-decoration:none;white-space:nowrap;font-family:var(--mono)}.band .spec-link:hover{text-decoration:underline}.rung{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:var(--xs);padding:2px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--fg2);white-space:nowrap}.rung::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.rung[data-rung=spec]{color:#9aa4b2;border-color:rgba(154,164,178,.35)}.rung[data-rung=in_tree]{color:#7aa2f7;border-color:rgba(122,162,247,.35)}.rung[data-rung=live_local]{color:var(--data);border-color:rgba(90,209,200,.4);background:var(--data-soft)}.rung[data-rung=live_deployed]{color:#4ade80;border-color:rgba(74,222,128,.4)}.rung[data-rung=external]{color:#c4a1ff;border-color:rgba(196,161,255,.4)}.rung[data-rung="?"]{color:var(--warn);border-color:rgba(245,196,81,.45);border-style:dashed}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}.logo{font-family:var(--mono);font-size:var(--md);font-weight:700;letter-spacing:-.03em;color:var(--fg);text-decoration:none;white-space:nowrap}.logo span{color:var(--acc)}.logo:hover{color:var(--acc)}.top nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap}.top nav a:not(.btn){color:var(--fg2);text-decoration:none;font-size:var(--sm);font-weight:500;white-space:nowrap}.top nav a:not(.btn):hover{color:var(--acc)}.btn{display:inline-block;background:var(--acc);color:var(--acc-ink);font-weight:700;border-radius:var(--r);padding:11px 20px;text-decoration:none;font-size:var(--sm);white-space:nowrap}.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line2);font-weight:500}.btn:hover{filter:brightness(1.12)}.btn.ghost:hover{border-color:var(--acc-line);color:var(--acc);filter:none}@media(max-width:1000px){.top{flex-direction:column;align-items:flex-start;gap:11px}.top nav{width:100%}}.hero{position:relative;overflow:hidden}.hero .front{position:relative;z-index:1}.idanim{position:absolute;z-index:0;top:0;bottom:0;right:-34px;left:auto;width:min(48vw,470px);pointer-events:none;-webkit-mask-image:radial-gradient(ellipse 78% 62% at 52% 50%,#000 62%,transparent 96%);mask-image:radial-gradient(ellipse 78% 62% at 52% 50%,#000 62%,transparent 96%)}.idanim canvas{display:block;width:100%;height:100%}@media(min-width:861px){.hero .lede{max-width:min(53ch,58%)}}@media(max-width:860px){.idanim{right:-22%;width:min(88vw,430px);opacity:.32}}section{padding:54px 0;border-top:1px solid var(--line)}section:first-of-type{border-top:0}.eyebrow{font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.14em;color:var(--acc);display:flex;align-items:center;gap:11px;margin-bottom:14px}.eyebrow::before{content:"";width:20px;height:1px;background:var(--acc);opacity:.6;flex:none}h1{font-family:var(--display);font-weight:800;font-size:var(--h1);line-height:1.12;letter-spacing:-.012em;max-width:19ch;text-wrap:balance}h1 em{font-style:italic;color:var(--acc)}h2{font-family:var(--display);font-weight:700;font-size:var(--h2);line-height:1.08;letter-spacing:-.008em;text-wrap:balance}h3{font-size:var(--md);font-weight:600}.lede{color:var(--fg2);font-size:var(--md);line-height:1.66;max-width:62ch;margin:14px 0 0}p{margin:14px 0 0}strong{color:var(--fg);font-weight:600}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;background:var(--ink2);border:1px solid var(--line);border-radius:var(--rl);overflow:hidden;margin-top:28px}.grid>div{background:var(--ink2);padding:22px;min-width:0;box-shadow:0 0 0 1px var(--line)}.grid h3{margin-bottom:8px}.grid p{margin:0;color:var(--fg2);font-size:var(--sm);line-height:1.6}.grid .head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px}.grid .head h3{margin:0}.needs{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line2);font-family:var(--mono);font-size:var(--xs);color:var(--fg3);line-height:1.6;overflow-wrap:anywhere}.needs b{color:var(--fg2);font-weight:500}.where-tag{font-family:var(--mono);font-size:var(--xs);color:var(--data);white-space:nowrap}.plate{grid-template-columns:repeat(auto-fit,minmax(156px,1fr))}.plate>div{text-align:center;padding:22px 12px}.plate .n{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--fg)}.plate .l{font-size:var(--xs);letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);margin-top:5px}.sm{font-size:var(--sm)}.status{border:1px solid var(--line2);border-radius:var(--rl);background:var(--ink2);overflow:hidden;margin-top:26px}.status>div{display:grid;grid-template-columns:150px 1fr;gap:16px;padding:15px 20px;border-top:1px solid var(--line);min-width:0}.status>div:first-child{border-top:0}.status dt{font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);margin:0}.status dd{margin:0;font-size:var(--sm);color:var(--fg2);line-height:1.6;min-width:0;overflow-wrap:anywhere}.status dd strong{color:var(--fg);font-weight:600}.status .limit{background:rgba(245,196,81,.05)}.status .limit dt{color:var(--warn)}.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--ink2);margin-top:22px}table{border-collapse:collapse;width:100%;min-width:640px;font-family:var(--mono);font-size:var(--xs)}th,td{text-align:left;padding:10px 15px;border-top:1px solid var(--line);white-space:nowrap}th{color:var(--fg3);text-transform:uppercase;letter-spacing:.09em;font-weight:500;background:var(--ink3);border-top:0}td.place{white-space:normal;font-family:var(--ui);color:var(--fg);min-width:180px}td.num{color:var(--data);text-align:right}td.st{color:var(--fg2)}td.st b{color:var(--warn);font-weight:500}td.st i{color:var(--data);font-style:normal}.entry{margin-top:26px;border:1px solid var(--line2);border-radius:var(--rl);background:var(--ink2);overflow:hidden}.entry .hd{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:13px 20px;border-bottom:1px solid var(--line);background:var(--ink3);font-family:var(--mono);font-size:var(--xs);color:var(--fg3);letter-spacing:.06em;text-transform:uppercase}.entry dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:0}.entry dt{font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);padding:11px 20px;border-top:1px solid var(--line);margin:0}.entry dd{margin:0;font-size:var(--sm);color:var(--fg2);padding:11px 20px;border-top:1px solid var(--line);min-width:0;overflow-wrap:anywhere}.entry dd.id{font-family:var(--mono);color:var(--data)}.entry .foot{padding:16px 20px;border-top:1px solid var(--line);font-size:var(--sm);color:var(--fg2);line-height:1.65}@media(max-width:640px){.entry dl{grid-template-columns:1fr}.entry dt{border-top:1px solid var(--line);padding-bottom:0}.entry dd{border-top:0;padding-top:5px}}.steps{margin-top:26px;border:1px solid var(--line);border-radius:var(--rl);background:var(--ink2);overflow:hidden}.steps .st{display:grid;grid-template-columns:52px 1fr auto;gap:14px 18px;align-items:start;padding:19px 20px;border-top:1px solid var(--line)}.steps .st:first-child{border-top:0}.steps .n{font-family:var(--mono);font-size:var(--lg);font-weight:700;color:var(--acc);line-height:1.1}.steps .b{min-width:0}.steps .b b{color:var(--fg);font-weight:600}.steps .b p{margin:5px 0 0;font-size:var(--sm);color:var(--fg2);line-height:1.6}@media(max-width:640px){.steps .st{grid-template-columns:52px 1fr}.steps .st .tag{grid-column:2}}.steps .tag{margin-bottom:0;white-space:nowrap}.tag{display:inline-block;font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.06em;color:var(--warn);background:rgba(245,196,81,.06);border:1px dashed rgba(245,196,81,.35);border-radius:6px;padding:5px 11px;margin-bottom:16px}.tag.ok{color:var(--data);border-color:rgba(90,209,200,.35);background:var(--data-soft)}.retract{border-left:3px solid var(--warn);background:rgba(245,196,81,.05);border-radius:0 var(--r) var(--r) 0;padding:20px;max-width:74ch;margin-top:26px}.retract h3{color:var(--warn);font-size:.9375rem}.retract p{font-size:var(--sm);color:var(--fg2);line-height:1.7}code{font-family:var(--mono);font-size:.92em;background:rgba(234,228,216,.06);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}.cta{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.cta a{display:block;background:var(--ink2);border:1px solid var(--line);border-radius:var(--r);padding:20px;text-decoration:none;transition:border-color .2s,background .2s,transform .2s;min-width:0}.cta a:hover{border-color:var(--acc-line);background:var(--acc-soft);transform:translateY(-2px)}.cta .verb{display:block;font-family:var(--mono);font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--acc);margin-bottom:7px}.cta .what{display:block;font-size:var(--sm);line-height:1.55;color:var(--fg2)}.cta code{color:var(--data);background:none;padding:0}.ctagroup+.ctagroup{margin-top:34px}.say{margin-top:26px;border:1px solid var(--line2);border-radius:var(--rl);background:var(--ink2);padding:22px}.say-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.say-f{display:block;min-width:0}.say-f span{display:block;font-family:var(--mono);font-size:var(--xs);text-transform:uppercase;letter-spacing:.1em;color:var(--fg3);margin-bottom:7px}.say input,.say textarea{width:100%;background:var(--ink);color:var(--fg);border:1px solid var(--line2);border-radius:var(--r);padding:11px 13px;font:var(--sm)/1.5 var(--ui);font-size:var(--sm)}.say textarea{resize:vertical;min-height:76px}.say input::placeholder,.say textarea::placeholder{color:var(--fg3)}.say input:hover,.say textarea:hover{border-color:var(--acc-line)}.say input:focus,.say textarea:focus{border-color:var(--acc);outline:none}.say input[name=_gotcha]{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}.say-act{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:16px}.say-act button{background:var(--acc);color:var(--acc-ink);font-family:var(--ui);font-weight:700;font-size:var(--sm);border:1px solid var(--acc);border-radius:var(--r);padding:11px 22px;cursor:pointer}.say-act button:hover{filter:brightness(1.12)}.say-act button:disabled{opacity:.55;cursor:default;filter:none}.say-msg{margin:0;font-size:var(--sm);color:var(--fg2);min-height:1.2em}.say-msg.ok{color:var(--data)}.say-msg.bad{color:var(--warn)}.alt{margin-top:14px;font-size:var(--sm);color:var(--fg3)}footer{border-top:1px solid var(--line);background:var(--ink2);margin-top:54px}footer .in{max-width:var(--wrap);margin:0 auto;padding:26px 22px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;font-size:var(--xs);color:var(--fg3)}footer a{color:var(--fg2);text-decoration:none}footer a:hover{color:var(--acc)}footer .links{display:flex;flex-wrap:wrap;gap:20px}.stamp{font-family:var(--mono);color:var(--fg3)}.attrib{max-width:var(--wrap);margin:0 auto;padding:0 22px 26px;font-size:var(--xs);color:var(--fg3);line-height:1.6}@media(max-width:640px){.status>div{grid-template-columns:1fr;gap:6px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}</style></head><body>
+<div class="band" data-tier="3"><span class="where">FleetPrompt is <b>a specification</b> in the ComputeDriven world</span><span class="rung" data-rung="live_deployed" title="spec · in_tree · live_local · live_deployed · external">live_deployed</span><span class="covers">That rung covers the registry service at app.fleetprompt.com — the trust-scored marketplace this page argues past, which is deployed, answers its own health endpoint, and lists nothing. It does not cover the replay gate: no listing anywhere can be installed by replaying its film, because the gate and the three commands that would use it are not built.</span><a class="spec-link" href="https://docs.ampersandboxdesign.com/#/fleetprompt.com/docs/spec/README.md">the specification &rarr;</a></div>
+<amp-nav property="fleetprompt"></amp-nav>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
 
-        <style>
-            :root {
-                --bg: #0a0806;
-                --surface: #12100b;
-                --surface-2: #181510;
-                --rule: rgba(242, 193, 78, 0.16);
-                --border-soft: rgba(234, 228, 216, 0.08);
-                --ink: #eae4d8;
-                --dim: #a2988a;
-                --muted: #5c5548;
-                --amber: #f2c14e;
-                --green: #58e07a;
-                --red: #ff5c5c;
-                --display: "Big Shoulders", "Arial Narrow", sans-serif;
-                --sans: "Space Grotesk", system-ui, -apple-system, sans-serif;
-                --mono: "JetBrains Mono", ui-monospace, monospace;
-                --max-w: 1040px;
-                --gutter: clamp(1.25rem, 4vw, 3rem);
-            }
+<div class="top"><a class="logo" href="/">fleet<span>prompt</span></a>
+<nav><a href="#registry">The registry</a><a href="#receipt">The receipt</a><a href="#install">The install path</a><a href="#open">What does not work</a><a href="https://docs.ampersandboxdesign.com/#/fleetprompt.com/docs/spec/README.md">The spec &uarr;</a><a class="btn" href="#registry">See the whole registry</a></nav></div>
 
-            *,
-            *::before,
-            *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
+<main id="main">
 
-            html {
-                scroll-behavior: smooth;
-                -webkit-font-smoothing: antialiased;
-            }
-            @media (prefers-reduced-motion: reduce) {
-                html {
-                    scroll-behavior: auto;
-                }
-                * {
-                    transition: none !important;
-                }
-            }
+<!-- SHELL.md §8 + r9: the identifying animation is ABOVE THE FOLD, inside the
+     first section, and it comes after the <h1> in source order because the
+     question comes first. It depicts this domain's own subject — a bundle
+     being refused by a replay gate — and it renders no data: /replay.js takes
+     no input from this document and writes nothing back into it. Delete both
+     script tags and every word, figure, chip, row and the correction form are
+     still here and still work. -->
+<section class="hero">
+<div class="front">
+<div class="eyebrow">The question this site exists to answer</div>
+<h1>Can a listing carry <em>a receipt you can re-run?</em></h1>
+<p class="lede">Discovery is solved. Directories index tens of thousands of servers, registries authenticate the namespace you publish under, marketplaces scan listings for known-bad code. All of it is <strong>provenance</strong> — who published, whether it scans clean, how many people starred it — and none of it is behaviour. A scan reads the code at rest, not the run. A trust score is a number somebody's pipeline asserted about a thing you cannot re-derive. <strong>The layer underneath a declaration is a run you can run again</strong>, and the honest state of that layer here is one entry, ours, not installable.</p>
+<p><a class="btn" href="#registry">See the whole registry</a>&nbsp;&nbsp;<a class="btn ghost" href="#open">See what does not work</a></p>
+</div>
+<div class="idanim" aria-hidden="true"><canvas data-identity-animation></canvas></div>
+</section>
 
-            body {
-                background:
-                    repeating-linear-gradient(
-                        180deg,
-                        transparent 0,
-                        transparent 47px,
-                        rgba(242, 193, 78, 0.028) 47px,
-                        rgba(242, 193, 78, 0.028) 48px
-                    ),
-                    var(--bg);
-                color: var(--ink);
-                font-family: var(--sans);
-                font-size: 17px;
-                line-height: 1.65;
-                overflow-x: hidden;
-            }
+<div class="grid plate"><div><div class="n">114 tests</div><div class="l">Defined in this repository, re-run by this build</div></div><div><div class="n">2 excluded</div><div class="l">Tagged out by default — and failing when included</div></div><div><div class="n">0</div><div class="l">Listings anyone can install</div></div><div><div class="n">0</div><div class="l">Films that have ever gated an install</div></div></div>
 
-            /* family texture: the same quiet grain as computedriven.com */
-            body::after {
-                content: "";
-                position: fixed;
-                inset: 0;
-                background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-                pointer-events: none;
-                z-index: 9999;
-            }
+<section id="registry">
+<div class="eyebrow">The registry, in full</div>
+<h2>This is not a sample. It is everything in it.</h2>
+<p class="lede">A marketplace page that shows five listings when it has one is the defect this page exists to not have. Below is the entire current contents of the FleetPrompt registry: <strong>one entry, sealed by us, not installable.</strong> When that changes, the count changes — and nothing else on this page is allowed to change it.</p>
+<div class="entry">
+<div class="hd"><span>fleetprompt registry &mdash; the complete contents</span><span class="tag">not installable</span></div>
+<dl>
+<dt>Listing</dt><dd>the trvs demo world</dd>
+<dt>Identity</dt><dd class="id">sem-8ae91fe9cbc5fd08</dd>
+<dt>Engine</dt><dd>v0.7.0-alpha.5 &mdash; <code>trvs doctor</code> reporting status ready on the guest</dd>
+<dt>Sealed on</dt><dd>arch/linux · build workstation</dd>
+<dt>Replayed on</dt><dd>t&amp;r · freebsd 15 guest, 2026-08-09</dd>
+</dl>
+<p class="foot">Both stamps are earned, and both are weaker than they look. The guest was created straight from the build pipeline&rsquo;s own image and never touched afterwards &mdash; the verifier and the runtime are in the image now, not copied there by hand &mdash; so this is not a hand-assembled result. It is still <strong>the same implementation on two machines</strong>: one codebase agreeing with itself, which is a portability result and not a semantics one. And the entry is not installable, because the gate that would admit it does not exist.</p>
+</div>
+</section>
 
-            a {
-                color: var(--amber);
-                text-decoration: none;
-                border-bottom: 1px solid rgba(242, 193, 78, 0.3);
-                transition: border-color 0.15s;
-            }
-            a:hover {
-                border-bottom-color: var(--amber);
-            }
-            :focus-visible {
-                outline: 2px solid var(--green);
-                outline-offset: 3px;
-            }
-            .skip {
-                position: absolute;
-                left: -9999px;
-                top: 0;
-                background: var(--surface);
-                color: var(--ink);
-                padding: 0.6rem 1rem;
-                z-index: 200;
-            }
-            .skip:focus {
-                left: 0.5rem;
-                top: 0.5rem;
-            }
+<section id="receipt">
+<div class="eyebrow">The one idea</div>
+<h2>Trust as a replay, not a badge.</h2>
+<p class="lede">The evidence bundle is a <strong>film</strong>. A listing is a manifest plus a film, and the install path runs <em>through</em> the film rather than around it. Inputs are captured at the boundary — the world an agent claims to do and the scenario a particular run fed it are different documents, and mixing them is a typed rejection. Model output enters as a claim, canonicalized on observation, so the film stays byte-exact even though the model behind it is not deterministic. The reduction is schedule-independent, which is what makes <em>replay it yourself</em> a coherent offer instead of a hope.</p>
+<p class="lede"><strong>What it does not prove.</strong> A replay shows what ran, not that it should have. A faithful film of a harmful agent replays perfectly. Films make review checkable; they do not make review unnecessary, and nothing on this page should be read as saying they do.</p>
+</section>
 
-            .wrap {
-                max-width: var(--max-w);
-                margin: 0 auto;
-                padding: 0 var(--gutter);
-            }
+<section id="install">
+<div class="eyebrow">The install path</div>
+<h2>Three commands. None of them replay yet.</h2>
+<p class="lede">This is the designed flow, numbered because the order is the point. An install engine already exists and runs all seven of its steps — permission review, manifest verification, dependency resolution, policy check, deploy, connect, audit (§7.1). <strong>Not one of them is a replay.</strong> The tag on each step below is the truth about it today, and the reason to publish a drawing of unwritten code is that it lets you check the build against it later. If the transcript ever disagrees with the drawing, that will be written here too.</p>
+<div class="steps"><div class="st"><div class="n">01</div><div class="b"><b>Publish.</b><p>Seal the run into a film with trvs; push manifest and bundle to the registry. The sealing half runs today, at alpha. The pushing half has a registry to push to and nowhere in it to put a film.</p></div><div class="tag">gate not built</div></div><div class="st"><div class="n">02</div><div class="b"><b>Verify.</b><p>Your machine replays the bundle and derives the identity. Equal to the listing's string, or the install stops. The underlying replay-and-derive has been measured once, across two operating systems.</p></div><div class="tag">cli not built</div></div><div class="st"><div class="n">03</div><div class="b"><b>Run.</b><p>PARKVPS boots a copy-on-write overlay on the T&amp;R golden image with the verified bundle aboard. The substrate for this step ships; the wiring from step 02 into it does not exist.</p></div><div class="tag">substrate ships</div></div></div>
+</section>
 
-            code {
-                font-family: var(--mono);
-                font-size: 0.85em;
-                background: var(--surface-2);
-                border: 1px solid var(--border-soft);
-                border-radius: 3px;
-                padding: 0.1em 0.35em;
-            }
-            .sem {
-                color: var(--green);
-                font-family: var(--mono);
-            }
+<section id="runs">
+<div class="eyebrow">What is running, and at which rung</div>
+<h2>Three things exist here, at three different rungs, so they are not in one list.</h2>
+<p class="lede">A single status for this domain would be false in one direction or the other. One artifact answers on a deployed host, one is a codebase with a suite, one is a document. The rung chip on each says which.</p>
+<div class="grid"><div><div class="head"><h3>The registry service</h3><span class="rung" data-rung="live_deployed" title="spec · in_tree · live_local · live_deployed · external">live_deployed</span></div><p>Search, publishers, a trust dashboard and a seven-step install engine — permission review, manifest verification, dependency resolution, policy check, deploy, connect, audit. Not one of those steps is a replay. It is the shape of the thing this page is replacing, and it is running.</p><div class="needs"><b>Where:</b> <span class="where-tag">app.fleetprompt.com</span><br><b>Witness:</b> GET / returns 200 and renders. GET /api/health returns the service's own name and version. POST /mcp returns 200. GET /api/agents/search returns 500 on every query. Measured 2026-08-17.</div></div><div><div class="head"><h3>The install engine and the trust engine</h3><span class="rung" data-rung="in_tree" title="spec · in_tree · live_local · live_deployed · external">in_tree</span></div><p>The seven install steps, the four-signal trust computation, the publish flow, version immutability, the fork system and the MCP tools — with a suite that exercises them, including the denials: an agent not on an allowlist, a policy that does not exist, an unreachable MCP dependency.</p><div class="needs"><b>Where:</b> <span class="where-tag">lib/fleet_prompt/</span><br><b>Witness:</b> The suite is re-run by every build of this page and the counts below are what it printed, including the two tests that are excluded by default and what happens when they are not.</div></div><div><div class="head"><h3>The FleetPrompt specification</h3><span class="rung" data-rung="spec" title="spec · in_tree · live_local · live_deployed · external">spec</span></div><p>v0.1: manifests (§4), the trust engine (§5), the publish pipeline (§6), the install pipeline (§7), permission sandboxing (§7.2) and the MCP tools (§11). The replay gate this page is about is not in it yet either.</p><div class="needs"><b>Where:</b> <span class="where-tag">docs/spec/README.md</span><br><b>Witness:</b> A document. What it specifies at §5 is the model being superseded, which is worth saying out loud on the page that supersedes it.</div></div></div>
+</section>
 
-            /* ---------- nav ---------- */
-            nav {
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                background: rgba(10, 8, 6, 0.86);
-                backdrop-filter: blur(12px);
-                border-bottom: 1px solid var(--border-soft);
-            }
-            nav .wrap {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 1rem;
-                height: 62px;
-            }
-            .brand {
-                font-family: var(--mono);
-                font-weight: 700;
-                font-size: 0.9rem;
-                letter-spacing: 0.06em;
-                color: var(--ink);
-                border: none;
-                display: flex;
-                align-items: center;
-                gap: 0.6rem;
-            }
-            .brand .mark {
-                width: 16px;
-                height: 16px;
-                flex: none;
-            }
-            .brand b {
-                color: var(--amber);
-                font-weight: 700;
-            }
-            .navlinks {
-                display: flex;
-                gap: 1.5rem;
-                font-size: 0.82rem;
-                font-family: var(--mono);
-                letter-spacing: 0.03em;
-            }
-            .navlinks a {
-                color: var(--dim);
-                border: none;
-            }
-            .navlinks a:hover {
-                color: var(--amber);
-            }
-            @media (max-width: 700px) {
-                .navlinks {
-                    display: none;
-                }
-            }
+<section id="open">
+<div class="eyebrow">What is not established</div>
+<h2>The gate this whole page is about does not exist.</h2>
+<p class="lede">Sealing a run works, at alpha. Nothing consumes a seal. So no install has ever been stopped by a replay, which means the proposition on this page has never once been exercised — stated first, at full size, because it is the thing a reader would otherwise assume works.</p>
+<div class="grid"><div><div class="head"><h3>The replay-gated registry</h3><span class="rung" data-rung="spec" title="spec · in_tree · live_local · live_deployed · external">spec</span></div><p>The same service, with install gated on a film that replays to the listing's identity or does not. This is the entire proposition of this domain and it is the row that says not built.</p><div class="needs"><b>Needs:</b> Somewhere in the registry to put a film, and a step in the install engine that refuses when the derived identity differs. <b>Built:</b> no.</div></div><div><div class="head"><h3>The publish, verify and install commands</h3><span class="rung" data-rung="spec" title="spec · in_tree · live_local · live_deployed · external">spec</span></div><p>Three commands. Publish seals a run and pushes manifest and bundle; verify replays and derives; install boots a copy-on-write overlay with the verified bundle aboard. The sealing half runs today at alpha. The pushing half has a registry to push to and nowhere in it to put a film.</p><div class="needs"><b>Needs:</b> A manifest format that carries a film reference, and a client that can be wrong out loud. <b>Built:</b> no.</div></div><div><div class="head"><h3>A second publisher</h3><span class="rung" data-rung="spec" title="spec · in_tree · live_local · live_deployed · external">spec</span></div><p>Anyone but us sealing a listing. A registry whose only entry is its own author's is a ledger, not a market, and no amount of engineering changes that — only somebody else does.</p><div class="needs"><b>Needs:</b> A person who is not us, with a run worth sealing. <b>Built:</b> no.</div></div><div><div class="head"><h3>Permissions derived from the film</h3><span class="rung" data-rung="spec" title="spec · in_tree · live_local · live_deployed · external">spec</span></div><p>What an agent may touch is still a human-written manifest. Deriving least privilege from what the run actually did is an idea we like and a feature that does not exist.</p><div class="needs"><b>Needs:</b> A film with enough resolution to say what was touched, and a policy language that can read it. <b>Built:</b> no.</div></div><div><div class="head"><h3>Who pays for the replaying</h3><span class="rung" data-rung="spec" title="spec · in_tree · live_local · live_deployed · external">spec</span></div><p>Films have weight. Hosting bundles, replay compute, verification bandwidth — unanswered. A registry with no cost model is a demonstration of a registry.</p><div class="needs"><b>Needs:</b> A number, and someone willing to be held to it. <b>Built:</b> no.</div></div></div>
+</section>
 
-            /* ---------- hero ---------- */
-            header {
-                position: relative;
-                padding: clamp(4rem, 11vw, 7.5rem) 0 clamp(3rem, 7vw, 5rem);
-                border-bottom: 1px solid var(--border-soft);
-            }
-            .eyebrow {
-                font-family: var(--mono);
-                font-size: 0.78rem;
-                letter-spacing: 0.22em;
-                text-transform: uppercase;
-                color: var(--muted);
-                margin-bottom: 1.4rem;
-            }
-            h1 {
-                font-family: var(--display);
-                font-weight: 800;
-                font-size: clamp(3rem, 9vw, 5.6rem);
-                line-height: 0.98;
-                letter-spacing: 0.005em;
-                text-transform: uppercase;
-                max-width: 14ch;
-            }
-            h1 em {
-                font-style: normal;
-                color: var(--green);
-            }
-            .lede {
-                margin-top: 1.6rem;
-                max-width: 62ch;
-                color: var(--dim);
-                font-size: 1.02rem;
-            }
-            .lede strong {
-                color: var(--ink);
-                font-weight: 600;
-            }
+<section id="evidence">
+<div class="eyebrow">Evidence, re-run at build time</div>
+<h2>The suite count below was produced by running the suite, not typed onto this page.</h2>
+<p class="lede">This build shells out to <code>mix test</code>, parses what it prints, and <strong>refuses to emit the page</strong> if the number disagrees with the frozen record beside it. The excluded tests are published as excluded rather than quietly counted as passing, and what happens when they are included is published too.</p>
+<div class="scroll"><table><thead><tr><th>Command</th><th>Ran</th><th>Failed</th><th>Excluded</th><th>What that means</th></tr></thead><tbody><tr><td class="place"><code>mix test</code></td><td class="num">112 ran</td><td class="num">0 failing</td><td class="num">2 excluded</td><td class="st"><i>green under its own tags</i></td></tr><tr><td class="place"><code>mix test --include live_crystallization</code></td><td class="num">114 ran</td><td class="num">2 failing</td><td class="num">0 excluded</td><td class="st"><b>the two that need a live service</b></td></tr></tbody></table></div>
+<p class="lede sm">Both rows were produced by executing the command in them and parsing what ExUnit printed. The two excluded tests are <code>FleetPrompt.KilnPollWorkerLiveTest</code> &mdash; the live crystallization pipeline &mdash; and they fail in setup because they need a service that is not running here. That is why they are tagged out, and publishing the tagged-out run beside the default one is the only way a reader can tell a green suite from a suite that is green because two tests were removed from it. The build refuses to emit this page if the two runs stop accounting for each other.</p>
+<h2 class="mt">And the rows that are a name rather than a thing.</h2>
+<p class="lede">Same table shape, honest column. <code>built &middot; superseded</code> is used where something is deployed and running but replaced by the argument above — taking neither credit for it nor pretending it was never there. The last row is the one that matters most.</p>
+<div class="scroll"><table><thead><tr><th>Piece</th><th>What it is</th><th>Status &mdash; measured or admitted</th></tr></thead><tbody><tr><td class="place">Film sealing · trvs</td><td class="st">turns a run into a replayable bundle</td><td class="st"><i>alpha · v0.7.0-alpha.5</i></td></tr><tr><td class="place">Replay check</td><td class="st">the same identity derived on two operating systems</td><td class="st"><i>measured · once</i></td></tr><tr><td class="place">T&amp;R golden image</td><td class="st">the FreeBSD 15 distribution an install would land on</td><td class="st"><i>shipping</i></td></tr><tr><td class="place">PARKVPS fleet layer</td><td class="st">rootless, daemonless instances as copy-on-write overlays</td><td class="st"><i>shipping</i></td></tr><tr><td class="place">Stack in the image</td><td class="st">the build installing runtime and verifier into the server flavour</td><td class="st"><i>in the image</i></td></tr><tr><td class="place">Registry service</td><td class="st">search, publishers, trust dashboard, seven-step install engine — live on its own host</td><td class="st"><b>built · superseded</b></td></tr><tr><td class="place">Replay-gated registry</td><td class="st">that same service, with install gated on a film</td><td class="st"><b>not built</b></td></tr><tr><td class="place">publish / verify / install CLI</td><td class="st">the three commands the install path is drawn from</td><td class="st"><b>not built</b></td></tr><tr><td class="place">Second publisher</td><td class="st">anyone but us sealing a listing</td><td class="st"><b>none</b></td></tr></tbody></table></div>
+</section>
 
-            /* the signature: ENTRY 000 — the one real receipt */
-            .receipt {
-                margin-top: 3rem;
-                border: 1px solid var(--rule);
-                background: linear-gradient(180deg, var(--surface), rgba(18, 16, 11, 0.4));
-                max-width: 680px;
-                position: relative;
-            }
-            .receipt .head {
-                display: flex;
-                justify-content: space-between;
-                align-items: baseline;
-                gap: 1rem;
-                padding: 0.7rem 1.1rem;
-                border-bottom: 1px solid var(--rule);
-                font-family: var(--mono);
-                font-size: 0.72rem;
-                letter-spacing: 0.14em;
-                text-transform: uppercase;
-                color: var(--muted);
-            }
-            .receipt .head b {
-                color: var(--amber);
-                font-weight: 500;
-            }
-            .rline {
-                display: flex;
-                align-items: baseline;
-                gap: 0.8rem;
-                padding: 0.62rem 1.1rem;
-                font-family: var(--mono);
-                font-size: 0.8rem;
-            }
-            .rline + .rline {
-                border-top: 1px dashed var(--border-soft);
-            }
-            .rline .k {
-                color: var(--muted);
-                white-space: nowrap;
-                min-width: 9.5em;
-            }
-            .rline .v {
-                color: var(--dim);
-            }
-            .rline .v.id {
-                color: var(--green);
-            }
-            .receipt .foot {
-                padding: 0.8rem 1.1rem 0.95rem;
-                border-top: 1px solid var(--rule);
-                color: var(--dim);
-                font-size: 0.83rem;
-                line-height: 1.55;
-            }
-            .stamp {
-                position: absolute;
-                top: 3.4rem;
-                right: 1.1rem;
-                transform: rotate(-8deg);
-                border: 2px solid var(--green);
-                color: var(--green);
-                font-family: var(--display);
-                font-weight: 800;
-                font-size: 1.15rem;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                padding: 0.18em 0.55em;
-                border-radius: 3px;
-                opacity: 0.9;
-            }
-            .stamp.pending {
-                border-color: var(--red);
-                color: var(--red);
-                top: auto;
-                bottom: 4.4rem;
-            }
-            @media (max-width: 620px) {
-                .stamp {
-                    position: static;
-                    display: inline-block;
-                    margin: 0.8rem 1.1rem 0;
-                }
-                .stamp.pending {
-                    margin-top: 0.4rem;
-                }
-                .rline {
-                    flex-wrap: wrap;
-                    gap: 0.15rem 0.8rem;
-                }
-                .rline .k {
-                    min-width: 0;
-                    width: 100%;
-                }
-            }
+<section id="status">
+<div class="eyebrow">Status</div>
+<h2>Where this stands, and what would move it.</h2>
+<dl class="status">
+<div><dt>Status</dt><dd><strong>live_deployed</strong> &mdash; The superseded registry service is deployed and answering. app.fleetprompt.com returns 200, GET /api/health returns {&quot;status&quot;:&quot;ok&quot;,&quot;version&quot;:&quot;0.1.0&quot;,&quot;service&quot;:&quot;fleetprompt&quot;} — the deployed build naming the same version this page is stamped with — and POST /mcp returns 200. The search page renders and its agent grid is empty.</dd></div>
+<div><dt>Last verified</dt><dd>2026-08-17</dd></div>
+<div><dt>Source</dt><dd>Five measurements on 2026-08-17. (1) mix test — 112 tests, 0 failures, 2 excluded. (2) curl https://app.fleetprompt.com/ — 200, a LiveView search page with an empty result grid. (3) curl /api/health — the JSON above. (4) curl POST /mcp — 200. (5) curl /api/agents/search — 500 on every query tried, including with no query at all.</dd></div>
+<div class="limit"><dt>Limit</dt><dd>This establishes that a service is deployed and that its own health endpoint agrees with this repository about the version. It does not establish that the service is useful: its JSON search endpoint returns 500 on every query, its registry lists nothing, and the model it implements — trust computed from four weighted signals — is the one this page argues against. It does not establish anything about replay: no film has ever gated an install, because the gate does not exist. And the one identity measured across two operating systems was derived by a single implementation twice, which is not two implementations agreeing.</dd></div>
+<div><dt>Next rung</dt><dd><strong>external</strong> &mdash; A publisher who is not us sealing a listing, and a machine that is not ours replaying it to the same identity. Building the gate would make that possible; it would not make it true. Until then the count on this page stays at one and the count is ours.</dd></div>
+</dl>
+<dl class="status"><div><dt>Listings anyone can install</dt><dd><strong>0.</strong> The registry holds one entry, it is ours, and it is not installable — there is no replay gate for it to pass. The deployed service's own search grid renders empty, and its JSON search endpoint returns 500 on every query.</dd></div><div><dt>Films that have ever gated an install</dt><dd><strong>0.</strong> The install engine runs all seven of its steps and not one of them is a replay. Sealing works at alpha; nothing consumes a seal.</dd></div></dl>
+<div class="retract"><h3>Retraction &mdash; three things this page used to say</h3>
+<p><strong>It published a test count that is not the count of anything here.</strong> The status table read <code>157 tests</code>, and so does <code>docs/ux/user-stories.md</code>. Re-derived on 2026-08-17 by running the suite: 114 tests are defined, <code>mix test</code> runs 112 of them green and excludes 2, and those 2 fail when included because they need a live service. No gate would have caught this &mdash; nothing had ever executed the suite and compared. The build now does, on every run, and refuses the page when the numbers stop accounting for each other.</p>
+<p><strong>It claimed a layer.</strong> The previous hero eyebrow read <code>The distribution layer of the ComputeDriven stack</code>. <code>ampersand-nav</code> files this domain as a <em>specification</em> in that world rather than a layer of it. The band now says what the nav says; if the placement is wrong, the fix belongs in the nav, which this repository does not own.</p>
+<p><strong>It published an email address.</strong> <code>hello@computedriven.com</code> stood in the footer. Corrections now go through the form above, which posts to the endpoint the parent site uses, and through this repository&rsquo;s issues. No <code>mailto:</code> and no address in the markup &mdash; the gate refuses both.</p>
+<p><strong>And the retraction the earlier page made, which stands.</strong> An earlier fleetprompt.com displayed a registry of five agents with trust scores, install counts and a launch date. Not one of the five was a real listing, the numbers beside them were written by hand rather than computed by the trust engine that genuinely exists, and the date passed. The registry above shows its true contents.</p></div>
+</section>
 
-            /* ---------- sections ---------- */
-            section {
-                padding: clamp(3.2rem, 8vw, 5.5rem) 0;
-                border-bottom: 1px solid var(--border-soft);
-            }
-            .kicker {
-                font-family: var(--mono);
-                font-size: 0.76rem;
-                letter-spacing: 0.22em;
-                text-transform: uppercase;
-                color: var(--muted);
-                margin-bottom: 1rem;
-            }
-            h2 {
-                font-family: var(--display);
-                font-weight: 700;
-                font-size: clamp(1.9rem, 4.6vw, 3rem);
-                line-height: 1.02;
-                text-transform: uppercase;
-                letter-spacing: 0.01em;
-                max-width: 24ch;
-            }
-            h2 em {
-                font-style: normal;
-                color: var(--amber);
-            }
-            .sub {
-                margin-top: 1.1rem;
-                max-width: 66ch;
-                color: var(--dim);
-            }
-            .sub strong {
-                color: var(--ink);
-                font-weight: 600;
-            }
-            h3 {
-                font-family: var(--sans);
-                font-weight: 600;
-                font-size: 1.02rem;
-            }
+<section id="do">
+<div class="eyebrow">What you can actually do here</div>
+<h2>Three rungs, three lists. Nothing asks you to publish to a registry with nowhere to put a film.</h2>
+<div class="ctagroup"><div class="tag ok">live_deployed &mdash; answering on its own host, checked with curl</div><div class="cta"><a href="https://app.fleetprompt.com" target="_blank" rel="noopener"><span class="verb">Use the deployed artifact</span><span class="what">The registry service as it exists today: search, publishers, a trust dashboard, a seven-step install engine. It computes trust from four weighted signals and cannot tell you what any listed agent did. It is the thing this page argues past &mdash; and its JSON search endpoint answers every query with a server error, which takes about ten seconds to check.</span></a></div></div><div class="ctagroup"><div class="tag ok">in_tree &mdash; a codebase with a suite, not a replay gate</div><div class="cta"><a href="https://github.com/c-u-l8er/fleetprompt.com" target="_blank" rel="noopener"><span class="verb">Inspect the source</span><span class="what">The install engine, the trust engine, the publish flow, version immutability and the MCP tools (&sect;11). Where the replay gate would go is where nothing is.</span></a><a href="https://github.com/c-u-l8er/fleetprompt.com" target="_blank" rel="noopener"><span class="verb">Run the tests</span><span class="what"><code>mix test</code>, then <code>mix test --include live_crystallization</code>. Both counts are in the table above; the second is the one that fails, and it is published for that reason.</span></a></div></div><div class="ctagroup"><div class="tag">spec &mdash; a document, and the gate it describes is unwritten</div><div class="cta"><a href="https://docs.ampersandboxdesign.com/#/fleetprompt.com/docs/spec/README.md" target="_blank" rel="noopener"><span class="verb">Read</span><span class="what">v0.1: manifests (&sect;4), the trust engine (&sect;5), the publish pipeline (&sect;6), the install pipeline (&sect;7). &sect;5 is the model being superseded, which is worth reading on the page that supersedes it.</span></a><a href="https://github.com/c-u-l8er/fleetprompt.com/issues" target="_blank" rel="noopener"><span class="verb">Challenge</span><span class="what">Tell us what a receipt would have to contain before you would stake an install on it. <strong>There is deliberately no invitation to publish here</strong> &mdash; the registry has nowhere to put a film, and a page that cannot honour its own call to action is worse than one with none.</span></a><a href="https://github.com/c-u-l8er/fleetprompt.com" target="_blank" rel="noopener"><span class="verb">Implement</span><span class="what">A second verifier that derives the same identity from the same bundle. One implementation agreeing with itself on two operating systems is what this page has; it is not what it needs.</span></a></div></div>
+</section>
 
-            .plain {
-                list-style: none;
-                margin-top: 1.6rem;
-                max-width: 68ch;
-            }
-            .plain li {
-                padding: 0.85rem 0;
-                border-top: 1px dashed var(--border-soft);
-                color: var(--dim);
-                font-size: 0.95rem;
-            }
-            .plain li strong {
-                color: var(--ink);
-                font-weight: 600;
-            }
+<section id="say">
+<div class="eyebrow">Corrections</div>
+<h2>If a number on this page is wrong, that is the message we most want.</h2>
+<p class="lede">This page is generated from a record and gated, which catches a value that drifted from its witness. It cannot catch a witness that was wrong to begin with — a count on this page was wrong for months and a gate would not have found it, because nothing had ever run the suite and compared. If you ship agents, the other useful answer is what a receipt would have to contain before you would stake an install on it. That shapes the manifest format.</p>
+<form class="say" action="https://formspree.io/f/xaewoadr" method="POST" novalidate>
+<div class="say-row">
+<label class="say-f"><span>Your email</span><input type="email" name="email" autocomplete="email" placeholder="so a reply can reach you" required></label>
+<label class="say-f"><span>Message</span><textarea name="message" rows="3" placeholder="a question, a correction, a number of ours you think is wrong" required></textarea></label>
+</div>
+<input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true">
+<input type="hidden" name="_subject" value="FLEETPROMPT v0.1.0 · RECORDS 2026-08-17">
+<div class="say-act"><button type="submit">Send</button><p class="say-msg" role="status" aria-live="polite"></p></div>
+</form>
+<p class="alt">Or file it in public: <a href="https://github.com/c-u-l8er/fleetprompt.com/issues">github.com/c-u-l8er/fleetprompt.com/issues</a>. Both reach the same people.</p>
+</section>
 
-            .note {
-                margin-top: 2.4rem;
-                border: 1px solid var(--rule);
-                border-left: 3px solid var(--amber);
-                background: var(--surface);
-                padding: 1.2rem 1.4rem;
-                max-width: 76ch;
-                color: var(--dim);
-                font-size: 0.93rem;
-            }
-            .note strong {
-                color: var(--ink);
-            }
-            .note.correction {
-                border-left-color: var(--red);
-            }
-
-            /* ---------- flow (publish → verify → run) ---------- */
-            .miles {
-                margin-top: 2.4rem;
-                border-top: 1px solid var(--rule);
-                max-width: 78ch;
-            }
-            .mile {
-                display: flex;
-                gap: 1.1rem;
-                align-items: baseline;
-                padding: 1rem 0;
-                border-bottom: 1px solid var(--border-soft);
-            }
-            .mile .id {
-                font-family: var(--display);
-                font-weight: 800;
-                font-size: 1.3rem;
-                color: var(--amber);
-                min-width: 2.4rem;
-            }
-            .mile .what {
-                color: var(--dim);
-                font-size: 0.95rem;
-                flex: 1;
-            }
-            .mile .what b {
-                color: var(--ink);
-            }
-            .mile .tag {
-                font-family: var(--mono);
-                font-size: 0.7rem;
-                letter-spacing: 0.1em;
-                text-transform: uppercase;
-                padding: 0.15em 0.55em;
-                border: 1px solid;
-                border-radius: 2px;
-                white-space: nowrap;
-            }
-            .tag.built {
-                color: var(--amber);
-                border-color: rgba(242, 193, 78, 0.5);
-            }
-            .tag.no {
-                color: var(--red);
-                border-color: rgba(255, 92, 92, 0.5);
-            }
-            @media (max-width: 560px) {
-                .mile {
-                    flex-wrap: wrap;
-                }
-            }
-
-            /* ---------- tables ---------- */
-            .tablewrap {
-                margin-top: 2.4rem;
-                overflow-x: auto;
-                border: 1px solid var(--border-soft);
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 0.9rem;
-                min-width: 560px;
-            }
-            caption {
-                text-align: left;
-                font-family: var(--mono);
-                font-size: 0.72rem;
-                letter-spacing: 0.14em;
-                text-transform: uppercase;
-                color: var(--muted);
-                padding: 0.8rem 1rem;
-                border-bottom: 1px solid var(--border-soft);
-            }
-            th,
-            td {
-                text-align: left;
-                padding: 0.75rem 1rem;
-                border-bottom: 1px solid var(--border-soft);
-                vertical-align: top;
-            }
-            thead th {
-                font-family: var(--mono);
-                font-size: 0.72rem;
-                letter-spacing: 0.12em;
-                text-transform: uppercase;
-                color: var(--muted);
-                font-weight: 500;
-            }
-            tbody th[scope="row"] {
-                font-family: var(--mono);
-                font-weight: 500;
-                font-size: 0.84rem;
-                color: var(--ink);
-                white-space: nowrap;
-            }
-            td.ref {
-                color: var(--dim);
-            }
-            td.win {
-                color: var(--amber);
-            }
-            td.ok {
-                color: var(--green);
-            }
-            td.no {
-                color: var(--red);
-            }
-            /* built, deployed, and replaced by this page's own thesis. Not a
-               win, not a hole — the vocabulary needed a word for it. */
-            td.sup {
-                color: var(--dim);
-                font-style: italic;
-            }
-
-            /* ---------- open board ---------- */
-            .board {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-                gap: 1.1rem;
-                margin-top: 2.4rem;
-            }
-            .item {
-                border: 1px solid var(--border-soft);
-                background: var(--surface);
-                padding: 1.2rem 1.3rem;
-            }
-            .item h3 {
-                color: var(--red);
-                margin-bottom: 0.5rem;
-                font-size: 0.98rem;
-            }
-            .item p {
-                color: var(--dim);
-                font-size: 0.9rem;
-            }
-
-            /* ---------- is / is not ---------- */
-            .cols {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 2.2rem;
-                margin-top: 2.4rem;
-            }
-            @media (max-width: 760px) {
-                .cols {
-                    grid-template-columns: 1fr;
-                }
-            }
-            .col h3 {
-                margin-bottom: 0.6rem;
-            }
-            .col.is h3 {
-                color: var(--amber);
-            }
-            .col.isnot h3 {
-                color: var(--muted);
-            }
-            .col ul {
-                list-style: none;
-            }
-            .col li {
-                padding: 0.55rem 0;
-                border-top: 1px dashed var(--border-soft);
-                color: var(--dim);
-                font-size: 0.93rem;
-            }
-            .col li strong {
-                color: var(--ink);
-                font-weight: 600;
-            }
-
-            /* ---------- contact / footer ---------- */
-            .family {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 2.2rem;
-                margin-top: 2.4rem;
-            }
-            .family .k {
-                font-family: var(--mono);
-                font-size: 0.72rem;
-                letter-spacing: 0.14em;
-                text-transform: uppercase;
-                color: var(--muted);
-                margin-bottom: 0.3rem;
-            }
-            .family .v {
-                font-size: 0.92rem;
-            }
-            footer {
-                padding: 2.2rem 0 2.8rem;
-            }
-            footer .wrap {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: space-between;
-                gap: 0.8rem;
-                font-family: var(--mono);
-                font-size: 0.76rem;
-                color: var(--muted);
-            }
-        </style>
-    </head>
-    <body>
-        <a class="skip" href="#main">Skip to content</a>
-        <script type="module" src="/amp-nav.js"></script>
-        <amp-nav property="fleetprompt"></amp-nav>
-        <nav>
-            <div class="wrap">
-                <a class="brand" href="#top">
-                    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
-                        <path d="M5 9h22M5 15h22M5 21h13" stroke="#F2C14E" stroke-width="2" />
-                        <circle cx="24" cy="23" r="5.5" fill="none" stroke="#58E07A" stroke-width="2" />
-                        <path d="M21.5 23l1.8 1.8 3.4-3.6" fill="none" stroke="#58E07A" stroke-width="1.8" />
-                    </svg>
-                    FLEET<b>PROMPT</b>
-                </a>
-                <div class="navlinks">
-                    <a href="#problem">Problem</a>
-                    <a href="#receipt">Receipt</a>
-                    <a href="#substrate">Substrate</a>
-                    <a href="#install">Install</a>
-                    <a href="#status">Status</a>
-                    <a href="#open">Open</a>
-                </div>
-            </div>
-        </nav>
-
-        <header id="top">
-            <div class="wrap">
-                <div class="eyebrow">The distribution layer of the ComputeDriven stack</div>
-                <h1>Trust is a <em>replay</em>, not a badge.</h1>
-                <p class="lede">
-                    A registry where every listing ships the evidence bundle of its own run —
-                    and installing means replaying that bundle on your machine.
-                    <strong>The manifest is a receipt because you can run the receipt.</strong>
-                    Below is that registry's entire current contents: one entry, and it is not
-                    yet installable. That count is real, which is the point of this page — and
-                    the trust-score marketplace it replaces is still running at
-                    <a href="https://app.fleetprompt.com">app.fleetprompt.com</a>, argued with
-                    rather than quietly deleted.
-                </p>
-
-                <div class="receipt">
-                    <div class="head">
-                        <span>fleetprompt registry · entry 000 of 000</span>
-                        <b>specimen</b>
-                    </div>
-                    <div class="stamp" aria-label="Stamp: replayed">Replayed</div>
-                    <div class="rline">
-                        <span class="k">listing</span>
-                        <span class="v">the trvs demo world</span>
-                    </div>
-                    <div class="rline">
-                        <span class="k">identity</span>
-                        <span class="v id">sem-8ae91fe9cbc5fd08</span>
-                    </div>
-                    <div class="rline">
-                        <span class="k">engine</span>
-                        <span class="v">v0.7.0-alpha.5 · doctor: status ready</span>
-                    </div>
-                    <div class="rline">
-                        <span class="k">sealed on</span>
-                        <span class="v">arch/linux · build workstation</span>
-                    </div>
-                    <div class="rline">
-                        <span class="k">replayed on</span>
-                        <span class="v">t&amp;r · freebsd 15 guest · 2026-08-09</span>
-                    </div>
-                    <div class="stamp pending" aria-label="Stamp: not installable">Not installable</div>
-                    <div class="foot">
-                        Same implementation on both machines — one codebase agreeing with
-                        itself, not two implementations agreeing. The guest was created straight
-                        from the build pipeline's own image and never touched afterwards: the
-                        verifier and runtime are in the image now, not copied there by hand.
-                        Both stamps are earned.
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <main id="main">
-        <section id="problem">
-            <div class="wrap">
-                <div class="kicker">The trust problem</div>
-                <h2>Discovery is solved. <em>Behavior</em> is not.</h2>
-                <p class="sub">
-                    The agent ecosystem does not lack directories. Community hubs index tens of
-                    thousands of MCP servers; the official MCP registry — still in preview as
-                    of mid-2026 — authenticates the namespace you publish under; curated skill
-                    marketplaces run security scans on listings. All of it is useful, and all
-                    of it is <strong>provenance</strong>: who published, whether it scans
-                    clean, how many people starred it.
-                </p>
-                <p class="sub">
-                    None of it is behavior. A namespace check verifies who you are, not what
-                    the thing does. A security scan reads the code at rest, not the run. A
-                    trust score is a declaration — a number someone's pipeline asserted about
-                    a thing you cannot re-derive. We want the layer underneath a declaration:
-                    <strong>a run you can re-run.</strong> That layer exists in alpha, on the
-                    machinery this stack already builds. The registry around it does not exist
-                    yet — and we know the shape of the thing we are replacing precisely because
-                    we built one: the marketplace this domain serves today computes trust from
-                    four weighted signals and cannot tell you what any listed agent actually
-                    did. This page will keep saying so until the replay gate lands.
-                </p>
-            </div>
-        </section>
-
-        <section id="receipt">
-            <div class="wrap">
-                <div class="kicker">The receipt</div>
-                <h2>What a film is, and what replaying it proves.</h2>
-                <p class="sub">
-                    The evidence bundle is a <strong>film</strong>, sealed by
-                    <code>trvs</code> — the TRAAVIIS verifier. A listing on this registry is a
-                    manifest plus a film, and the install path runs through the film, not
-                    around it.
-                </p>
-                <ul class="plain">
-                    <li>
-                        <strong>Inputs are captured at the boundary.</strong> The world (what
-                        the agent claims to do) and the scenario (what a particular run fed it)
-                        are different documents, and mixing them is a typed rejection. Model
-                        output enters as a claim, canonicalized at OBSERVE — so the film stays
-                        byte-exact even though the model behind it is not deterministic.
-                    </li>
-                    <li>
-                        <strong>The reduction is schedule-independent.</strong> TRVM reduces by
-                        local rewrites on the interaction calculus, so replay order cannot
-                        change the answer. That property is what makes "replay it yourself" a
-                        coherent offer instead of a hope.
-                    </li>
-                    <li>
-                        <strong>Replay derives the identity.</strong> Your machine replays the
-                        bundle and derives a <span class="sem">sem-</span> string. It equals
-                        the listing's identity or it does not. A failed replay is a failed
-                        install — there is no third state to argue about in a review thread.
-                    </li>
-                    <li>
-                        <strong>What it does not prove.</strong> A replay shows what ran, not
-                        that it should. A faithful film of a harmful agent is still harmful.
-                        Films make review checkable; they do not make review unnecessary.
-                    </li>
-                </ul>
-            </div>
-        </section>
-
-        <section id="substrate">
-            <div class="wrap">
-                <div class="kicker">The substrate</div>
-                <h2>Installed onto an image that boots, by a fleet layer that ships.</h2>
-                <p class="sub">
-                    A registry needs somewhere for the install to land. This one has the
-                    unusual advantage that its runtime substrate is the part that already
-                    exists — built and measured next door at
-                    <a href="https://computedriven.com">computedriven.com</a>.
-                </p>
-                <ul class="plain">
-                    <li>
-                        <strong>T&amp;R is the golden image.</strong> A FreeBSD 15 distribution
-                        assembled from pkgbase: 364 MB and 50 packages in the bare server
-                        flavour, 625 MB and 56 once it carries the verifier and the interpreter
-                        that runs it. It writes 57 MB on first boot where a stock cloud image
-                        writes about 3 GB. Patching is a build-time job, done once.
-                    </li>
-                    <li>
-                        <strong>PARKVPS is the fleet layer.</strong> QEMU/KVM with no root, no
-                        libvirt, and no daemon you have to trust — one process per instance,
-                        all state on disk as JSON, and every disk a copy-on-write overlay on
-                        the one shared golden image. Spawning an instance costs kilobytes.
-                    </li>
-                    <li>
-                        <strong>So an install is an overlay.</strong> The end state of
-                        <code>install</code> is not a package scattered into your system — it
-                        is a fresh guest booted from the golden image with the agent's bundle
-                        aboard, disposable by deleting one overlay file.
-                    </li>
-                    <li>
-                        <strong>The build ships the stack now.</strong> A server image built by
-                        the pipeline and never touched afterwards answers <code>trvs doctor</code>
-                        with <code>status ready</code> and derives the demo world's identity
-                        itself. The stack costs 14 MB; the interpreter it needs costs rather
-                        more, taking the server image from 364 MB to 625 MB and 50 packages to
-                        56. <strong>The remaining gap is above it:</strong> nothing here is
-                        installable, because the registry and its three commands do not exist.
-                    </li>
-                </ul>
-            </div>
-        </section>
-
-        <section id="install">
-            <div class="wrap">
-                <div class="kicker">The install path</div>
-                <h2>Three commands. None of them replay yet.</h2>
-                <p class="sub">
-                    This is the designed flow, numbered because the order is the point. An
-                    install engine already exists and runs all seven of its steps — permission
-                    review, manifest verification, dependency resolution, policy check, deploy,
-                    connect, audit. Not one of them is a replay. The tags on the right are the
-                    truth about each step today.
-                </p>
-                <div class="miles">
-                    <div class="mile">
-                        <span class="id">01</span>
-                        <span class="what"
-                            ><b>Publish.</b> Seal the run into a film with
-                            <code>trvs</code>; push manifest and bundle to the registry. The
-                            sealing half runs today, at alpha. The pushing half has a registry
-                            to push to and nowhere in it to put a film.</span
-                        >
-                        <span class="tag no">gate not built</span>
-                    </div>
-                    <div class="mile">
-                        <span class="id">02</span>
-                        <span class="what"
-                            ><b>Verify.</b> Your machine replays the bundle and derives the
-                            identity. Equal to the listing's string, or the install stops. The
-                            underlying replay-and-derive has been measured once, across two
-                            operating systems.</span
-                        >
-                        <span class="tag no">cli not built</span>
-                    </div>
-                    <div class="mile">
-                        <span class="id">03</span>
-                        <span class="what"
-                            ><b>Run.</b> PARKVPS boots a copy-on-write overlay on the T&amp;R
-                            golden image with the verified bundle aboard. The substrate for
-                            this step ships; the wiring from step 02 into it does not
-                            exist.</span
-                        >
-                        <span class="tag built">substrate ships</span>
-                    </div>
-                </div>
-                <div class="note">
-                    <strong>Why publish a flow that isn't code?</strong> Because the design
-                    constrains the build, and publishing it lets you check the build against
-                    it later. When the CLI lands, this section becomes a transcript instead of
-                    a drawing — and if the transcript disagrees with the drawing, that will be
-                    written here too.
-                </div>
-            </div>
-        </section>
-
-        <section id="status">
-            <div class="wrap">
-                <div class="kicker">Status</div>
-                <h2>What exists, and what is a name.</h2>
-                <div class="tablewrap">
-                    <table>
-                        <caption>Every row measured or admitted, 2026-08-09</caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">Piece</th>
-                                <th scope="col">What it is</th>
-                                <th scope="col">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <th scope="row">Film sealing · trvs</th>
-                                <td class="ref">turns a run into a replayable bundle</td>
-                                <td class="win">alpha · v0.7.0-alpha.5</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Replay check</th>
-                                <td class="ref">same identity derived on two operating systems</td>
-                                <td class="ok">measured · once</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">T&amp;R golden image</th>
-                                <td class="ref">the FreeBSD 15 distribution installs land on</td>
-                                <td class="win">shipping</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">PARKVPS fleet layer</th>
-                                <td class="ref">rootless, daemonless instances as CoW overlays</td>
-                                <td class="win">shipping</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Stack in the image</th>
-                                <td class="ref">
-                                    the build installing runtime + verifier — server flavour,
-                                    pristine, measured 2026-08-09
-                                </td>
-                                <td class="win">in the image</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Registry service</th>
-                                <td class="ref">
-                                    search, publishers, trust dashboard, 7-step install engine —
-                                    157 tests, live at app.fleetprompt.com
-                                </td>
-                                <td class="sup">built · superseded</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Replay-gated registry</th>
-                                <td class="ref">that same service, with install gated on a film</td>
-                                <td class="no">not built</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">publish / verify / install CLI</th>
-                                <td class="ref">the three commands above</td>
-                                <td class="no">not built</td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Second publisher</th>
-                                <td class="ref">anyone but us sealing a listing</td>
-                                <td class="no">none</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section id="open">
-            <div class="wrap">
-                <div class="kicker">Open</div>
-                <h2>What doesn't work yet, on the same page as what does.</h2>
-                <p class="sub">
-                    A marketplace page that only shows wins is asking you to shop on faith.
-                    These are the current holes, at the size they actually are.
-                </p>
-                <div class="board">
-                    <div class="item">
-                        <h3>A replay proves what ran, not that it's safe</h3>
-                        <p>
-                            Identity is not harmlessness. A faithful bundle of a bad agent
-                            replays perfectly. Films make review checkable — a human still has
-                            to do the reviewing.
-                        </p>
-                    </div>
-                    <div class="item">
-                        <h3>One implementation</h3>
-                        <p>
-                            "Same identity on two machines" currently means one codebase
-                            agreeing with itself. A registry whose trust math rests on one
-                            program has a single point of semantic failure.
-                        </p>
-                    </div>
-                    <div class="item">
-                        <h3>An image that can verify, and nothing that installs</h3>
-                        <p>
-                            The stack is in the build as of 2026-08-09, so a pristine guest can
-                            replay and derive. What it cannot do is fetch: "install to the
-                            substrate" still has no registry to install from, which makes this a
-                            capability rather than a product.
-                        </p>
-                    </div>
-                    <div class="item">
-                        <h3>Permissions are declared, not derived</h3>
-                        <p>
-                            What an agent may touch is still a human-written manifest. Deriving
-                            least-privilege from the film itself is an idea we like and a
-                            feature that does not exist.
-                        </p>
-                    </div>
-                    <div class="item">
-                        <h3>Economics unpriced</h3>
-                        <p>
-                            Films have weight. Hosting bundles, replay compute, who pays for
-                            verification bandwidth — unanswered. A registry with no cost model
-                            is a demo of a registry.
-                        </p>
-                    </div>
-                    <div class="item">
-                        <h3>A registry of one is a ledger</h3>
-                        <p>
-                            The count on this page is one, and the one is ours. Until a second
-                            publisher seals a listing we did not write, this is a ledger, not a
-                            market.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="note correction">
-                    <strong>This page replaces an earlier one.</strong> The earlier
-                    fleetprompt.com displayed a registry of five agents with trust scores,
-                    install counts, and a launch date. Not one of the five was a real listing,
-                    the numbers beside them were written by hand rather than computed by the
-                    trust engine that genuinely exists, and the date passed. The registry above
-                    shows its true contents: one entry, sealed by us, not installable. When that
-                    changes, the count changes — nothing else on this page is allowed to change
-                    it.
-                </div>
-            </div>
-        </section>
-
-        <section id="clarity">
-            <div class="wrap">
-                <div class="kicker">Clarity</div>
-                <h2>What FleetPrompt is, and is not.</h2>
-                <div class="cols">
-                    <div class="col is">
-                        <h3>It is</h3>
-                        <ul>
-                            <li>
-                                <strong>A registry design</strong> — manifests plus replayable
-                                films, with install gated on replay
-                            </li>
-                            <li>
-                                <strong>Built on machinery that runs</strong> — trvs at alpha,
-                                T&amp;R and PARKVPS shipping
-                            </li>
-                            <li>
-                                <strong>Mechanical about trust</strong> — an identity you
-                                derive, never a score you're told
-                            </li>
-                            <li>
-                                <strong>Part of one stack</strong> — specs at
-                                <a href="https://specprompt.com">specprompt.com</a>, substrate
-                                at <a href="https://computedriven.com">computedriven.com</a>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="col isnot">
-                        <h3>It is not</h3>
-                        <ul>
-                            <li><strong>Launched</strong> — there is no waitlist because there is nothing to wait for yet</li>
-                            <li><strong>A model hub</strong> — no weights, no checkpoints</li>
-                            <li><strong>A prompt library</strong> — listings carry films, not vibes</li>
-                            <li>
-                                <strong>A safety authority</strong> — replay proves
-                                fidelity; judgment stays with the person installing
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="work">
-            <div class="wrap">
-                <div class="kicker">Follow the work</div>
-                <h2>If a receipt you can run sounds like the missing layer.</h2>
-                <p class="sub">
-                    The registry will grow in the open, gated behind the same rule as this
-                    page: counts are real or they are absent. If you ship agents and the trust
-                    problem costs you — tell us what a receipt would need to contain before
-                    you'd stake an install on it. That answer shapes the manifest format.
-                </p>
-                <div class="family">
-                    <div>
-                        <div class="k">Email</div>
-                        <div class="v">hello@computedriven.com</div>
-                    </div>
-                    <div>
-                        <div class="k">Machinery</div>
-                        <div class="v"><a href="https://traaviis.com">traaviis.com</a></div>
-                    </div>
-                    <div>
-                        <div class="k">Source</div>
-                        <div class="v"><a href="https://github.com/c-u-l8er">github.com/c-u-l8er</a></div>
-                    </div>
-                    <div>
-                        <div class="k">Substrate</div>
-                        <div class="v"><a href="https://github.com/c-u-l8er/travel-and-rrabbit">travel-and-rrabbit</a></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-        </main>
-
-        <footer>
-            <div class="wrap">
-                <span>FleetPrompt — the distribution layer</span>
-                <span>a ComputeDriven site · sibling: <a href="https://specprompt.com">specprompt.com</a></span>
-            </div>
-        </footer>
-    </body>
-</html>
+</main>
+</div>
+<footer><div class="in">
+<span class="stamp">FLEETPROMPT v0.1.0 · RECORDS 2026-08-17</span>
+<span class="links"><a href="https://app.fleetprompt.com">The deployed registry</a><a href="https://github.com/c-u-l8er/fleetprompt.com">Source</a><a href="https://docs.ampersandboxdesign.com/#/fleetprompt.com/docs/spec/README.md">Spec</a><a href="https://github.com/c-u-l8er/fleetprompt.com/issues">File a correction</a><a href="https://specprompt.com">Sibling: specprompt</a></span>
+</div>
+<div class="attrib">This page is generated from <code>records/surface.json</code> and from the test suite itself, and <code>launch-gate.mjs</code> refuses to publish it when the artifact and the records disagree &mdash; including if the second-publisher row stops saying what it says. Its whole content ships with zero JavaScript: the correction form posts without it, the portfolio nav and the identifying animation are the only scripts, and the animation reads nothing from this page and writes nothing to it. &copy; 2026 FleetPrompt, a ComputeDriven site.</div>
+</footer>
+<script src="/replay.js" defer></script>
+<script src="/form.js" defer></script>
+</body></html>

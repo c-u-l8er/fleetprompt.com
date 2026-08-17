@@ -3,7 +3,16 @@
 Canonical user-story catalog. Each story is a Playwright-testable journey covering unit-tested code paths. Used for (a) e2e test generation in `e2e-playwright/tests/user-stories/fleetprompt/`, and (b) as Claude Design input for UI generation.
 
 **Scope:** Agent marketplace with trust scoring, crystallization, install + review.
-**Unit-test surface covered:** `test/fleet_prompt/**` (157 tests).
+**Unit-test surface covered:** `test/fleet_prompt/**` — **114 tests defined**, of which
+`mix test` runs **112 green** and excludes **2** (tagged `live_crystallization`; they fail
+when included, because they need a live service).
+
+> **Corrected 2026-08-17.** This line said **157 tests**, and so did the landing page. Nothing
+> in this repository has ever had 157 tests — re-derived by running the suite, not by counting
+> files. `build-site.mjs` now executes `mix test` on every build of the landing page, parses
+> what ExUnit prints, and refuses to emit the page if the number drifts from
+> `records/tests.json`. No gate would have caught the original error: nothing had ever run the
+> suite and compared.
 
 ---
 

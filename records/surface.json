@@ -1,0 +1,280 @@
+{
+  "schema": "computedriven-surface-v1",
+  "_comment": "The frozen record the landing page is GENERATED from. Nothing on the emitted page may state a rung, a status or a count that is not derived here or RECOMPUTED by build-site.mjs by running the suite itself. launch-gate.mjs then reads the emitted index.html and refuses to publish when the artifact and this record disagree. Do not hand-edit index.html — the next build reverts it.",
+  "shell_revision": "shell-r9",
+  "version": "0.1.0",
+  "origin": "https://fleetprompt.com",
+  "repo": "https://github.com/c-u-l8er/fleetprompt.com",
+  "app_origin": "https://app.fleetprompt.com",
+  "surface": "FleetPrompt",
+  "layer": "distribution",
+  "parent": "ComputeDriven",
+  "tier": 3,
+  "_tier_comment": "READ THE NAV, NOT THE TEMPLATE. ampersand-nav/src/amp-nav.js records fleetprompt as { place: 3, rung: 'live_deployed' }, and its own renderPlacement() (line 1690) gives the layer sentence to place 2 ONLY — place 3 gets 'a specification in the ComputeDriven world' plus a spec link. This page embeds <amp-nav property=\"fleetprompt\"> directly beneath this band. The PRIOR page's hero eyebrow read 'The distribution layer of the ComputeDriven stack', which is a place-2 claim; it is now in launch-gate.mjs's retraction blocklist, bounded to exactly one occurrence inside the retraction. Checked 2026-08-17 by reading amp-nav.js; the nav source is lane N's and was NOT edited.",
+  "_nav_placement_not_live": "MEASURED 2026-08-17 and worth knowing before anyone reasons about 'the nav rendered beneath this band': the amp-nav.js copy served from this domain is 51,428 bytes and contains NEITHER renderPlacement() NOR the PLACEMENT table. All 19 synced copies in the tree are byte-identical and none carries it; only ampersand-nav/src/amp-nav.js (65,544 bytes) does. So the nav's own placement band is not live on any domain today. This band is currently the only placement statement on the page, and it already says what the nav will say when lane N next runs sync-nav.sh — so the sync is safe rather than a contradiction waiting to happen.",
+  "question": "Can a listing carry a receipt you can re-run?",
+  "spec_file": "docs/spec/README.md",
+  "surface_rung": "live_deployed",
+  "rung_witness": "deployed_service_check",
+  "_rung_witness_comment": "SHELL.md r5. 'Any pending gate blocks live_deployed' is too blunt — second_publisher and replay_gate are pending by construction and would freeze this surface forever. This names the ONE gate that witnesses the rung; launch-gate.mjs refuses if the named gate is not approved with its evidence.",
+  "surface_rung_covers": "the registry service at app.fleetprompt.com — the trust-scored marketplace this page argues past, which is deployed, answers its own health endpoint, and lists nothing. It does not cover the replay gate: no listing anywhere can be installed by replaying its film, because the gate and the three commands that would use it are not built",
+  "verified_at": "2026-08-17",
+  "status": {
+    "statement": "The superseded registry service is deployed and answering. app.fleetprompt.com returns 200, GET /api/health returns {\"status\":\"ok\",\"version\":\"0.1.0\",\"service\":\"fleetprompt\"} — the deployed build naming the same version this page is stamped with — and POST /mcp returns 200. The search page renders and its agent grid is empty.",
+    "source": "Five measurements on 2026-08-17. (1) mix test — 112 tests, 0 failures, 2 excluded. (2) curl https://app.fleetprompt.com/ — 200, a LiveView search page with an empty result grid. (3) curl /api/health — the JSON above. (4) curl POST /mcp — 200. (5) curl /api/agents/search — 500 on every query tried, including with no query at all.",
+    "limit": "This establishes that a service is deployed and that its own health endpoint agrees with this repository about the version. It does not establish that the service is useful: its JSON search endpoint returns 500 on every query, its registry lists nothing, and the model it implements — trust computed from four weighted signals — is the one this page argues against. It does not establish anything about replay: no film has ever gated an install, because the gate does not exist. And the one identity measured across two operating systems was derived by a single implementation twice, which is not two implementations agreeing."
+  },
+  "advance": {
+    "next_rung": "external",
+    "requires": "A publisher who is not us sealing a listing, and a machine that is not ours replaying it to the same identity. Building the gate would make that possible; it would not make it true. Until then the count on this page stays at one and the count is ours."
+  },
+  "identity": {
+    "sem_id": "sem-8ae91fe9cbc5fd08",
+    "measured_at": "2026-08-09",
+    "hosts": [
+      "arch/linux · build workstation",
+      "t&r · freebsd 15 guest"
+    ],
+    "engine": "v0.7.0-alpha.5",
+    "_comment": "Carried forward from the prior landing page, NOT re-derived by this build. This lane owns two marketing repositories and neither contains the TRVM/trvs code that computes this string. Published with the date it was measured on and with the reviewer field naming exactly that limitation. launch-gate.mjs refuses any sem- string on the page that is not this one."
+  },
+  "artifacts": [
+    {
+      "id": "registry",
+      "name": "The registry service",
+      "where": "app.fleetprompt.com",
+      "rung": "live_deployed",
+      "detail": "Search, publishers, a trust dashboard and a seven-step install engine — permission review, manifest verification, dependency resolution, policy check, deploy, connect, audit. Not one of those steps is a replay. It is the shape of the thing this page is replacing, and it is running.",
+      "witness": "GET / returns 200 and renders. GET /api/health returns the service's own name and version. POST /mcp returns 200. GET /api/agents/search returns 500 on every query. Measured 2026-08-17."
+    },
+    {
+      "id": "engine",
+      "name": "The install engine and the trust engine",
+      "where": "lib/fleet_prompt/",
+      "rung": "in_tree",
+      "detail": "The seven install steps, the four-signal trust computation, the publish flow, version immutability, the fork system and the MCP tools — with a suite that exercises them, including the denials: an agent not on an allowlist, a policy that does not exist, an unreachable MCP dependency.",
+      "witness": "The suite is re-run by every build of this page and the counts below are what it printed, including the two tests that are excluded by default and what happens when they are not."
+    },
+    {
+      "id": "spec",
+      "name": "The FleetPrompt specification",
+      "where": "docs/spec/README.md",
+      "rung": "spec",
+      "detail": "v0.1: manifests (§4), the trust engine (§5), the publish pipeline (§6), the install pipeline (§7), permission sandboxing (§7.2) and the MCP tools (§11). The replay gate this page is about is not in it yet either.",
+      "witness": "A document. What it specifies at §5 is the model being superseded, which is worth saying out loud on the page that supersedes it."
+    }
+  ],
+  "unmeasured": [
+    {
+      "id": "replay_gate",
+      "name": "The replay-gated registry",
+      "rung": "spec",
+      "detail": "The same service, with install gated on a film that replays to the listing's identity or does not. This is the entire proposition of this domain and it is the row that says not built.",
+      "needs": "Somewhere in the registry to put a film, and a step in the install engine that refuses when the derived identity differs.",
+      "built": "no"
+    },
+    {
+      "id": "cli",
+      "name": "The publish, verify and install commands",
+      "rung": "spec",
+      "detail": "Three commands. Publish seals a run and pushes manifest and bundle; verify replays and derives; install boots a copy-on-write overlay with the verified bundle aboard. The sealing half runs today at alpha. The pushing half has a registry to push to and nowhere in it to put a film.",
+      "needs": "A manifest format that carries a film reference, and a client that can be wrong out loud.",
+      "built": "no"
+    },
+    {
+      "id": "second_publisher",
+      "name": "A second publisher",
+      "rung": "spec",
+      "detail": "Anyone but us sealing a listing. A registry whose only entry is its own author's is a ledger, not a market, and no amount of engineering changes that — only somebody else does.",
+      "needs": "A person who is not us, with a run worth sealing.",
+      "built": "no"
+    },
+    {
+      "id": "permissions",
+      "name": "Permissions derived from the film",
+      "rung": "spec",
+      "detail": "What an agent may touch is still a human-written manifest. Deriving least privilege from what the run actually did is an idea we like and a feature that does not exist.",
+      "needs": "A film with enough resolution to say what was touched, and a policy language that can read it.",
+      "built": "no"
+    },
+    {
+      "id": "economics",
+      "name": "Who pays for the replaying",
+      "rung": "spec",
+      "detail": "Films have weight. Hosting bundles, replay compute, verification bandwidth — unanswered. A registry with no cost model is a demonstration of a registry.",
+      "needs": "A number, and someone willing to be held to it.",
+      "built": "no"
+    }
+  ],
+  "_pieces_comment": "The prior page's status table, PRESERVED. The external audit named this domain and its sibling as the template the rest of the portfolio should copy, and this column is why. The last row is the most valuable sentence on this domain and it must survive every redesign: 'Second publisher — anyone but us sealing a listing — none.' launch-gate.mjs refuses the build if the page stops saying it, or if any unbuilt thing is described in a marketing tense instead. Do not soften it.",
+  "pieces": [
+    {
+      "piece": "Film sealing · trvs",
+      "what": "turns a run into a replayable bundle",
+      "status": "alpha · v0.7.0-alpha.5",
+      "measured": true
+    },
+    {
+      "piece": "Replay check",
+      "what": "the same identity derived on two operating systems",
+      "status": "measured · once",
+      "measured": true
+    },
+    {
+      "piece": "T&R golden image",
+      "what": "the FreeBSD 15 distribution an install would land on",
+      "status": "shipping",
+      "measured": true
+    },
+    {
+      "piece": "PARKVPS fleet layer",
+      "what": "rootless, daemonless instances as copy-on-write overlays",
+      "status": "shipping",
+      "measured": true
+    },
+    {
+      "piece": "Stack in the image",
+      "what": "the build installing runtime and verifier into the server flavour",
+      "status": "in the image",
+      "measured": true
+    },
+    {
+      "piece": "Registry service",
+      "what": "search, publishers, trust dashboard, seven-step install engine — live on its own host",
+      "status": "built · superseded",
+      "measured": false
+    },
+    {
+      "piece": "Replay-gated registry",
+      "what": "that same service, with install gated on a film",
+      "status": "not built",
+      "measured": false
+    },
+    {
+      "piece": "publish / verify / install CLI",
+      "what": "the three commands the install path is drawn from",
+      "status": "not built",
+      "measured": false
+    },
+    {
+      "piece": "Second publisher",
+      "what": "anyone but us sealing a listing",
+      "status": "none",
+      "measured": false
+    }
+  ],
+  "steps": [
+    {
+      "n": "01",
+      "verb": "Publish",
+      "detail": "Seal the run into a film with trvs; push manifest and bundle to the registry. The sealing half runs today, at alpha. The pushing half has a registry to push to and nowhere in it to put a film.",
+      "tag": "gate not built"
+    },
+    {
+      "n": "02",
+      "verb": "Verify",
+      "detail": "Your machine replays the bundle and derives the identity. Equal to the listing's string, or the install stops. The underlying replay-and-derive has been measured once, across two operating systems.",
+      "tag": "cli not built"
+    },
+    {
+      "n": "03",
+      "verb": "Run",
+      "detail": "PARKVPS boots a copy-on-write overlay on the T&R golden image with the verified bundle aboard. The substrate for this step ships; the wiring from step 02 into it does not exist.",
+      "tag": "substrate ships"
+    }
+  ],
+  "zero_counts": [
+    {
+      "label": "Listings anyone can install",
+      "value": "0",
+      "witness": "The registry holds one entry, it is ours, and it is not installable — there is no replay gate for it to pass. The deployed service's own search grid renders empty, and its JSON search endpoint returns 500 on every query."
+    },
+    {
+      "label": "Films that have ever gated an install",
+      "value": "0",
+      "witness": "The install engine runs all seven of its steps and not one of them is a replay. Sealing works at alpha; nothing consumes a seal."
+    }
+  ],
+  "retracted": [
+    {
+      "string": "The distribution layer of the ComputeDriven stack",
+      "why": "A place-2 claim on a place-3 surface. ampersand-nav files fleetprompt as place 3, whose band reads 'a specification in the ComputeDriven world'."
+    },
+    {
+      "string": "157 tests",
+      "why": "The prior page and docs/ux/user-stories.md both said the registry service has 157 tests. Re-derived by running the suite on 2026-08-17: 114 tests are defined, mix test runs 112 with 0 failures and excludes 2, and those 2 fail when included because they need a live service. 157 is not the count of anything in this repository."
+    },
+    {
+      "string": "hello@computedriven.com",
+      "why": "An email address published on a public page. SITES.md 0.5, Travis's call of 2026-08-11: contact is never a mailbox."
+    }
+  ],
+  "contact": {
+    "kind": "formspree",
+    "endpoint": "https://formspree.io/f/xaewoadr",
+    "url": "https://github.com/c-u-l8er/fleetprompt.com/issues",
+    "_comment": "SHELL.md r9. RULED by Travis: use the same Formspree endpoint computedriven.com uses, and copy its shape rather than only its URL — a real <form action method novalidate> that posts with scripting off, JS only upgrading it to an inline reply, success printed only on an actual 2xx, the _gotcha honeypot present, and the reply paragraph role=status aria-live=polite. The issues URL is kept as the secondary public route. Still no mailto: anywhere, and launch-gate.mjs refuses one."
+  },
+  "gates": {
+    "_comment": "A gate may not read approved without its evidence, reviewer and date fields, and launch-gate.mjs enforces that in the artifact.",
+    "suite_green": {
+      "label": "The registry service's suite runs green",
+      "status": "approved",
+      "description": "The build re-runs it and refuses to emit a page if the count or the failure count moves off the frozen record. The two excluded tests are recorded as excluded rather than quietly counted as passing.",
+      "evidence": "mix test — 112 tests, 0 failures, 2 excluded. mix test --include live_crystallization — 114 tests, 2 failures. The two are FleetPrompt.KilnPollWorkerLiveTest and they fail in setup because they need a live service.",
+      "reviewer": "ExUnit, run in this repository on this machine",
+      "date": "2026-08-17"
+    },
+    "deployed_service_check": {
+      "label": "app.fleetprompt.com answers, and names its own version",
+      "status": "approved",
+      "description": "A 200 alone would not settle this — a catch-all returns 200 for any path. The health endpoint was made to state the service's own name and version, which a static page cannot do, and it agrees with mix.exs.",
+      "evidence": "GET /api/health returned {\"status\":\"ok\",\"version\":\"0.1.0\",\"service\":\"fleetprompt\"}; POST /mcp returned 200; GET / rendered a LiveView search page with an empty grid; GET /api/agents/search returned 500 for every query tried.",
+      "reviewer": "curl, from this machine, against https://app.fleetprompt.com",
+      "date": "2026-08-17"
+    },
+    "identity_two_os": {
+      "label": "One sem- identity derived on two operating systems",
+      "status": "approved",
+      "description": "The demo world's identity was derived on the Arch Linux workstation that builds the T&R image and on a booted T&R FreeBSD guest created from that image, and the two strings matched.",
+      "evidence": "sem-8ae91fe9cbc5fd08 on both hosts, engine v0.7.0-alpha.5, trvs doctor reporting status ready on the guest.",
+      "reviewer": "Recorded on the prior fleetprompt.com landing page and carried forward. NOT re-derived by this build: neither repository this lane owns contains the code that computes the string.",
+      "date": "2026-08-09"
+    },
+    "replay_gate": {
+      "label": "An install has been refused by a replay",
+      "status": "pending",
+      "description": "The gating claim of this domain. Sealing runs at alpha; nothing consumes a seal, so no install has ever been stopped by one.",
+      "evidence": null,
+      "reviewer": null,
+      "date": null
+    },
+    "second_publisher": {
+      "label": "Anyone but us has sealed a listing",
+      "status": "pending",
+      "description": "The count on this page is one and the one is ours. Pending until somebody else's run is in it.",
+      "evidence": null,
+      "reviewer": null,
+      "date": null
+    },
+    "second_implementation": {
+      "label": "Code we did not write derives the same identity",
+      "status": "pending",
+      "description": "Two operating systems is portability. Two implementations would be semantics. A registry whose trust maths rests on one program has a single point of semantic failure.",
+      "evidence": null,
+      "reviewer": null,
+      "date": null
+    }
+  },
+  "type_metrics": {
+    "_comment": "SHELL.md r7: display faces vary enormously in ink height, so a line-height that is safe in one is broken in another. Measured in a browser with canvas TextMetrics in the h1's OWN computed font — actualBoundingBoxAscent + actualBoundingBoxDescent against the computed line box — not assumed. launch-gate.mjs refuses if src/shell.css stops declaring the value that was measured to fit.",
+    "h1_face": "Big Shoulders 800",
+    "h1_px": 73.6,
+    "h1_ink_px": 76.0,
+    "h1_line_box_px": 82.4,
+    "h1_line_height": "1.12",
+    "headroom_px": 6.4,
+    "measured_at": "2026-08-17",
+    "measured_with": "agent-browser --session prompts, at 1280x800"
+  }
+}

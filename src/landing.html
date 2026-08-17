@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Can a listing carry a receipt you can re-run? — FleetPrompt</title>
+<meta name="description" content="A registry design where every listing ships the evidence bundle of its own run, and installing means replaying that bundle on your machine. The registry holds one entry, it is ours, and it is not installable — the replay gate and the three commands that would use it are not built. The trust-scored marketplace it replaces is still running, and this page argues with it rather than deleting it.">
+<meta name="falsifiable-question" content="{{QUESTION}}">
+<link rel="canonical" href="{{ORIGIN}}/">
+<meta name="theme-color" content="#0a0806">
+<meta property="og:title" content="Can a listing carry a receipt you can re-run? — FleetPrompt">
+<meta property="og:description" content="Trust as a replay, not a badge. Counts on this page are real or they are absent, and the count is one.">
+<meta property="og:type" content="website"><meta property="og:url" content="{{ORIGIN}}/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0806'/%3E%3Crect x='5' y='9' width='16' height='14' fill='none' stroke='%23ff7a45' stroke-width='2'/%3E%3Cpath d='M8 12h2M8 16h2M8 20h2M16 12h2M16 16h2M16 20h2' stroke='%23ff7a45' stroke-width='1.5'/%3E%3Cpath d='M26 5v22' stroke='%23f5c451' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,700;10..72,800&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="module" src="/amp-nav.js"></script>
+<style>{{CSS}}</style></head><body>
+{{BAND}}
+<amp-nav property="fleetprompt"></amp-nav>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+
+<div class="top"><a class="logo" href="/">fleet<span>prompt</span></a>
+<nav><a href="#registry">The registry</a><a href="#receipt">The receipt</a><a href="#install">The install path</a><a href="#open">What does not work</a><a href="{{SPEC_URL}}">The spec &uarr;</a><a class="btn" href="#registry">See the whole registry</a></nav></div>
+
+<main id="main">
+
+<!-- SHELL.md §8 + r9: the identifying animation is ABOVE THE FOLD, inside the
+     first section, and it comes after the <h1> in source order because the
+     question comes first. It depicts this domain's own subject — a bundle
+     being refused by a replay gate — and it renders no data: /replay.js takes
+     no input from this document and writes nothing back into it. Delete both
+     script tags and every word, figure, chip, row and the correction form are
+     still here and still work. -->
+<section class="hero">
+<div class="front">
+<div class="eyebrow">The question this site exists to answer</div>
+<h1>Can a listing carry <em>a receipt you can re-run?</em></h1>
+<p class="lede">Discovery is solved. Directories index tens of thousands of servers, registries authenticate the namespace you publish under, marketplaces scan listings for known-bad code. All of it is <strong>provenance</strong> — who published, whether it scans clean, how many people starred it — and none of it is behaviour. A scan reads the code at rest, not the run. A trust score is a number somebody's pipeline asserted about a thing you cannot re-derive. <strong>The layer underneath a declaration is a run you can run again</strong>, and the honest state of that layer here is one entry, ours, not installable.</p>
+<p><a class="btn" href="#registry">See the whole registry</a>&nbsp;&nbsp;<a class="btn ghost" href="#open">See what does not work</a></p>
+</div>
+<div class="idanim" aria-hidden="true"><canvas data-identity-animation></canvas></div>
+</section>
+
+{{PLATE}}
+
+<section id="registry">
+<div class="eyebrow">The registry, in full</div>
+<h2>This is not a sample. It is everything in it.</h2>
+<p class="lede">A marketplace page that shows five listings when it has one is the defect this page exists to not have. Below is the entire current contents of the FleetPrompt registry: <strong>one entry, sealed by us, not installable.</strong> When that changes, the count changes — and nothing else on this page is allowed to change it.</p>
+{{ENTRY}}
+</section>
+
+<section id="receipt">
+<div class="eyebrow">The one idea</div>
+<h2>Trust as a replay, not a badge.</h2>
+<p class="lede">The evidence bundle is a <strong>film</strong>. A listing is a manifest plus a film, and the install path runs <em>through</em> the film rather than around it. Inputs are captured at the boundary — the world an agent claims to do and the scenario a particular run fed it are different documents, and mixing them is a typed rejection. Model output enters as a claim, canonicalized on observation, so the film stays byte-exact even though the model behind it is not deterministic. The reduction is schedule-independent, which is what makes <em>replay it yourself</em> a coherent offer instead of a hope.</p>
+<p class="lede"><strong>What it does not prove.</strong> A replay shows what ran, not that it should have. A faithful film of a harmful agent replays perfectly. Films make review checkable; they do not make review unnecessary, and nothing on this page should be read as saying they do.</p>
+</section>
+
+<section id="install">
+<div class="eyebrow">The install path</div>
+<h2>Three commands. None of them replay yet.</h2>
+<p class="lede">This is the designed flow, numbered because the order is the point. An install engine already exists and runs all seven of its steps — permission review, manifest verification, dependency resolution, policy check, deploy, connect, audit (§7.1). <strong>Not one of them is a replay.</strong> The tag on each step below is the truth about it today, and the reason to publish a drawing of unwritten code is that it lets you check the build against it later. If the transcript ever disagrees with the drawing, that will be written here too.</p>
+{{STEPS}}
+</section>
+
+<section id="runs">
+<div class="eyebrow">What is running, and at which rung</div>
+<h2>Three things exist here, at three different rungs, so they are not in one list.</h2>
+<p class="lede">A single status for this domain would be false in one direction or the other. One artifact answers on a deployed host, one is a codebase with a suite, one is a document. The rung chip on each says which.</p>
+{{ARTIFACTS}}
+</section>
+
+<section id="open">
+<div class="eyebrow">What is not established</div>
+<h2>The gate this whole page is about does not exist.</h2>
+<p class="lede">Sealing a run works, at alpha. Nothing consumes a seal. So no install has ever been stopped by a replay, which means the proposition on this page has never once been exercised — stated first, at full size, because it is the thing a reader would otherwise assume works.</p>
+{{OPEN_CARDS}}
+</section>
+
+<section id="evidence">
+<div class="eyebrow">Evidence, re-run at build time</div>
+<h2>The suite count below was produced by running the suite, not typed onto this page.</h2>
+<p class="lede">This build shells out to <code>mix test</code>, parses what it prints, and <strong>refuses to emit the page</strong> if the number disagrees with the frozen record beside it. The excluded tests are published as excluded rather than quietly counted as passing, and what happens when they are included is published too.</p>
+{{TESTS_TABLE}}
+<p class="lede sm">{{METHOD_NOTE}}</p>
+<h2 class="mt">And the rows that are a name rather than a thing.</h2>
+<p class="lede">Same table shape, honest column. <code>built &middot; superseded</code> is used where something is deployed and running but replaced by the argument above — taking neither credit for it nor pretending it was never there. The last row is the one that matters most.</p>
+{{PIECES_TABLE}}
+</section>
+
+<section id="status">
+<div class="eyebrow">Status</div>
+<h2>Where this stands, and what would move it.</h2>
+{{STATUS}}
+{{ZEROS}}
+{{RETRACTION}}
+</section>
+
+<section id="do">
+<div class="eyebrow">What you can actually do here</div>
+<h2>Three rungs, three lists. Nothing asks you to publish to a registry with nowhere to put a film.</h2>
+{{CTA}}
+</section>
+
+<section id="say">
+<div class="eyebrow">Corrections</div>
+<h2>If a number on this page is wrong, that is the message we most want.</h2>
+<p class="lede">This page is generated from a record and gated, which catches a value that drifted from its witness. It cannot catch a witness that was wrong to begin with — a count on this page was wrong for months and a gate would not have found it, because nothing had ever run the suite and compared. If you ship agents, the other useful answer is what a receipt would have to contain before you would stake an install on it. That shapes the manifest format.</p>
+{{FORM}}
+</section>
+
+</main>
+</div>
+<footer><div class="in">
+<span class="stamp">{{STAMP}}</span>
+<span class="links"><a href="{{APP_ORIGIN}}">The deployed registry</a><a href="{{REPO}}">Source</a><a href="{{SPEC_URL}}">Spec</a><a href="{{ISSUES}}">File a correction</a><a href="https://specprompt.com">Sibling: specprompt</a></span>
+</div>
+<div class="attrib">This page is generated from <code>records/surface.json</code> and from the test suite itself, and <code>launch-gate.mjs</code> refuses to publish it when the artifact and the records disagree &mdash; including if the second-publisher row stops saying what it says. Its whole content ships with zero JavaScript: the correction form posts without it, the portfolio nav and the identifying animation are the only scripts, and the animation reads nothing from this page and writes nothing to it. &copy; {{YEAR}} FleetPrompt, a {{PARENT}} site.</div>
+</footer>
+<script src="/replay.js" defer></script>
+<script src="/form.js" defer></script>
+</body></html>
