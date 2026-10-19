@@ -52,7 +52,7 @@ defmodule FleetPrompt.KilnPollWorkerLiveTest do
 
   # ---- Graphonomous trace seeding --------------------------------
 
-  # Build a minimal OS-011 InteractionTrace that Graphonomous will
+  # Build a minimal GRASP InteractionTrace that Graphonomous will
   # accept and Crystallizer can convert to a manifest.
   defp build_trace(trace_id) do
     now = DateTime.utc_now() |> DateTime.to_iso8601()
